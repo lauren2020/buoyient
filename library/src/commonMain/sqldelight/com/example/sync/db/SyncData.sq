@@ -1,0 +1,144 @@
+CREATE TABLE sync_data (
+    service_name TEXT NOT NULL,
+    client_id TEXT NOT NULL,
+    server_id TEXT,
+    version INTEGER NOT NULL DEFAULT 1,
+    last_synced_timestamp TEXT,
+    data_blob TEXT NOT NULL,
+    sync_status TEXT NOT NULL,
+    voided INTEGER NOT NULL DEFAULT 0,
+    last_synced_server_data TEXT,
+    PRIMARY KEY (service_name, client_id)
+);
+
+CREATE INDEX idx_sync_data_service_server
+    ON sync_data(service_name, server_id);
+
+-- Insert a new locally-created row (pending upload).
+insertLocalData:
+INSERT INTO sync_data (
+    service_name, client_id, server_id, version, data_blob, sync_status
+)
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- Insert a row from a server create response (already synced).
+insertFromServerResponse:
+INSERT INTO sync_data (
+    service_name, client_id, server_id, version,
+    last_synced_timestamp, data_blob, sync_status, last_synced_server_data
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Update a local row's data and version (pending update).
+updateLocalData:
+UPDATE sync_data
+SET version = ?, data_blob = ?
+WHERE service_name = ? AND client_id = ?;
+
+-- Update a row from a server update response.
+upsertFromServerResponse:
+UPDATE sync_data
+SET last_synced_timestamp = ?,
+    version = ?,
+    sync_status = ?,
+    data_blob = ?,
+    last_synced_server_data = ?
+WHERE service_name = ? AND client_id = ?;
+
+-- Insert-or-update a row from a sync-down fetch.
+upsertEntry:
+INSERT INTO sync_data (
+    service_name, client_id, server_id, version,
+    last_synced_timestamp, data_blob, sync_status, last_synced_server_data
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(service_name, client_id) DO UPDATE SET
+    server_id = excluded.server_id,
+    version = excluded.version,
+    last_synced_timestamp = excluded.last_synced_timestamp,
+    data_blob = excluded.data_blob,
+    sync_status = excluded.sync_status,
+    last_synced_server_data = excluded.last_synced_server_data;
+
+-- Mark a row as conflicting during sync-down merge.
+upsertConflictingServerData:
+UPDATE sync_data
+SET sync_status = ?
+WHERE service_name = ? AND (client_id = ? OR server_id = ?);
+
+-- Mark a row as conflicting after a rebase conflict during pending request sync.
+markConflictAfterRebase:
+UPDATE sync_data
+SET sync_status = ?,
+    last_synced_server_data = ?,
+    last_synced_timestamp = ?
+WHERE service_name = ? AND client_id = ?;
+
+-- Mark a row as voided (pending void upload).
+markVoided:
+UPDATE sync_data
+SET voided = 1
+WHERE service_name = ? AND client_id = ?;
+
+-- Update a row from a server void response.
+upsertFromVoidServerResponse:
+UPDATE sync_data
+SET voided = 1,
+    last_synced_timestamp = ?,
+    version = ?,
+    sync_status = ?,
+    data_blob = ?,
+    last_synced_server_data = ?
+WHERE service_name = ? AND client_id = ?;
+
+-- Void a local-only row (no server sync needed).
+voidLocalOnly:
+UPDATE sync_data
+SET voided = 1,
+    sync_status = ?,
+    data_blob = ?
+WHERE service_name = ? AND client_id = ?;
+
+-- Update the main table after a successful CREATE or UPDATE upload.
+updateAfterCreateOrUpdateUpload:
+UPDATE sync_data
+SET server_id = ?,
+    last_synced_timestamp = ?,
+    version = ?,
+    sync_status = ?,
+    data_blob = ?,
+    last_synced_server_data = ?
+WHERE service_name = ? AND client_id = ?;
+
+-- Update the main table after a successful CREATE or UPDATE upload, without changing data_blob.
+updateAfterCreateOrUpdateUploadWithoutData:
+UPDATE sync_data
+SET server_id = ?,
+    last_synced_timestamp = ?,
+    version = ?,
+    sync_status = ?,
+    last_synced_server_data = ?
+WHERE service_name = ? AND client_id = ?;
+
+-- Update the main table after a successful VOID upload.
+updateAfterVoidUpload:
+UPDATE sync_data
+SET last_synced_timestamp = ?,
+    sync_status = ?,
+    data_blob = ?,
+    last_synced_server_data = ?,
+    version = ?
+WHERE service_name = ? AND client_id = ?;
+
+-- Look up a single entry by client_id or server_id.
+getData:
+SELECT last_synced_server_data, sync_status, last_synced_timestamp, client_id, data_blob
+FROM sync_data
+WHERE service_name = ? AND (client_id = ? OR server_id = ?)
+LIMIT 1;
+
+-- Fetch all entries for a service.
+getAllData:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name
+LIMIT :limit;

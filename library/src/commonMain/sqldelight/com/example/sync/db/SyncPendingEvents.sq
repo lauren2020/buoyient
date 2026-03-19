@@ -1,0 +1,106 @@
+CREATE TABLE sync_pending_events (
+    pending_request_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service_name TEXT NOT NULL,
+    client_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    request TEXT NOT NULL,
+    server_attempt_made INTEGER NOT NULL DEFAULT 0,
+    data_blob TEXT NOT NULL,
+    conflict_info TEXT,
+    queued_at TEXT NOT NULL DEFAULT '',
+    last_synced_data TEXT,
+    request_tag TEXT
+);
+
+CREATE INDEX idx_pending_events_service_client
+    ON sync_pending_events(service_name, client_id);
+
+-- Insert a new pending event.
+insertPendingEvent:
+INSERT INTO sync_pending_events (
+    service_name, client_id, data_blob, type, request,
+    idempotency_key, server_attempt_made, conflict_info, queued_at, last_synced_data, request_tag
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?);
+
+-- Replace an existing pending event in-place (for squash/merge updates).
+replaceEntry:
+UPDATE sync_pending_events
+SET client_id = ?,
+    data_blob = ?,
+    type = ?,
+    request = ?,
+    idempotency_key = ?,
+    server_attempt_made = ?,
+    conflict_info = ?,
+    last_synced_data = ?,
+    request_tag = ?,
+    queued_at = datetime('now')
+WHERE pending_request_id = ?;
+
+-- Get a single pending request by its ID.
+getPendingRequestById:
+SELECT pending_request_id, type, idempotency_key, request,
+       server_attempt_made, data_blob, conflict_info, last_synced_data, request_tag
+FROM sync_pending_events
+WHERE pending_request_id = ?;
+
+-- Get all pending requests for a specific client_id within a service.
+getPendingRequestsByClientId:
+SELECT pending_request_id, type, idempotency_key, request,
+       server_attempt_made, data_blob, conflict_info, last_synced_data, request_tag
+FROM sync_pending_events
+WHERE service_name = ? AND client_id = ?
+ORDER BY queued_at;
+
+-- Get all pending requests for a service.
+getAllPendingRequests:
+SELECT pending_request_id, type, idempotency_key, request,
+       server_attempt_made, data_blob, conflict_info, last_synced_data, request_tag
+FROM sync_pending_events
+WHERE service_name = ?
+ORDER BY queued_at;
+
+-- Delete all pending requests for a specific client_id within a service.
+clearAllByClientId:
+DELETE FROM sync_pending_events
+WHERE service_name = ? AND client_id = ?;
+
+-- Delete a single pending request by its ID.
+clearById:
+DELETE FROM sync_pending_events
+WHERE pending_request_id = ?;
+
+-- Mark a pending request as having been attempted on the server.
+markAsAttempted:
+UPDATE sync_pending_events
+SET server_attempt_made = 1
+WHERE pending_request_id = ?;
+
+-- Update the last synced server data for a pending request.
+updateLastSyncedData:
+UPDATE sync_pending_events
+SET last_synced_data = ?
+WHERE pending_request_id = ?;
+
+-- Rebase a pending request with updated base data and local data.
+rebasePendingSync:
+UPDATE sync_pending_events
+SET last_synced_data = ?,
+    data_blob = ?
+WHERE pending_request_id = ?;
+
+-- Rebase a pending request with updated base data, local data, and request.
+rebasePendingSyncWithRequest:
+UPDATE sync_pending_events
+SET last_synced_data = ?,
+    data_blob = ?,
+    request = ?
+WHERE pending_request_id = ?;
+
+-- Save conflict info on a pending request.
+saveConflictInfo:
+UPDATE sync_pending_events
+SET conflict_info = ?
+WHERE pending_request_id = ?;
