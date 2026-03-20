@@ -2,7 +2,7 @@ package com.example.sync
 
 import com.example.sync.db.SyncDatabase
 
-class LocalStoreManager<O : SyncableObject<O>>(
+class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val database: SyncDatabase = createSyncDatabase(),
     private val serviceName: String,
     private val syncScheduleNotifier: SyncScheduleNotifier,
@@ -21,7 +21,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
         }
     }
 
-    val pendingRequestQueueManager: PendingRequestQueueManager<O> = PendingRequestQueueManager(
+    val pendingRequestQueueManager: PendingRequestQueueManager<O, T> = PendingRequestQueueManager(
         database = database,
         serviceName = serviceName,
         strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
@@ -50,7 +50,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
         data: O,
         httpRequest: HttpRequest,
         idempotencyKey: String,
-        requestTag: String? = null,
+        requestTag: T,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
             val jsonData = codec.encode(data)
@@ -117,7 +117,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
         idempotencyKey: String,
         lastSyncedData: O,
         buildRequest: (lastSyncedData: O, updatedData: O, idempotencyKey: String) -> HttpRequest,
-        requestTag: String? = null,
+        requestTag: T,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
             val result = transaction {
@@ -190,7 +190,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
         data: O,
         httpRequest: HttpRequest,
         idempotencyKey: String,
-        requestTag: String? = null,
+        requestTag: T,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
             val result = transaction {

@@ -14,12 +14,12 @@ import kotlinx.serialization.json.jsonObject
 /**
  * This class is responsible for orchestrating syncing data between the local client and the server.
  */
-abstract class SyncDriver<O : SyncableObject<O>>(
+abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val serverManager: ServerManager,
     private val connectivityChecker: ConnectivityChecker,
     private val codec: SyncCodec<O>,
     private val serverProcessingConfig: ServerProcessingConfig<O>,
-    private val localStoreManager: LocalStoreManager<O>,
+    private val localStoreManager: LocalStoreManager<O, T>,
     private val logger: SyncLogger,
 ) {
 

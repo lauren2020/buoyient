@@ -10,7 +10,7 @@ CREATE TABLE sync_pending_events (
     conflict_info TEXT,
     queued_at TEXT NOT NULL DEFAULT '',
     last_synced_data TEXT,
-    request_tag TEXT
+    request_tag TEXT NOT NULL
 );
 
 CREATE INDEX idx_pending_events_service_client

@@ -3,7 +3,7 @@ package com.example.sync
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
 
-abstract class SyncableObjectService<O : SyncableObject<O>>(
+abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
     serializer: KSerializer<O>,
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
     serviceName: String,
@@ -15,7 +15,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>>(
         serviceBaseHeaders = serverProcessingConfig.headers,
         logger = logger,
     ),
-    private val localStoreManager: LocalStoreManager<O> = LocalStoreManager(
+    private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
         codec = codec,
         serviceName = serviceName,
         logger = logger,
@@ -23,7 +23,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>>(
     ),
     private val idGenerator: IdGenerator = createPlatformIdGenerator(),
 ) : Service<O>,
-    SyncDriver<O>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, logger)
+    SyncDriver<O, T>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, logger)
 {
 
     init { syncScheduleNotifier.scheduleSyncIfNeeded() }
@@ -58,7 +58,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>>(
         allowAsyncCreation: Boolean = true,
         request: (data: O, idempotencyKey: String, isOffline: Boolean) -> HttpRequest,
         unpackSyncData: (status: Int, response: JsonObject) -> O?,
-        requestTag: String? = null,
+        requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val idempotencyKey = idGenerator.generateId()
         return if (connectivityChecker.isOnline() || !allowAsyncCreation) {
@@ -122,7 +122,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>>(
         idempotencyKey: String,
         data: O,
         httpRequest: HttpRequest,
-        requestTag: String? = null,
+        requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.insertLocalData(
             data = data,
@@ -162,7 +162,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>>(
         allowAsyncUpdate: Boolean = true,
         request: (lastSyncedData: O, updatedData: O, idempotencyKey: String) -> HttpRequest,
         unpackSyncData: (responseBody: JsonObject, statusCode: Int, syncStatus: SyncableObject.SyncStatus) -> O?,
-        requestTag: String? = null,
+        requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val idempotencyKey = idGenerator.generateId()
         val effectiveLastSyncedData = try {
@@ -261,7 +261,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>>(
         data: O,
         lastSyncedData: O,
         buildRequest: (lastSyncedData: O, updatedData: O, idempotencyKey: String) -> HttpRequest,
-        requestTag: String? = null,
+        requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.updateLocalData(
             data = data,
@@ -293,7 +293,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>>(
         data: O,
         request: (data: O, serverAttemptedPendingRequests: List<PendingSyncRequest<O>>) -> HttpRequest,
         unpackData: (status: Int, response: JsonObject) -> O?,
-        requestTag: String? = null,
+        requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val pendingSyncRequests = localStoreManager.pendingRequestQueueManager.getPendingRequests(data.clientId)
         val serverAttemptedPendingRequests = pendingSyncRequests.filter { it.serverAttemptMade }
@@ -366,7 +366,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>>(
         data: O,
         request: HttpRequest,
         idempotencyKey: String,
-        requestTag: String? = null,
+        requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.voidData(
             data = data,

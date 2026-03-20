@@ -34,6 +34,10 @@ class SyncUpRegressionTest {
 
     // region helpers
 
+    private enum class TestRequestTag(override val value: String) : ServiceRequestTag {
+        DEFAULT("default"),
+    }
+
     private fun createInMemoryDatabase(): SyncDatabase {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         SyncDatabase.Schema.create(driver)
@@ -178,7 +182,7 @@ class SyncUpRegressionTest {
             httpClient = HttpClient(mockEngine),
         )
 
-        val localStore = LocalStoreManager(
+        val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = db,
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
@@ -191,12 +195,13 @@ class SyncUpRegressionTest {
             data = item,
             httpRequest = makeRequest(),
             idempotencyKey = "idem-create-c2",
+            requestTag = TestRequestTag.DEFAULT,
         )
 
         val connectivityChecker = object : ConnectivityChecker {
             override fun isOnline(): Boolean = false // keeps periodic sync-down inert
         }
-        val driver = object : SyncDriver<TestItem>(
+        val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
             testServerConfig(), localStore, logger,
         ) {}
@@ -263,7 +268,7 @@ class SyncUpRegressionTest {
             httpClient = HttpClient(mockEngine),
         )
 
-        val localStore = LocalStoreManager(
+        val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = db,
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
@@ -276,6 +281,7 @@ class SyncUpRegressionTest {
             data = createData,
             httpRequest = makeRequest(),
             idempotencyKey = "idem-create-c1",
+            requestTag = TestRequestTag.DEFAULT,
         )
 
         // Step 2: Offline UPDATE item 1.
@@ -297,12 +303,13 @@ class SyncUpRegressionTest {
                     body = buildJsonObject { put("name", updated.name) },
                 )
             },
+            requestTag = TestRequestTag.DEFAULT,
         )
 
         val connectivityChecker = object : ConnectivityChecker {
             override fun isOnline(): Boolean = false
         }
-        val driver = object : SyncDriver<TestItem>(
+        val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
             testServerConfig(), localStore, logger,
         ) {}
@@ -377,7 +384,7 @@ class SyncUpRegressionTest {
             httpClient = HttpClient(mockEngine),
         )
 
-        val localStore = LocalStoreManager(
+        val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = db,
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
@@ -392,12 +399,14 @@ class SyncUpRegressionTest {
             data = item1Create,
             httpRequest = makeRequest(),
             idempotencyKey = "idem-create-c1",
+            requestTag = TestRequestTag.DEFAULT,
         )
         // 2. CREATE item 2
         localStore.insertLocalData(
             data = item2Create,
             httpRequest = makeRequest(),
             idempotencyKey = "idem-create-c2",
+            requestTag = TestRequestTag.DEFAULT,
         )
         // 3. UPDATE item 1 (update 1)
         localStore.updateLocalData(
@@ -411,6 +420,7 @@ class SyncUpRegressionTest {
             buildRequest = { _, updated, _ ->
                 makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
             },
+            requestTag = TestRequestTag.DEFAULT,
         )
         // 4. UPDATE item 1 (update 2)
         localStore.updateLocalData(
@@ -424,12 +434,13 @@ class SyncUpRegressionTest {
             buildRequest = { _, updated, _ ->
                 makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
             },
+            requestTag = TestRequestTag.DEFAULT,
         )
 
         val connectivityChecker = object : ConnectivityChecker {
             override fun isOnline(): Boolean = false
         }
-        val driver = object : SyncDriver<TestItem>(
+        val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
             testServerConfig(), localStore, logger,
         ) {}

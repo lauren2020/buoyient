@@ -6,7 +6,7 @@ open class SyncUpConfig {
     open fun acceptUploadResponseAsProcessed(
         statusCode: Int,
         responseBody: JsonObject,
-        requestTag: String?,
+        requestTag: String,
     ): Boolean {
         return statusCode != 408 // request timeout
                 // Since this is the generic implementation and applicable to many server types,

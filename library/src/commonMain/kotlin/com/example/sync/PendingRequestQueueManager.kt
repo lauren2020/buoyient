@@ -4,7 +4,7 @@ import com.example.sync.db.SyncDatabase
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
-class PendingRequestQueueManager<O : SyncableObject<O>>(
+class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     val database: SyncDatabase,
     val serviceName: String,
     val strategy: PendingRequestQueueStrategy,
@@ -35,7 +35,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
         httpRequest: HttpRequest,
         idempotencyKey: String,
         serverAttemptMade: Boolean,
-        requestTag: String? = null,
+        requestTag: T,
     ): QueueResult {
         val pendingSyncRequest = PendingSyncRequest(
             type = PendingSyncRequest.Type.CREATE,
@@ -44,7 +44,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
             serverAttemptMade = serverAttemptMade,
             data = data,
             lastSyncedData = null,
-            requestTag = requestTag,
+            requestTag = requestTag.value,
         )
         val pendingSyncRequests = getPendingRequests(data.clientId)
         if (
@@ -71,7 +71,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
             updatedData: O,
             idempotencyKey: String,
         ) -> HttpRequest,
-        requestTag: String? = null,
+        requestTag: T,
     ): QueueResult = when (strategy) {
         is PendingRequestQueueStrategy.Squash -> {
             val pendingRequests = getPendingRequests(data.clientId)
@@ -89,7 +89,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
                                 serverAttemptMade = true,
                                 data = data,
                                 lastSyncedData = lastSyncedData,
-                                requestTag = requestTag,
+                                requestTag = requestTag.value,
                             ),
                         )
                     } else {
@@ -106,7 +106,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
                                 serverAttemptMade = false,
                                 data = data,
                                 lastSyncedData = lastSyncedData,
-                                requestTag = requestTag,
+                                requestTag = requestTag.value,
                             ),
                         )
                     }
@@ -122,7 +122,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
                                 serverAttemptMade = false,
                                 data = data,
                                 lastSyncedData = lastSyncedData,
-                                requestTag = requestTag,
+                                requestTag = requestTag.value,
                             ),
                         )
                     } else {
@@ -134,7 +134,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
                         replaceEntry(
                             latestPendingRequest.copy(
                                 request = squashedUpdateRequest,
-                                requestTag = requestTag,
+                                requestTag = requestTag.value,
                             )
                         )
                     }
@@ -149,7 +149,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
                             serverAttemptMade = serverAttemptMade,
                             data = data,
                             lastSyncedData = lastSyncedData,
-                            requestTag = requestTag,
+                            requestTag = requestTag.value,
                         ),
                     )
                 }
@@ -168,7 +168,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
                     serverAttemptMade = serverAttemptMade,
                     data = data,
                     lastSyncedData = lastSyncedData,
-                    requestTag = requestTag,
+                    requestTag = requestTag.value,
                 ),
             )
         }
@@ -180,7 +180,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
         idempotencyKey: String,
         serverAttemptMade: Boolean,
         lastSyncedServerData: O?,
-        requestTag: String? = null,
+        requestTag: T,
     ): QueueResult {
         return storeEntry(
             PendingSyncRequest(
@@ -190,7 +190,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
                 serverAttemptMade = serverAttemptMade,
                 data = data,
                 lastSyncedData = lastSyncedServerData,
-                requestTag = requestTag,
+                requestTag = requestTag.value,
             )
         )
     }
@@ -279,7 +279,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
         data: String,
         conflictInfo: String?,
         lastSyncedData: String?,
-        requestTag: String?,
+        requestTag: String,
     ): PendingSyncRequest<O> = PendingSyncRequest(
         pendingRequestId = pendingRequestId.toInt(),
         type = PendingSyncRequest.Type.fromValue(type),

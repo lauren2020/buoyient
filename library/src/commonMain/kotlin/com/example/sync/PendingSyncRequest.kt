@@ -19,7 +19,7 @@ data class PendingSyncRequest<O : SyncableObject<O>>(
     val data: O,
     val lastSyncedData: O?,
     val conflict: SyncableObjectMergeHandler.FieldConflict<O>? = null,
-    val requestTag: String? = null,
+    val requestTag: String,
 ) {
     enum class Type(val value: String) {
         CREATE("CREATE"),
