@@ -119,7 +119,7 @@ class YourModel(
 - `toJson()` must include `SERVER_ID_TAG`, `CLIENT_ID_TAG`, and `VERSION_TAG` — data-buoy reads these from the JSON blob.
 - `fromJson()` must accept a `syncStatus` parameter (data-buoy manages sync status separately from the blob).
 - The convenience constructor should set `serverId = null`, generate a random `clientId`, set `version = 0`, and set `syncStatus = SyncableObject.SyncStatus.LocalOnly`. For fields that have a natural initial state (like `status`), provide a sensible default in the convenience constructor rather than requiring the caller to pass it. For example, an order might default to `state = "DRAFT"`, a ticket to `status = "OPEN"`, a payment to `status = "PENDING"`.
-- The tag constants you define should match whatever key names your server API uses for those fields, since `fromServerProtoJson()` in the config will map server keys to these tags.
+- The tag constants you define should match whatever key names your server API uses for those fields, since `fromSyncUpResponseBody()` in the `SyncUpConfig` will map server keys to these tags.
 
 ---
 
@@ -132,10 +132,8 @@ Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch dat
 | Member | Type | Purpose |
 |--------|------|---------|
 | `syncFetchConfig` | `SyncFetchConfig<T>` | How to periodically pull data from the server (GET or POST). |
-| `syncUpConfig` | `SyncUpConfig` | Controls retry behavior for failed uploads. Default is usually fine. |
+| `syncUpConfig` | `SyncUpConfig<T>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromSyncUpResponseBody(requestTag, responseBody)` to extract and deserialize a `T` from the server response, using `requestTag` to handle different response shapes per request type. |
 | `headers` | `List<Pair<String, String>>` | HTTP headers sent with every request (auth, content-type, etc.). |
-| `fromServerProtoJson(json)` | `T` | Converts a single server JSON object into your domain model. |
-| `fromSyncUpResponseBody(requestTag, responseBody)` | `T?` | Extracts and deserializes a `T` from a sync-up response body. Use `requestTag` to handle different response shapes per request type. |
 
 ### SyncFetchConfig variants
 
@@ -181,36 +179,34 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
         },
     )
 
-    override val syncUpConfig: SyncUpConfig = SyncUpConfig()
+    override val syncUpConfig = object : SyncUpConfig<YourModel>() {
+        override fun fromSyncUpResponseBody(requestTag: String, responseBody: JsonObject): YourModel? {
+            val item = responseBody["item"]?.jsonObject ?: return null
+            return YourModel(
+                serverId = item["id"]!!.jsonPrimitive.content,
+                clientId = item["reference_id"]?.jsonPrimitive?.contentOrNull
+                    ?: item["id"]!!.jsonPrimitive.content,
+                version = item["version"]?.jsonPrimitive?.int ?: 1,
+                syncStatus = SyncableObject.SyncStatus.Synced(
+                    lastSyncedTimestamp = item["updated_at"]!!.jsonPrimitive.content,
+                ),
+                name = item["name"]!!.jsonPrimitive.content,
+                amount = item["amount"]!!.jsonPrimitive.long,
+                status = item["status"]?.jsonPrimitive?.content ?: "DRAFT",
+            )
+        }
+    }
 
     override val headers: List<Pair<String, String>> = listOf(
         Pair("Authorization", "Bearer YOUR_TOKEN"),
         Pair("Content-Type", "application/json"),
     )
-
-    override fun fromServerProtoJson(json: JsonObject): YourModel = YourModel(
-        serverId = json["id"]!!.jsonPrimitive.content,
-        clientId = json["reference_id"]?.jsonPrimitive?.contentOrNull
-            ?: json["id"]!!.jsonPrimitive.content,
-        version = json["version"]?.jsonPrimitive?.int ?: 1,
-        syncStatus = SyncableObject.SyncStatus.Synced(
-            lastSyncedTimestamp = json["updated_at"]!!.jsonPrimitive.content,
-        ),
-        name = json["name"]!!.jsonPrimitive.content,
-        amount = json["amount"]!!.jsonPrimitive.long,
-        status = json["status"]?.jsonPrimitive?.content ?: "DRAFT",
-    )
-
-    override fun fromSyncUpResponseBody(requestTag: String, responseBody: JsonObject): YourModel? {
-        val item = responseBody["item"]?.jsonObject ?: return null
-        return fromServerProtoJson(item)
-    }
 }
 ```
 
 ### Key rules
 
-- `fromServerProtoJson()` must always set `syncStatus` to `Synced` with a timestamp — this data is coming from the server, so it's by definition synced.
+- `fromSyncUpResponseBody()` must always set `syncStatus` to `Synced` with a timestamp — this data is coming from the server, so it's by definition synced.
 - Map `clientId` to whatever field links server records back to client-created records (often `reference_id`). Fall back to the server `id` for records created server-side.
 - The `transformResponse` lambda receives the full response body. You need to extract the array of items from whatever key your API nests them under.
 - Override `SyncUpConfig` only if you need custom retry logic. The default retries on 408 (timeout) and 5xx errors.

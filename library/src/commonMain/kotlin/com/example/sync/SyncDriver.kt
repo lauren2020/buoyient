@@ -245,7 +245,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     logger.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
                 } else {
                     // 3. Parse the response and mark as synced
-                    val updatedData = serverProcessingConfig.fromSyncUpResponseBody(
+                    val updatedData = serverProcessingConfig.syncUpConfig.fromResponseBody(
                         requestTag = row.requestTag,
                         responseBody = response.responseBody,
                     )

@@ -95,15 +95,14 @@ class SyncUpRegressionTest {
             syncCadenceSeconds = 999_999,
             transformResponse = { emptyList() },
         )
-        override val syncUpConfig = SyncUpConfig()
-        override val headers: List<Pair<String, String>> = emptyList()
-        override fun fromServerProtoJson(json: JsonObject): TestItem =
-            Json.decodeFromJsonElement(TestItem.serializer(), json).withSyncStatus(SyncableObject.SyncStatus.Synced(""))
-
-        override fun fromSyncUpResponseBody(requestTag: String, responseBody: JsonObject): TestItem? {
-            val data = responseBody["data"]?.jsonObject ?: return null
-            return fromServerProtoJson(data)
+        override val syncUpConfig = object : SyncUpConfig<TestItem>() {
+            override fun fromSyncUpResponseBody(requestTag: String, responseBody: JsonObject): TestItem? {
+                val data = responseBody["data"]?.jsonObject ?: return null
+                return Json.decodeFromJsonElement(TestItem.serializer(), data)
+                    .withSyncStatus(SyncableObject.SyncStatus.Synced(""))
+            }
         }
+        override val headers: List<Pair<String, String>> = emptyList()
     }
 
     // endregion
