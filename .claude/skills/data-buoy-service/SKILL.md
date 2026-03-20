@@ -10,7 +10,7 @@ This skill walks through creating a complete offline-first syncable service usin
 1. **Data model** — a Kotlin class implementing `SyncableObject<T>` that defines your domain entity
 2. **Server processing config** — a `ServerProcessingConfig<T>` that tells data-buoy how to communicate with your API
 3. **Service class** — a `SyncableObjectService<T>` subclass that exposes create/update/void operations
-4. **Registration** — adding the service to `AppSyncServiceRegistryProvider` so background sync picks it up
+4. **Registration** — registering the service so background sync picks it up (via `DataBuoy` API, Hilt multibinding, or a manual `SyncServiceRegistryProvider`)
 
 The library handles online/offline dual-path execution, local SQLite persistence, pending request queuing, idempotent retries, background sync via WorkManager, and 3-way merge conflict resolution automatically. Your job is just to define the shape of your data and how to talk to your API.
 
@@ -381,27 +381,89 @@ sealed class CreateItemResponse {
 
 ## Step 4: Register the Service
 
-Add your new service to the app's `SyncServiceRegistryProvider` implementation so that `SyncWorker` includes it in background sync.
+The service must be registered so that `SyncWorker` includes it in background sync. There are three approaches, from simplest to most manual.
+
+### Option A: Hilt multibinding (recommended for Hilt apps)
+
+If the consuming app uses Hilt and depends on the `data-buoy-hilt` artifact, registration is fully automatic. The consumer just provides `@IntoSet` bindings — no `Application.onCreate()` override or manual registration needed.
+
+The `data-buoy-hilt` module ships a `DataBuoyHiltInitializer` (registered via `androidx.startup`) that lazily bridges Hilt's dependency graph to the sync engine. Services are resolved from Hilt only when `SyncWorker` actually runs, so the full Hilt `SingletonComponent` is always available.
+
+Add the dependency:
 
 ```kotlin
-class AppSyncServiceRegistryProvider : SyncServiceRegistryProvider {
-    override fun createServices(context: Context): List<SyncableObjectService<*>> = listOf(
-        PaymentService(),
-        OrderService(),
-        YourModelService(),  // add your new service here
-    )
+// build.gradle.kts
+implementation("com.les.databuoy:library:<version>")
+implementation("com.les.databuoy:data-buoy-hilt:<version>")
+```
+
+Then provide services via a standard Hilt module:
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object SyncModule {
+
+    @Provides @IntoSet
+    fun yourModelService(/* inject any deps */): SyncableObjectService<*, *> =
+        YourModelService()
+
+    @Provides @IntoSet
+    fun otherService(apiClient: ApiClient): SyncableObjectService<*, *> =
+        OtherService(apiClient)
 }
 ```
 
-This provider is registered once in `MainActivity.onCreate()`:
+Under the hood, the `data-buoy-hilt` module defines a `DataBuoyEntryPoint` interface annotated with `@EntryPoint @InstallIn(SingletonComponent::class)` that exposes `Set<SyncableObjectService<*, *>>`. The `DataBuoyHiltInitializer` registers a lazy `SyncServiceRegistryProvider` that calls `EntryPointAccessors.fromApplication()` to resolve services from the Hilt graph when `SyncWorker.doWork()` fires.
+
+### Option B: `DataBuoy.registerServices()` (simple, no Hilt required)
+
+For apps that don't use Hilt, the `DataBuoy` object provides a one-liner registration API in `Application.onCreate()`:
 
 ```kotlin
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        DataBuoy.registerServices(setOf(
+            YourModelService(),
+            OtherService(),
+        ))
+    }
+}
+```
+
+Or for lazy/factory-based creation (services are created fresh each time `SyncWorker` runs):
+
+```kotlin
+DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
+    override fun createServices(context: Context) = listOf(
+        YourModelService(),
+        OtherService(),
+    )
+})
+```
+
+### Option C: Direct `SyncWorker.registerServiceProvider()` (lowest-level)
+
+The most explicit approach — implement `SyncServiceRegistryProvider` and register it directly:
+
+```kotlin
+class AppSyncServiceRegistryProvider : SyncServiceRegistryProvider {
+    override fun createServices(context: Context): List<SyncableObjectService<*, *>> = listOf(
+        YourModelService(),
+        OtherService(),
+    )
+}
+
+// In Application.onCreate():
 SyncWorker.registerServiceProvider(AppSyncServiceRegistryProvider())
 ```
 
+This is functionally identical to Option B but gives full control over the provider class.
+
 ### Using the service in UI code
 
-Instantiate the service (typically with `by lazy`) and call its methods from coroutine scopes:
+Instantiate the service (typically with `by lazy`, or via Hilt `@Inject`) and call its methods from coroutine scopes:
 
 ```kotlin
 private val yourModelService by lazy { YourModelService() }
@@ -410,6 +472,17 @@ private val yourModelService by lazy { YourModelService() }
 val response = yourModelService.createItem(item)
 val allItems = yourModelService.fetchFromDb()
 yourModelService.close()  // call in onDestroy()
+```
+
+With Hilt, inject directly:
+
+```kotlin
+@HiltViewModel
+class YourViewModel @Inject constructor(
+    private val yourModelService: YourModelService,
+) : ViewModel() {
+    // ...
+}
 ```
 
 ---
@@ -462,7 +535,26 @@ put("version", HttpRequest.VERSION_PLACEHOLDER)
 
 ## File Organization
 
-Follow this directory structure within the app module:
+### Library modules (data-buoy itself)
+
+```
+data-buoy/
+├── library/                                     # Core KMP library
+│   └── src/
+│       ├── commonMain/                          # Shared sync engine
+│       └── androidMain/
+│           └── kotlin/com/example/sync/
+│               ├── DataBuoy.kt                  # Convenience registration API
+│               ├── SyncWorker.kt                # Background WorkManager worker
+│               ├── SyncServiceRegistryProvider.kt
+│               └── DataBuoyInitializer.kt       # androidx.startup auto-init
+├── hilt/                                        # Optional Hilt integration module
+│   └── src/main/kotlin/com/example/sync/hilt/
+│       ├── DataBuoyEntryPoint.kt                # @EntryPoint for Hilt multibinding
+│       └── DataBuoyHiltInitializer.kt           # Auto-bridges Hilt -> DataBuoy
+```
+
+### Consumer app structure
 
 ```
 app/src/main/java/com/example/yourapp/data/
@@ -470,8 +562,9 @@ app/src/main/java/com/example/yourapp/data/
 │   └── YourModel.kt                           # SyncableObject implementation
 ├── services/customservices/yourmodel/
 │   └── YourModelService.kt                     # Service + ServerProcessingConfig
-└── sdk/
-    └── AppSyncServiceRegistryProvider.kt        # Service registration
+└── di/
+    └── SyncModule.kt                           # Hilt @Module with @IntoSet bindings
+                                                # (or AppSyncServiceRegistryProvider if not using Hilt)
 ```
 
 The `ServerProcessingConfig` class is typically defined in the same file as the service class.

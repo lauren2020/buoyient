@@ -144,17 +144,48 @@ class TodoService : SyncableObjectService<Todo>(
 }
 ```
 
-### 5. Android setup
+### 5. Register services for background sync
 
-Register your services with the sync worker so background sync can find them:
+The sync engine needs to know which services to sync when the background worker fires. Choose the approach that fits your app:
+
+#### With Hilt (recommended)
+
+Add the `data-buoy-hilt` dependency and provide services via standard `@IntoSet` multibindings. No `Application.onCreate()` override needed — registration is fully automatic.
 
 ```kotlin
-class MyServiceRegistry : SyncServiceRegistryProvider {
-    override fun getServices(): List<Service<*>> = listOf(TodoService())
-}
+// build.gradle.kts
+implementation("com.les.databuoy:library:<version>")
+implementation("com.les.databuoy:data-buoy-hilt:<version>")
+```
 
-// In Application.onCreate():
-SyncWorker.registerServiceProvider(MyServiceRegistry())
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object SyncModule {
+    @Provides @IntoSet
+    fun todoService(): SyncableObjectService<*, *> = TodoService()
+}
+```
+
+#### Without Hilt
+
+Use the `DataBuoy` convenience API in `Application.onCreate()`:
+
+```kotlin
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        DataBuoy.registerServices(setOf(TodoService()))
+    }
+}
+```
+
+Or register a factory that creates fresh service instances per sync pass:
+
+```kotlin
+DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
+    override fun createServices(context: Context) = listOf(TodoService())
+})
 ```
 
 ## Key Extension Points
@@ -167,14 +198,23 @@ SyncWorker.registerServiceProvider(MyServiceRegistry())
 | `SyncUpConfig` | `acceptUploadResponseAsProcessed()` | Custom success criteria |
 | `ServerProcessingConfig` | `fromServerProtoJson()` | Response deserialization |
 
+## Modules
+
+| Module | Artifact | Purpose |
+|--------|----------|---------|
+| `:library` | `com.les.databuoy:library` | Core sync engine (KMP) |
+| `:hilt` | `com.les.databuoy:data-buoy-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
+
 ## Build
 
 ```bash
 ./gradlew :library:build
+./gradlew :hilt:build
 ```
 
 To publish to local Maven:
 
 ```bash
 ./gradlew :library:publishToMavenLocal
+./gradlew :hilt:publishToMavenLocal
 ```

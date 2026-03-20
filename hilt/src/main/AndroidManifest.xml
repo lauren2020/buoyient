@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <!--
+            Auto-registers DataBuoyHiltInitializer via androidx.startup.
+            This initializer depends on DataBuoyInitializer (from the core library)
+            so it runs after the platform context is captured.
+
+            tools:node="merge" ensures this merges with the core library's
+            InitializationProvider entry rather than creating a duplicate.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="com.example.sync.hilt.DataBuoyHiltInitializer"
+                android:value="androidx.startup" />
+        </provider>
+    </application>
+
+</manifest>

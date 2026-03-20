@@ -10,5 +10,5 @@ import android.content.Context
  * to sync in the background.
  */
 interface SyncServiceRegistryProvider {
-    fun createServices(context: Context): List<SyncableObjectService<*>>
+    fun createServices(context: Context): List<SyncableObjectService<*, *>>
 }
