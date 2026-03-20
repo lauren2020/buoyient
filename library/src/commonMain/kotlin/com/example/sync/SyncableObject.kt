@@ -1,7 +1,5 @@
 package com.example.sync
 
-import kotlinx.serialization.json.JsonObject
-
 interface SyncableObject<O> {
     /**
      * The id the server is aware of. This value should be null if
@@ -25,25 +23,19 @@ interface SyncableObject<O> {
 
     val syncStatus: SyncStatus
 
-    fun toJson(): JsonObject
+    /**
+     * Returns a copy of this object with the given [syncStatus].
+     * Implementations on data classes can simply delegate to `copy(syncStatus = syncStatus)`.
+     */
+    fun withSyncStatus(syncStatus: SyncStatus): O
 
     companion object {
-        const val LAST_SYNCED_TIMESTAMP_TAG = "last_synced_timestamp"
-        const val SERVER_ID_TAG = "server_id"
-        const val CLIENT_ID_TAG = "client_id"
-        const val VERSION_TAG = "version"
-        const val SYNC_STATUS_TAG = "sync_status"
-        const val PENDING_SYNC_REQUEST_TAG = "pending_sync_request"
-    }
-
-    interface SyncableObjectDeserializer<O : SyncableObject<O>> {
-        /**
-         * Deserializes a JSON object from the database into a domain object [O].
-         */
-        fun fromJson(
-            json: JsonObject,
-            syncStatus: SyncStatus,
-        ): O
+        const val LAST_SYNCED_TIMESTAMP_KEY = "last_synced_timestamp"
+        const val SERVER_ID_KEY = "server_id"
+        const val CLIENT_ID_KEY = "client_id"
+        const val VERSION_KEY = "version"
+        const val SYNC_STATUS_KEY = "sync_status"
+        const val PENDING_SYNC_REQUEST_KEY = "pending_sync_request"
     }
 
     sealed class SyncStatus(val status: String) {
@@ -76,10 +68,10 @@ interface SyncableObject<O> {
             const val PENDING_VOID = "PENDING_VOID"
             const val SYNCED = "SYNCED"
             const val CONFLICT = "CONFLICT"
-            fun <O : SyncableObject<O>> buildFromDbContext(
+            fun buildFromDbContext(
                 status: String,
                 lastSyncedTimestamp: String?,
-                conflictInfo: List<SyncableObjectMergeHandler.FieldConflict<O>>,
+                conflictInfo: List<Conflict.FieldConflictInfo>,
             ): SyncStatus = when (status) {
                 LOCAL_ONLY -> LocalOnly
 
@@ -97,16 +89,7 @@ interface SyncableObject<O> {
 
                 CONFLICT -> Conflict(
                     lastSyncedTimestamp = lastSyncedTimestamp!!,
-                    conflictInfo = conflictInfo.flatMap { fieldConflict ->
-                        fieldConflict.fieldNames.map { fieldName ->
-                            Conflict.FieldConflictInfo(
-                                fieldName = fieldName,
-                                baseValue = fieldConflict.baseValue?.toJson()?.toString(),
-                                localValue = fieldConflict.localValue.toJson().toString(),
-                                serverValue = fieldConflict.serverValue.toJson().toString(),
-                            )
-                        }
-                    },
+                    conflictInfo = conflictInfo,
                 )
 
                 else -> error("Attempted to unpack db context with unknown sync status: $status")

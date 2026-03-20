@@ -1,27 +1,29 @@
 package com.example.sync
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
 
 abstract class SyncableObjectService<O : SyncableObject<O>>(
-    protected val deserializer: SyncableObject.SyncableObjectDeserializer<O>,
+    serializer: KSerializer<O>,
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
     serviceName: String,
     private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     private val logger: SyncLogger = createPlatformSyncLogger(),
     private val syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+    private val codec: SyncCodec<O> = SyncCodec(serializer),
     private val serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.headers,
         logger = logger,
     ),
     private val localStoreManager: LocalStoreManager<O> = LocalStoreManager(
-        deserializer = deserializer,
+        codec = codec,
         serviceName = serviceName,
         logger = logger,
         syncScheduleNotifier = syncScheduleNotifier,
     ),
     private val idGenerator: IdGenerator = createPlatformIdGenerator(),
 ) : Service<O>,
-    SyncDriver<O>(serverManager, connectivityChecker, deserializer, serverProcessingConfig, localStoreManager, logger)
+    SyncDriver<O>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, logger)
 {
 
     init { syncScheduleNotifier.scheduleSyncIfNeeded() }

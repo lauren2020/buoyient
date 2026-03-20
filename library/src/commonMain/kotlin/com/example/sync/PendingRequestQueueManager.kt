@@ -8,7 +8,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
     val database: SyncDatabase,
     val serviceName: String,
     val strategy: PendingRequestQueueStrategy,
-    val deserializer: SyncableObject.SyncableObjectDeserializer<O>,
+    val codec: SyncCodec<O>,
     val logger: SyncLogger,
 ) {
     sealed class PendingRequestQueueStrategy {
@@ -201,13 +201,13 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
         database.syncPendingEventsQueries.insertPendingEvent(
             service_name = serviceName,
             client_id = pendingSyncRequest.data.clientId,
-            data_blob = pendingSyncRequest.data.toJson().toString(),
+            data_blob = codec.encodeToString(pendingSyncRequest.data),
             type = pendingSyncRequest.type.value,
             request = pendingSyncRequest.request.toJson().toString(),
             idempotency_key = pendingSyncRequest.idempotencyKey,
             server_attempt_made = if (pendingSyncRequest.serverAttemptMade) 1L else 0L,
             conflict_info = null,
-            last_synced_data = pendingSyncRequest.lastSyncedData?.toJson()?.toString(),
+            last_synced_data = pendingSyncRequest.lastSyncedData?.let { codec.encodeToString(it) },
             request_tag = pendingSyncRequest.requestTag,
         )
         QueueResult.Stored
@@ -220,13 +220,13 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
     ): QueueResult = try {
         database.syncPendingEventsQueries.replaceEntry(
             client_id = pendingSyncRequest.data.clientId,
-            data_blob = pendingSyncRequest.data.toJson().toString(),
+            data_blob = codec.encodeToString(pendingSyncRequest.data),
             type = PendingSyncRequest.Type.UPDATE.value,
             request = pendingSyncRequest.request.toJson().toString(),
             idempotency_key = pendingSyncRequest.idempotencyKey,
             server_attempt_made = if (pendingSyncRequest.serverAttemptMade) 1L else 0L,
-            conflict_info = pendingSyncRequest.conflict?.toJson()?.toString(),
-            last_synced_data = pendingSyncRequest.lastSyncedData?.toJson()?.toString(),
+            conflict_info = pendingSyncRequest.conflict?.toJson(codec)?.toString(),
+            last_synced_data = pendingSyncRequest.lastSyncedData?.let { codec.encodeToString(it) },
             request_tag = pendingSyncRequest.requestTag,
             pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
         )
@@ -286,15 +286,15 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
         idempotencyKey = idempotencyKey,
         request = HttpRequest.fromJson(Json.parseToJsonElement(request).jsonObject),
         serverAttemptMade = serverAttemptMade != 0L,
-        data = deserializer.fromJson(Json.parseToJsonElement(data).jsonObject, SyncableObject.SyncStatus.LocalOnly),
+        data = codec.decode(data, SyncableObject.SyncStatus.LocalOnly),
         conflict = conflictInfo?.let {
             SyncableObjectMergeHandler.FieldConflict.fromJson(
                 jsonObject = Json.parseToJsonElement(it).jsonObject,
-                deserializeData = { d -> deserializer.fromJson(d, SyncableObject.SyncStatus.LocalOnly) },
+                codec = codec,
             )
         },
         lastSyncedData = lastSyncedData?.let {
-            deserializer.fromJson(Json.parseToJsonElement(it).jsonObject, SyncableObject.SyncStatus.Synced(""))
+            codec.decode(it, SyncableObject.SyncStatus.Synced(""))
         },
         requestTag = requestTag,
     )
@@ -402,15 +402,15 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
                 val updatedRequest = mergeResult.updatedHttpRequest
                 if (updatedRequest != null) {
                     database.syncPendingEventsQueries.rebasePendingSyncWithRequest(
-                        last_synced_data = newBaseData.toJson().toString(),
-                        data_blob = rebasedData.toJson().toString(),
+                        last_synced_data = codec.encodeToString(newBaseData),
+                        data_blob = codec.encodeToString(rebasedData),
                         request = updatedRequest.toJson().toString(),
                         pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
                     )
                 } else {
                     database.syncPendingEventsQueries.rebasePendingSync(
-                        last_synced_data = newBaseData.toJson().toString(),
-                        data_blob = rebasedData.toJson().toString(),
+                        last_synced_data = codec.encodeToString(newBaseData),
+                        data_blob = codec.encodeToString(rebasedData),
                         pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
                     )
                 }
@@ -418,7 +418,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>>(
 
             is SyncableObjectMergeHandler.MergeResult.Conflict -> {
                 database.syncPendingEventsQueries.saveConflictInfo(
-                    conflict_info = mergeResult.conflict.toJson().toString(),
+                    conflict_info = mergeResult.conflict.toJson(codec).toString(),
                     pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
                 )
             }

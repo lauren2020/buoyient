@@ -17,7 +17,7 @@ import kotlinx.serialization.json.jsonObject
 abstract class SyncDriver<O : SyncableObject<O>>(
     private val serverManager: ServerManager,
     private val connectivityChecker: ConnectivityChecker,
-    private val deserializer: SyncableObject.SyncableObjectDeserializer<O>,
+    private val codec: SyncCodec<O>,
     private val serverProcessingConfig: ServerProcessingConfig<O>,
     private val localStoreManager: LocalStoreManager<O>,
     private val logger: SyncLogger,
@@ -29,7 +29,7 @@ abstract class SyncDriver<O : SyncableObject<O>>(
      * with domain-specific merge policies.
      */
     protected open val mergeHandler: SyncableObjectMergeHandler<O> =
-        SyncableObjectMergeHandler(deserializer)
+        SyncableObjectMergeHandler(codec)
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var syncDownJob: Job? = null

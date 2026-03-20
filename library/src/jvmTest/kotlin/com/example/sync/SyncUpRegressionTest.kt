@@ -9,6 +9,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -73,8 +74,10 @@ class SyncUpRegressionTest {
      * Wraps item JSON inside `{"data": <item>}` to match the `responseDataUnwrapPath`
      * expected by the pending requests in these tests.
      */
+    private val json = Json { ignoreUnknownKeys = true }
+
     private fun wrapResponse(item: TestItem): String = buildJsonObject {
-        put("data", item.toJson())
+        put("data", json.encodeToJsonElement(TestItem.serializer(), item))
     }.toString()
 
     /**
@@ -91,7 +94,7 @@ class SyncUpRegressionTest {
         override val syncUpConfig = SyncUpConfig()
         override val headers: List<Pair<String, String>> = emptyList()
         override fun fromServerProtoJson(json: JsonObject): TestItem =
-            TestItem.Deserializer.fromJson(json, SyncableObject.SyncStatus.Synced(""))
+            Json.decodeFromJsonElement(TestItem.serializer(), json).withSyncStatus(SyncableObject.SyncStatus.Synced(""))
     }
 
     // endregion
@@ -179,7 +182,7 @@ class SyncUpRegressionTest {
             database = db,
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
-            deserializer = TestItem.Deserializer,
+            codec = SyncCodec(TestItem.serializer()),
             logger = logger,
         )
 
@@ -194,7 +197,7 @@ class SyncUpRegressionTest {
             override fun isOnline(): Boolean = false // keeps periodic sync-down inert
         }
         val driver = object : SyncDriver<TestItem>(
-            serverManager, connectivityChecker, TestItem.Deserializer,
+            serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
             testServerConfig(), localStore, logger,
         ) {}
         driver.stopPeriodicSyncDown()
@@ -264,7 +267,7 @@ class SyncUpRegressionTest {
             database = db,
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
-            deserializer = TestItem.Deserializer,
+            codec = SyncCodec(TestItem.serializer()),
             logger = logger,
         )
 
@@ -300,7 +303,7 @@ class SyncUpRegressionTest {
             override fun isOnline(): Boolean = false
         }
         val driver = object : SyncDriver<TestItem>(
-            serverManager, connectivityChecker, TestItem.Deserializer,
+            serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
             testServerConfig(), localStore, logger,
         ) {}
         driver.stopPeriodicSyncDown()
@@ -378,7 +381,7 @@ class SyncUpRegressionTest {
             database = db,
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
-            deserializer = TestItem.Deserializer,
+            codec = SyncCodec(TestItem.serializer()),
             logger = logger,
         )
 
@@ -427,7 +430,7 @@ class SyncUpRegressionTest {
             override fun isOnline(): Boolean = false
         }
         val driver = object : SyncDriver<TestItem>(
-            serverManager, connectivityChecker, TestItem.Deserializer,
+            serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
             testServerConfig(), localStore, logger,
         ) {}
         driver.stopPeriodicSyncDown()

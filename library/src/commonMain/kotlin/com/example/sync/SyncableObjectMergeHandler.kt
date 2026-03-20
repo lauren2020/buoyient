@@ -18,7 +18,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * `mergeHandler` property.
  */
 open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
-    private val deserializer: SyncableObject.SyncableObjectDeserializer<O>,
+    private val codec: SyncCodec<O>,
 ) {
 
     // region Types
@@ -54,12 +54,12 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
         val serverValue: O,
         val requestTag: String? = null,
     ) {
-        fun toJson(): JsonObject = buildJsonObject {
+        fun toJson(codec: SyncCodec<O>): JsonObject = buildJsonObject {
             put(PENDING_REQUEST_ID_KEY, JsonPrimitive(pendingRequestId))
             put(FIELD_NAMES_KEY, JsonPrimitive(fieldNames.joinToString(":")))
-            put(BASE_DATA_KEY, baseValue?.toJson() ?: JsonObject(emptyMap()))
-            put(LOCAL_DATA_KEY, localValue.toJson())
-            put(SERVER_DATA_KEY, serverValue.toJson())
+            put(BASE_DATA_KEY, baseValue?.let { codec.encode(it) } ?: JsonObject(emptyMap()))
+            put(LOCAL_DATA_KEY, codec.encode(localValue))
+            put(SERVER_DATA_KEY, codec.encode(serverValue))
             requestTag?.let { put(REQUEST_TAG_KEY, JsonPrimitive(it)) }
         }
 
@@ -73,14 +73,15 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
 
             fun <O : SyncableObject<O>> fromJson(
                 jsonObject: JsonObject,
-                deserializeData: (JsonObject) -> O,
+                codec: SyncCodec<O>,
             ): FieldConflict<O> {
+                val localOnlyStatus = SyncableObject.SyncStatus.LocalOnly
                 return FieldConflict(
                     pendingRequestId = jsonObject[PENDING_REQUEST_ID_KEY]!!.jsonPrimitive.int,
                     fieldNames = jsonObject[FIELD_NAMES_KEY]!!.jsonPrimitive.content.split(":"),
-                    baseValue = jsonObject[BASE_DATA_KEY]?.jsonObject?.let { deserializeData(it) },
-                    localValue = deserializeData(jsonObject[LOCAL_DATA_KEY]!!.jsonObject),
-                    serverValue = deserializeData(jsonObject[SERVER_DATA_KEY]!!.jsonObject),
+                    baseValue = jsonObject[BASE_DATA_KEY]?.jsonObject?.let { codec.decode(it, localOnlyStatus) },
+                    localValue = codec.decode(jsonObject[LOCAL_DATA_KEY]!!.jsonObject, localOnlyStatus),
+                    serverValue = codec.decode(jsonObject[SERVER_DATA_KEY]!!.jsonObject, localOnlyStatus),
                     requestTag = jsonObject[REQUEST_TAG_KEY]?.jsonPrimitive?.content,
                 )
             }
@@ -136,9 +137,9 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
         pendingRequestId: Int,
         requestTag: String?,
     ): MergeResult<O> {
-        val base = baseData?.toJson() ?: JsonObject(emptyMap())
-        val local = localData.toJson()
-        val server = serverData.toJson()
+        val base = baseData?.let { codec.encode(it) } ?: JsonObject(emptyMap())
+        val local = codec.encode(localData)
+        val server = codec.encode(serverData)
         val allKeys = (base.keys + local.keys + server.keys).toSet()
         val mergedMap = local.toMutableMap()
         val conflicts = mutableListOf<String>()
@@ -184,7 +185,7 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
         val merged = JsonObject(mergedMap)
         return if (conflicts.isEmpty()) {
             MergeResult.Merged(
-                mergedData = deserializer.fromJson(merged, localData.syncStatus),
+                mergedData = codec.decode(merged, localData.syncStatus),
                 updatedHttpRequest = null,
             )
         } else {

@@ -1,21 +1,31 @@
 package com.example.sync
 
 import com.example.sync.db.SyncDatabase
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 
 class LocalStoreManager<O : SyncableObject<O>>(
     private val database: SyncDatabase = createSyncDatabase(),
     private val serviceName: String,
     private val syncScheduleNotifier: SyncScheduleNotifier,
-    private val deserializer: SyncableObject.SyncableObjectDeserializer<O>,
+    private val codec: SyncCodec<O>,
     private val logger: SyncLogger,
 ) {
+    private fun List<SyncableObjectMergeHandler.FieldConflict<O>>.toFieldConflictInfo():
+        List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
+        fieldConflict.fieldNames.map { fieldName ->
+            SyncableObject.SyncStatus.Conflict.FieldConflictInfo(
+                fieldName = fieldName,
+                baseValue = fieldConflict.baseValue?.let { codec.encodeToString(it) },
+                localValue = codec.encodeToString(fieldConflict.localValue),
+                serverValue = codec.encodeToString(fieldConflict.serverValue),
+            )
+        }
+    }
+
     val pendingRequestQueueManager: PendingRequestQueueManager<O> = PendingRequestQueueManager(
         database = database,
         serviceName = serviceName,
         strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
-        deserializer = deserializer,
+        codec = codec,
         logger = logger,
     )
 
@@ -43,7 +53,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
         requestTag: String? = null,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
-            val jsonData = data.toJson()
+            val jsonData = codec.encode(data)
             val result = transaction {
                 database.syncDataQueries.insertLocalData(
                     service_name = serviceName,
@@ -63,10 +73,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
                 )
             }
 
-            val updatedData = deserializer.fromJson(
-                json = jsonData,
-                syncStatus = SyncableObject.SyncStatus.PendingCreate,
-            )
+            val updatedData = codec.decode(jsonData, SyncableObject.SyncStatus.PendingCreate)
             logger.d(TAG, "Created data locally and queued upload (client_id: ${data.clientId}).")
             syncScheduleNotifier.scheduleSyncIfNeeded()
             return Pair(updatedData, result)
@@ -85,7 +92,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
         responseTimestamp: String,
     ) {
         try {
-            val serverDataJson = serverData.toJson().toString()
+            val serverDataJson = codec.encodeToString(serverData)
             database.syncDataQueries.insertFromServerResponse(
                 service_name = serviceName,
                 client_id = serverData.clientId,
@@ -116,7 +123,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
             val result = transaction {
                 database.syncDataQueries.updateLocalData(
                     version = data.version.toLong(),
-                    data_blob = data.toJson().toString(),
+                    data_blob = codec.encode(data).toString(),
                     service_name = serviceName,
                     client_id = data.clientId,
                 )
@@ -146,7 +153,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
      */
     fun upsertFromServerResponse(serverData: O, responseTimestamp: String) {
         try {
-            val serverDataJson = serverData.toJson().toString()
+            val serverDataJson = codec.encodeToString(serverData)
             database.syncDataQueries.upsertFromServerResponse(
                 last_synced_timestamp = responseTimestamp,
                 version = serverData.version.toLong(),
@@ -166,7 +173,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
         syncedAtTimestamp: String,
         clientId: String,
     ) {
-        val serverDataJson = serverObj.toJson().toString()
+        val serverDataJson = codec.encodeToString(serverObj)
         database.syncDataQueries.upsertEntry(
             service_name = serviceName,
             client_id = clientId,
@@ -211,7 +218,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
 
     fun upsertFromVoidServerResponse(serverData: O, responseTimestamp: String) {
         try {
-            val serverDataJson = serverData.toJson().toString()
+            val serverDataJson = codec.encodeToString(serverData)
             database.syncDataQueries.upsertFromVoidServerResponse(
                 last_synced_timestamp = responseTimestamp,
                 version = serverData.version.toLong(),
@@ -228,7 +235,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
 
     fun voidLocalOnlyData(data: O): O {
         try {
-            val jsonData = data.toJson()
+            val jsonData = codec.encode(data)
             transaction {
                 database.syncDataQueries.voidLocalOnly(
                     sync_status = SyncableObject.SyncStatus.LOCAL_ONLY,
@@ -240,7 +247,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
             }
 
             logger.d(TAG, "Voided local-only object (client_id: ${data.clientId})")
-            return deserializer.fromJson(jsonData, SyncableObject.SyncStatus.LocalOnly)
+            return data.withSyncStatus(SyncableObject.SyncStatus.LocalOnly)
         } catch (e: Exception) {
             logger.e(TAG, "Failed to void local object: ", e)
             return data
@@ -258,7 +265,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
         lastSyncedTimestamp: String,
         updatedSyncStatus: String,
     ) {
-        val resolvedDataJson = latestServerData.toJson().toString()
+        val resolvedDataJson = codec.encodeToString(latestServerData)
         when (row.type) {
             PendingSyncRequest.Type.CREATE,
             PendingSyncRequest.Type.UPDATE -> {
@@ -268,7 +275,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
                         last_synced_timestamp = lastSyncedTimestamp,
                         version = latestServerData.version.toLong(),
                         sync_status = updatedSyncStatus,
-                        data_blob = rebasedLatestData.toJson().toString(),
+                        data_blob = codec.encodeToString(rebasedLatestData),
                         last_synced_server_data = resolvedDataJson,
                         service_name = serviceName,
                         client_id = row.data.clientId,
@@ -315,21 +322,15 @@ class LocalStoreManager<O : SyncableObject<O>>(
             status = statusValue,
             lastSyncedTimestamp = lastSyncedTimestamp,
             conflictInfo = if (statusValue == SyncableObject.SyncStatus.CONFLICT) {
-                pendingRequestQueueManager.getConflicts(clientId = row.client_id)
+                pendingRequestQueueManager.getConflicts(clientId = row.client_id).toFieldConflictInfo()
             } else {
                 emptyList()
             },
         )
         val lastSyncedServerData = row.last_synced_server_data?.let {
-            deserializer.fromJson(
-                Json.parseToJsonElement(it).jsonObject,
-                SyncableObject.SyncStatus.Synced(lastSyncedTimestamp = lastSyncedTimestamp!!),
-            )
+            codec.decode(it, SyncableObject.SyncStatus.Synced(lastSyncedTimestamp = lastSyncedTimestamp!!))
         }
-        val latestLocalData = deserializer.fromJson(
-            Json.parseToJsonElement(row.data_blob).jsonObject,
-            syncStatus,
-        )
+        val latestLocalData = codec.decode(row.data_blob, syncStatus)
 
         return LocalStoreEntry(
             data = latestLocalData,
@@ -352,20 +353,14 @@ class LocalStoreManager<O : SyncableObject<O>>(
                 status = statusValue,
                 lastSyncedTimestamp = lastSyncedTimestamp,
                 conflictInfo = if (statusValue == SyncableObject.SyncStatus.CONFLICT) {
-                    pendingRequestQueueManager.getConflicts(clientId = row.client_id)
+                    pendingRequestQueueManager.getConflicts(clientId = row.client_id).toFieldConflictInfo()
                 } else {
                     emptyList()
                 },
             )
-            val data = deserializer.fromJson(
-                json = Json.parseToJsonElement(row.data_blob).jsonObject,
-                syncStatus = latestSyncStatus,
-            )
+            val data = codec.decode(row.data_blob, latestSyncStatus)
             val latestServerData = row.last_synced_server_data?.let {
-                deserializer.fromJson(
-                    json = Json.parseToJsonElement(it).jsonObject,
-                    syncStatus = SyncableObject.SyncStatus.Synced(lastSyncedTimestamp!!),
-                )
+                codec.decode(it, SyncableObject.SyncStatus.Synced(lastSyncedTimestamp!!))
             }
             LocalStoreEntry(
                 data = data,
@@ -400,8 +395,8 @@ class LocalStoreManager<O : SyncableObject<O>>(
                     last_synced_timestamp = lastSyncedTimestamp,
                     version = updatedServerData.version.toLong(),
                     sync_status = SyncableObject.SyncStatus.SYNCED,
-                    data_blob = rebasedLocalData.toJson().toString(),
-                    last_synced_server_data = updatedServerData.toJson().toString(),
+                    data_blob = codec.encodeToString(rebasedLocalData),
+                    last_synced_server_data = codec.encodeToString(updatedServerData),
                     service_name = serviceName,
                     client_id = clientId,
                 )
@@ -487,7 +482,7 @@ class LocalStoreManager<O : SyncableObject<O>>(
             is PendingRequestQueueManager.RebasePendingRequestsResult.AbortedRebaseToConflicts -> {
                 database.syncDataQueries.markConflictAfterRebase(
                     sync_status = SyncableObject.SyncStatus.CONFLICT,
-                    last_synced_server_data = updatedServerData.toJson().toString(),
+                    last_synced_server_data = codec.encodeToString(updatedServerData),
                     last_synced_timestamp = lastSyncedTimestamp,
                     service_name = serviceName,
                     client_id = clientId,
