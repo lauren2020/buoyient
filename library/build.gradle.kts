@@ -19,9 +19,12 @@ kotlin {
         publishLibraryVariants("release")
     }
 
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+    jvm()
+
+    // iOS targets disabled until Xcode is installed. Uncomment to re-enable:
+    // iosX64()
+    // iosArm64()
+    // iosSimulatorArm64()
 
     sourceSets {
         val commonMain by getting {
@@ -42,19 +45,35 @@ kotlin {
             }
         }
 
-        val iosX64Main by getting
-        val iosArm64Main by getting
-        val iosSimulatorArm64Main by getting
-        val iosMain by creating {
-            dependsOn(commonMain)
-            iosX64Main.dependsOn(this)
-            iosArm64Main.dependsOn(this)
-            iosSimulatorArm64Main.dependsOn(this)
+        val jvmMain by getting {
             dependencies {
-                implementation("io.ktor:ktor-client-darwin:2.3.12")
-                implementation("app.cash.sqldelight:native-driver:2.0.2")
+                implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
+                implementation("io.ktor:ktor-client-cio:2.3.12")
             }
         }
+
+        val jvmTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation("io.ktor:ktor-client-mock:2.3.12")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+            }
+        }
+
+        // iOS source sets disabled until Xcode is installed. Uncomment to re-enable:
+        // val iosX64Main by getting
+        // val iosArm64Main by getting
+        // val iosSimulatorArm64Main by getting
+        // val iosMain by creating {
+        //     dependsOn(commonMain)
+        //     iosX64Main.dependsOn(this)
+        //     iosArm64Main.dependsOn(this)
+        //     iosSimulatorArm64Main.dependsOn(this)
+        //     dependencies {
+        //         implementation("io.ktor:ktor-client-darwin:2.3.12")
+        //         implementation("app.cash.sqldelight:native-driver:2.0.2")
+        //     }
+        // }
     }
 }
 
