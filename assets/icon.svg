@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Wave background -->
+  <path d="M0 130 Q25 110, 50 120 T100 115 T150 125 T200 118 L200 200 L0 200 Z" fill="#1a6fb5" opacity="0.35"/>
+  <path d="M0 145 Q30 125, 60 138 T120 130 T180 140 T200 135 L200 200 L0 200 Z" fill="#1a6fb5" opacity="0.5"/>
+  <path d="M0 158 Q35 140, 70 152 T140 146 T200 155 L200 200 L0 200 Z" fill="#1a6fb5" opacity="0.7"/>
+
+  <!-- Buoy body -->
+  <!-- Antenna/pole -->
+  <rect x="96" y="52" width="8" height="50" rx="3" fill="#555"/>
+  <!-- Top light -->
+  <circle cx="100" cy="50" r="8" fill="#e74c3c"/>
+  <circle cx="100" cy="50" r="4" fill="#ff8a80" opacity="0.7"/>
+
+  <!-- Main buoy shape -->
+  <ellipse cx="100" cy="118" rx="30" ry="22" fill="#e74c3c"/>
+  <!-- White stripe -->
+  <rect x="70" y="112" width="60" height="12" rx="2" fill="white" clip-path="url(#buoyClip)"/>
+  <clipPath id="buoyClip">
+    <ellipse cx="100" cy="118" rx="30" ry="22"/>
+  </clipPath>
+
+  <!-- Water over buoy (front wave) -->
+  <path d="M0 158 Q35 140, 70 152 T140 146 T200 155 L200 200 L0 200 Z" fill="#1a6fb5" opacity="0.85"/>
+
+  <!-- Data sync dots on the buoy stripe -->
+  <circle cx="88" cy="118" r="3" fill="#1a6fb5"/>
+  <circle cx="100" cy="118" r="3" fill="#1a6fb5"/>
+  <circle cx="112" cy="118" r="3" fill="#1a6fb5"/>
+</svg>
