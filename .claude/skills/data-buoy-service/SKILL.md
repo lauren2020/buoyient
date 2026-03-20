@@ -135,6 +135,7 @@ Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch dat
 | `syncUpConfig` | `SyncUpConfig` | Controls retry behavior for failed uploads. Default is usually fine. |
 | `headers` | `List<Pair<String, String>>` | HTTP headers sent with every request (auth, content-type, etc.). |
 | `fromServerProtoJson(json)` | `T` | Converts a single server JSON object into your domain model. |
+| `fromSyncUpResponseBody(requestTag, responseBody)` | `T?` | Extracts and deserializes a `T` from a sync-up response body. Use `requestTag` to handle different response shapes per request type. |
 
 ### SyncFetchConfig variants
 
@@ -199,6 +200,11 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
         amount = json["amount"]!!.jsonPrimitive.long,
         status = json["status"]?.jsonPrimitive?.content ?: "DRAFT",
     )
+
+    override fun fromSyncUpResponseBody(requestTag: String, responseBody: JsonObject): YourModel? {
+        val item = responseBody["item"]?.jsonObject ?: return null
+        return fromServerProtoJson(item)
+    }
 }
 ```
 
@@ -253,7 +259,6 @@ suspend fun createItem(item: YourModel): CreateItemResponse {
                     put("amount", data.amount)
                     put("reference_id", data.clientId)
                 },
-                responseDataUnwrapPath = listOf("item"),
             )
         },
         unpackSyncData = { status, response ->
@@ -316,7 +321,6 @@ suspend fun updateItem(item: YourModel, newName: String): SyncableObjectServiceR
                     put("name", updatedData.name)
                     put("version", HttpRequest.VERSION_PLACEHOLDER)
                 },
-                responseDataUnwrapPath = listOf("item"),
             )
         },
         unpackSyncData = { responseBody, statusCode, syncStatus ->
@@ -351,7 +355,6 @@ suspend fun deleteItem(item: YourModel) {
                 method = HttpRequest.HttpMethod.POST,
                 endpointUrl = "https://api.example.com/v2/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/cancel",
                 requestBody = JsonObject(emptyMap()),
-                responseDataUnwrapPath = listOf("item"),
             )
         },
         unpackData = { status, response ->

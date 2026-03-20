@@ -4,8 +4,7 @@ package com.example.sync
  * Represents a pending sync work item stored in the database. This
  * consolidates all the metadata needed to replay an offline operation
  * when connectivity returns: the request body, the target endpoint URL,
- * the idempotency key, the response unwrap path, and optionally the
- * sparse data for partial updates.
+ * the idempotency key, and optionally the sparse data for partial updates.
  *
  * Stored as a single JSON TEXT column (`pending_sync_request`) — when
  * the column is NULL the row has no pending work.

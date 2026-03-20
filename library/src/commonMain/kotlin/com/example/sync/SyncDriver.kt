@@ -9,7 +9,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 
 /**
  * This class is responsible for orchestrating syncing data between the local client and the server.
@@ -60,7 +59,6 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     method = HttpRequest.HttpMethod.GET,
                     endpointUrl = fetchConfig.endpoint,
                     requestBody = JsonObject(emptyMap()),
-                    responseDataUnwrapPath = emptyList(),
                 )
             )
 
@@ -69,7 +67,6 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     method = HttpRequest.HttpMethod.POST,
                     endpointUrl = fetchConfig.endpoint,
                     requestBody = fetchConfig.requestBody,
-                    responseDataUnwrapPath = emptyList(),
                 )
             )
         }
@@ -248,9 +245,9 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     logger.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
                 } else {
                     // 3. Parse the response and mark as synced
-                    val updatedData = unpackData(
+                    val updatedData = serverProcessingConfig.fromSyncUpResponseBody(
+                        requestTag = row.requestTag,
                         responseBody = response.responseBody,
-                        unpackDataPath = request.responseDataUnwrapPath,
                     )
                     val lastSyncedTimestamp = response.responseEpochTimestamp.toString()
 
@@ -278,20 +275,6 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
     // End region
-
-    private fun unpackData(
-        responseBody: JsonObject,
-        unpackDataPath: List<String>,
-    ): O? {
-        var unpackingJson = responseBody
-        unpackDataPath.forEach {
-            if (!unpackingJson.containsKey(it)) {
-                return null
-            }
-            unpackingJson = unpackingJson[it]!!.jsonObject
-        }
-        return serverProcessingConfig.fromServerProtoJson(unpackingJson)
-    }
 
     /**
      * Launches a coroutine that periodically calls [syncDownFromServer] at the interval

@@ -39,8 +39,6 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      *
      * @param endpoint - the URL that should be used for sending the create request to the server.
      * @param data - the data [O] that the create request is for.
-     * @param unpackAsyncDataPath - a ':' delimiter split string documenting the key value path to
-     *  unfurl the resulting data [O] from the async server response body payload.
      * @param asyncEndpoint - optionally provide a different url that should be used if the app
      *  is currently considered offline and this be processed at a later point in time after
      *  regaining network connection. If this value is null, the primary [endpoint] will be used.

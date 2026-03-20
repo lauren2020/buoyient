@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -71,12 +72,11 @@ class SyncUpRegressionTest {
         method = method,
         endpointUrl = endpoint,
         requestBody = body,
-        responseDataUnwrapPath = listOf("data"),
     )
 
     /**
-     * Wraps item JSON inside `{"data": <item>}` to match the `responseDataUnwrapPath`
-     * expected by the pending requests in these tests.
+     * Wraps item JSON inside `{"data": <item>}` to match the response shape
+     * parsed by [testServerConfig]'s `fromSyncUpResponseBody`.
      */
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -99,6 +99,11 @@ class SyncUpRegressionTest {
         override val headers: List<Pair<String, String>> = emptyList()
         override fun fromServerProtoJson(json: JsonObject): TestItem =
             Json.decodeFromJsonElement(TestItem.serializer(), json).withSyncStatus(SyncableObject.SyncStatus.Synced(""))
+
+        override fun fromSyncUpResponseBody(requestTag: String, responseBody: JsonObject): TestItem? {
+            val data = responseBody["data"]?.jsonObject ?: return null
+            return fromServerProtoJson(data)
+        }
     }
 
     // endregion

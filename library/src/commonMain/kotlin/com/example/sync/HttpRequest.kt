@@ -11,7 +11,6 @@ class HttpRequest(
     val method: HttpMethod,
     val endpointUrl: String,
     val requestBody: JsonObject,
-    val responseDataUnwrapPath: List<String>,
     val additionalHeaders: List<Pair<String, String>> = emptyList(),
 ) {
     enum class HttpMethod(val value: String) {
@@ -30,7 +29,6 @@ class HttpRequest(
         put(METHOD_TAG, method.value)
         put(ENDPOINT_URL_TAG, endpointUrl)
         put(REQUEST_BODY_TAG, requestBody)
-        put(RESPONSE_DATA_UNWRAP_PATH_TAG, responseDataUnwrapPath.joinToString(":"))
     }
 
     fun resolveEndpoint(serverId: String): HttpRequest? {
@@ -39,7 +37,6 @@ class HttpRequest(
             method = method,
             endpointUrl = endpointUrl.replace(SERVER_ID_PLACEHOLDER, serverId),
             requestBody = requestBody,
-            responseDataUnwrapPath = responseDataUnwrapPath,
             additionalHeaders = additionalHeaders,
         )
     }
@@ -54,7 +51,6 @@ class HttpRequest(
             method = method,
             endpointUrl = endpointUrl,
             requestBody = resolvedBody,
-            responseDataUnwrapPath = responseDataUnwrapPath,
             additionalHeaders = additionalHeaders,
         )
     }
@@ -69,7 +65,6 @@ class HttpRequest(
             method = method,
             endpointUrl = endpointUrl,
             requestBody = resolvedBody,
-            responseDataUnwrapPath = responseDataUnwrapPath,
             additionalHeaders = additionalHeaders,
         )
     }
@@ -80,13 +75,11 @@ class HttpRequest(
         const val METHOD_TAG = "method"
         const val ENDPOINT_URL_TAG = "endpoint"
         const val REQUEST_BODY_TAG = "request_body"
-        const val RESPONSE_DATA_UNWRAP_PATH_TAG = "response_data_unwrap_path"
 
         fun fromJson(json: JsonObject) = HttpRequest(
             method = HttpMethod.fromValue(json[METHOD_TAG]!!.jsonPrimitive.content),
             endpointUrl = json[ENDPOINT_URL_TAG]!!.jsonPrimitive.content,
             requestBody = json[REQUEST_BODY_TAG]!!.jsonObject,
-            responseDataUnwrapPath = json[RESPONSE_DATA_UNWRAP_PATH_TAG]!!.jsonPrimitive.content.split(":"),
         )
     }
 }
