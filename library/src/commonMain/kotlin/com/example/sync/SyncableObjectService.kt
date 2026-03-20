@@ -12,7 +12,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     private val syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     private val codec: SyncCodec<O> = SyncCodec(serializer),
     private val serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.headers,
+        serviceBaseHeaders = serverProcessingConfig.globalHeaders,
         logger = logger,
     ),
     private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
