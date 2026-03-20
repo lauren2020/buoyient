@@ -53,13 +53,16 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      */
     protected suspend fun create(
         data: O,
-        allowAsyncCreation: Boolean = true,
+        processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
         request: (data: O, idempotencyKey: String, isOffline: Boolean) -> HttpRequest,
         unpackSyncData: (status: Int, response: JsonObject) -> O?,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val idempotencyKey = idGenerator.generateId()
-        return if (connectivityChecker.isOnline() || !allowAsyncCreation) {
+        return if (
+            processingConstraints is ProcessingConstraints.OnlineOnly ||
+            (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
+        ) {
             // Online path: send the request to the remote API
             createSync(
                 request = request(data, idempotencyKey, false),
@@ -157,7 +160,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      */
     protected suspend fun update(
         data: O,
-        allowAsyncUpdate: Boolean = true,
+        processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
         request: (lastSyncedData: O, updatedData: O, idempotencyKey: String) -> HttpRequest,
         unpackSyncData: (responseBody: JsonObject, statusCode: Int, syncStatus: SyncableObject.SyncStatus) -> O?,
         requestTag: T,
@@ -170,7 +173,10 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             logger.e(TAG, "Failed to execute update due to being in an invalid state: $e")
             return SyncableObjectServiceResponse.InvalidRequest()
         }
-        return if (connectivityChecker.isOnline() || !allowAsyncUpdate) {
+        return if (
+            processingConstraints is ProcessingConstraints.OnlineOnly ||
+            (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
+        ) {
             updateSync(
                 request = request(effectiveLastSyncedData, data, idempotencyKey),
                 unpackData = unpackSyncData,
@@ -432,7 +438,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     /**
      * Retrieve all [O] items from the db that meet the given filter criteria.
      */
-    fun fetchFromDb(limit: Int = 100): List<O> =
+    fun getAllFromLocalStore(limit: Int = 100): List<O> =
         localStoreManager.getAllData(limit = limit).map { it.data }
 
     override fun close() {
@@ -460,6 +466,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 exception = IllegalStateException(queueResult.errorMessage)
             )
         }
+    }
+
+    sealed class ProcessingConstraints {
+        object OfflineOnly : ProcessingConstraints()
+        object OnlineOnly : ProcessingConstraints()
+        object NoConstraints : ProcessingConstraints()
     }
 
     companion object {
