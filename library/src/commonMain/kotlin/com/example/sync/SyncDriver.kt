@@ -20,6 +20,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val serverProcessingConfig: ServerProcessingConfig<O>,
     private val localStoreManager: LocalStoreManager<O, T>,
     private val logger: SyncLogger,
+    private val syncScheduleNotifier: SyncScheduleNotifier,
 ) {
 
     /**
@@ -31,9 +32,30 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         SyncableObjectMergeHandler(codec)
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    // Guards `syncDownJob` against concurrent start/stop calls from different threads.
+    // Without this, a race between startPeriodicSyncDown() and stopPeriodicSyncDown()
+    // could lead to duplicate sync loops or missed cancellations.
+    private val syncJobLock = Any()
     private var syncDownJob: Job? = null
 
-    init { startPeriodicSyncDown() }
+    /**
+     * Performs deferred initialization that requires the full object (including subclass
+     * properties) to be constructed. Must be called exactly once from the concrete
+     * subclass's init block — never from [SyncDriver]'s own init, since superclass init
+     * runs before subclass property initializers.
+     */
+    protected fun initialize() {
+        // NOTE: Periodic sync-down is intentionally started here and not in `init`. SyncDriver is
+        // an abstract superclass — its init block runs before subclass property initializers (e.g.,
+        // mergeHandler overrides in SyncableObjectService subclasses). Launching a coroutine
+        // here could call syncDownFromServer() before the subclass is fully constructed,
+        // causing it to observe uninitialized properties. Instead, the concrete subclass
+        // (SyncableObjectService) calls this initialize() in its own init block, after all
+        // initialization is complete.
+        syncScheduleNotifier.scheduleSyncIfNeeded()
+        startPeriodicSyncDown()
+    }
 
     /**
      * Fetches all data from the server and upserts it into the local db, handling any needed
@@ -278,20 +300,22 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     /**
      * Launches a coroutine that periodically calls [syncDownFromServer] at the interval
-     * configured by [SyncFetchConfig.syncCadenceSeconds]. The first sync happens immediately
-     * on init. If already running, this is a no-op.
+     * configured by [SyncFetchConfig.syncCadenceSeconds]. The first sync happens immediately.
+     * If already running, this is a no-op.
      */
     private fun startPeriodicSyncDown() {
-        if (syncDownJob?.isActive == true) return
-        val cadenceMs = serverProcessingConfig.syncFetchConfig.syncCadenceSeconds * 1000
-        syncDownJob = serviceScope.launch {
-            while (isActive) {
-                try {
-                    syncDownFromServer()
-                } catch (e: Exception) {
-                    logger.e(TAG, "Periodic sync-down failed: ", e)
+        synchronized(syncJobLock) {
+            if (syncDownJob?.isActive == true) return
+            val cadenceMs = serverProcessingConfig.syncFetchConfig.syncCadenceSeconds * 1000
+            syncDownJob = serviceScope.launch {
+                while (isActive) {
+                    try {
+                        syncDownFromServer()
+                    } catch (e: Exception) {
+                        logger.e(TAG, "Periodic sync-down failed: ", e)
+                    }
+                    delay(cadenceMs)
                 }
-                delay(cadenceMs)
             }
         }
     }
@@ -300,8 +324,10 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * Stops the periodic sync-down loop. Can be restarted by calling [startPeriodicSyncDown].
      */
     fun stopPeriodicSyncDown() {
-        syncDownJob?.cancel()
-        syncDownJob = null
+        synchronized(syncJobLock) {
+            syncDownJob?.cancel()
+            syncDownJob = null
+        }
     }
 
     open fun close() {

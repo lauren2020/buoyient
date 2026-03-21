@@ -23,10 +23,16 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     ),
     private val idGenerator: IdGenerator = createPlatformIdGenerator(),
 ) : Service<O>,
-    SyncDriver<O, T>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, logger)
+    SyncDriver<O, T>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, logger, syncScheduleNotifier)
 {
 
-    init { syncScheduleNotifier.scheduleSyncIfNeeded() }
+    init {
+        // Deferred initialization — called here rather than in SyncDriver.init so that both
+        // the superclass (SyncDriver) and this class are fully constructed. This guarantees
+        // the sync coroutine can safely access all properties, including subclass overrides
+        // like mergeHandler, without observing half-initialized state.
+        initialize()
+    }
 
     /**
      * Creates a syncable object. If the device is online, the object is sent
@@ -523,8 +529,10 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = data)
         }
         is PendingRequestQueueManager.QueueResult.StoreFailed -> {
-            logger.d(TAG, "Queue for (client_id: ${data.clientId}) failed.")
-            SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = data)
+            logger.e(TAG, "Queue for (client_id: ${data.clientId}) failed.")
+            SyncableObjectServiceResponse.LocalStoreFailed(
+                exception = IllegalStateException("Failed to persist data locally for client_id: ${data.clientId}")
+            )
         }
         is PendingRequestQueueManager.QueueResult.InvalidQueueRequest -> {
             logger.e(TAG, "Queue for (client_id: ${data.clientId}) was invalid: ${queueResult.errorMessage}")

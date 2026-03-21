@@ -152,18 +152,19 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         is PendingRequestQueueStrategy.Queue -> {
             if (getPendingRequests(data.clientId).any { it.type == PendingSyncRequest.Type.VOID }) {
                 QueueResult.InvalidQueueRequest("Cannot make updates after void!")
+            } else {
+                storeEntry(
+                    pendingSyncRequest = PendingSyncRequest(
+                        type = PendingSyncRequest.Type.UPDATE,
+                        idempotencyKey = idempotencyKey,
+                        request = httpRequest,
+                        serverAttemptMade = serverAttemptMade,
+                        data = data,
+                        lastSyncedData = lastSyncedData,
+                        requestTag = requestTag.value,
+                    ),
+                )
             }
-            storeEntry(
-                pendingSyncRequest = PendingSyncRequest(
-                    type = PendingSyncRequest.Type.UPDATE,
-                    idempotencyKey = idempotencyKey,
-                    request = httpRequest,
-                    serverAttemptMade = serverAttemptMade,
-                    data = data,
-                    lastSyncedData = lastSyncedData,
-                    requestTag = requestTag.value,
-                ),
-            )
         }
     }
 

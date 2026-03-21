@@ -207,7 +207,7 @@ class SyncUpRegressionTest {
         }
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, logger,
+            testServerConfig(), localStore, logger, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
 
@@ -315,7 +315,7 @@ class SyncUpRegressionTest {
         }
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, logger,
+            testServerConfig(), localStore, logger, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
 
@@ -446,7 +446,7 @@ class SyncUpRegressionTest {
         }
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, logger,
+            testServerConfig(), localStore, logger, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
 
