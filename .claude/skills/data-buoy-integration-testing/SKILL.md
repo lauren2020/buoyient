@@ -100,7 +100,7 @@ Every integration test follows the same pattern:
 6. Assert on response, local DB state, and/or request log
 
 ```kotlin
-import com.example.sync.testing.*
+import com.les.databuoy.testing.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -544,7 +544,7 @@ now = 2000L
 
 ## Available Testing Utilities Reference
 
-All classes are in the `com.example.sync.testing` package:
+All classes are in the `com.les.databuoy.testing` package:
 
 | Class | Purpose |
 |-------|---------|

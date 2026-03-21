@@ -51,9 +51,9 @@ Create a class that configures the `MockEndpointRouter` with realistic fake resp
 ```kotlin
 package com.example.yourapp.testing
 
-import com.example.sync.HttpRequest
-import com.example.sync.testing.MockEndpointRouter
-import com.example.sync.testing.MockResponse
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.testing.MockEndpointRouter
+import com.les.databuoy.testing.MockResponse
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -157,12 +157,12 @@ Create a `@Module` that conditionally provides mock or real dependencies based o
 ```kotlin
 package com.example.yourapp.di
 
-import com.example.sync.ConnectivityChecker
-import com.example.sync.ServerManager
-import com.example.sync.SyncLogger
-import com.example.sync.testing.MockEndpointRouter
-import com.example.sync.testing.PrintSyncLogger
-import com.example.sync.testing.TestConnectivityChecker
+import com.les.databuoy.ConnectivityChecker
+import com.les.databuoy.ServerManager
+import com.les.databuoy.SyncLogger
+import com.les.databuoy.testing.MockEndpointRouter
+import com.les.databuoy.testing.PrintSyncLogger
+import com.les.databuoy.testing.TestConnectivityChecker
 import com.example.yourapp.testing.MockServerFixtures
 import dagger.Module
 import dagger.Provides

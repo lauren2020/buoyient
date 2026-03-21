@@ -10,7 +10,7 @@ group = "com.les.databuoy"
 version = "0.1.0-SNAPSHOT"
 
 android {
-    namespace = "com.example.sync.hilt"
+    namespace = "com.les.databuoy.hilt"
     compileSdk = 34
 
     defaultConfig {

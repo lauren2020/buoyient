@@ -7,7 +7,7 @@
             android:authorities="${applicationId}.androidx-startup"
             android:exported="false">
             <meta-data
-                android:name="com.example.sync.DataBuoyInitializer"
+                android:name="com.les.databuoy.DataBuoyInitializer"
                 android:value="androidx.startup" />
         </provider>
     </application>

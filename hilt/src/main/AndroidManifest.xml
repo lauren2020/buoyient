@@ -17,7 +17,7 @@
             android:exported="false"
             tools:node="merge">
             <meta-data
-                android:name="com.example.sync.hilt.DataBuoyHiltInitializer"
+                android:name="com.les.databuoy.hilt.DataBuoyHiltInitializer"
                 android:value="androidx.startup" />
         </provider>
     </application>

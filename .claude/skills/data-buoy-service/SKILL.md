@@ -46,10 +46,10 @@ Every `SyncableObject` must have:
 ```kotlin
 package com.example.yourapp.data.models
 
-import com.example.sync.SyncableObject
-import com.example.sync.SyncableObject.Companion.CLIENT_ID_TAG
-import com.example.sync.SyncableObject.Companion.SERVER_ID_TAG
-import com.example.sync.SyncableObject.Companion.VERSION_TAG
+import com.les.databuoy.SyncableObject
+import com.les.databuoy.SyncableObject.Companion.CLIENT_ID_TAG
+import com.les.databuoy.SyncableObject.Companion.SERVER_ID_TAG
+import com.les.databuoy.SyncableObject.Companion.VERSION_TAG
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int

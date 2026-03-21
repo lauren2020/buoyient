@@ -81,14 +81,14 @@ kotlin {
 sqldelight {
     databases {
         create("SyncDatabase") {
-            packageName.set("com.example.sync.db")
+            packageName.set("com.les.databuoy.db")
             dialect("app.cash.sqldelight:sqlite-3-30-dialect:2.0.2")
         }
     }
 }
 
 android {
-    namespace = "com.example.sync"
+    namespace = "com.les.databuoy"
     compileSdk = 34
 
     defaultConfig {
