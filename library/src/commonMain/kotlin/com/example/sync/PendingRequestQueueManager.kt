@@ -13,10 +13,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
 ) {
     sealed class PendingRequestQueueStrategy {
         class Squash(
-            val squashUpdateIntoCreate: (
-                createRequest: HttpRequest,
-                updateRequest: HttpRequest,
-            ) -> HttpRequest,
+            val squashUpdateIntoCreate: SquashRequestMerger,
         ) : PendingRequestQueueStrategy()
 
         object Queue : PendingRequestQueueStrategy()
@@ -66,11 +63,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         idempotencyKey: String,
         serverAttemptMade: Boolean,
         lastSyncedData: O?,
-        buildUpdateRequest: (
-            lastSyncedData: O,
-            updatedData: O,
-            idempotencyKey: String,
-        ) -> HttpRequest,
+        buildUpdateRequest: UpdateRequestBuilder<O>,
         requestTag: T,
     ): QueueResult = when (strategy) {
         is PendingRequestQueueStrategy.Squash -> {
@@ -93,7 +86,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                             ),
                         )
                     } else {
-                        val squashedCreateRequest = strategy.squashUpdateIntoCreate(
+                        val squashedCreateRequest = strategy.squashUpdateIntoCreate.merge(
                             latestPendingRequest.request,
                             httpRequest,
                         )
@@ -126,7 +119,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                             ),
                         )
                     } else {
-                        val squashedUpdateRequest = buildUpdateRequest(
+                        val squashedUpdateRequest = buildUpdateRequest.buildRequest(
                             latestPendingRequest.data,
                             data,
                             idempotencyKey,

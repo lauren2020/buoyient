@@ -2,7 +2,6 @@ package com.example.sync
 
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.json.JsonObject
 
 abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
     serializer: KSerializer<O>,
@@ -55,8 +54,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     protected suspend fun create(
         data: O,
         processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
-        request: (data: O, idempotencyKey: String, isOffline: Boolean, attemptedServerRequest: HttpRequest?) -> HttpRequest,
-        unpackSyncData: (status: Int, response: JsonObject) -> O?,
+        request: CreateRequestBuilder<O>,
+        unpackSyncData: ResponseUnpacker<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val idempotencyKey = idGenerator.generateId()
@@ -78,7 +77,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             createAsync(
                 idempotencyKey = idempotencyKey,
                 data = data,
-                httpRequest = request(data, idempotencyKey, true, null),
+                httpRequest = request.buildRequest(data, idempotencyKey, true, null),
                 requestTag = requestTag,
             )
         }
@@ -89,14 +88,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      * server and returned to the client before storing the data locally.
      */
     private suspend fun createSync(
-        buildRequest: (data: O, idempotencyKey: String, isOffline: Boolean, attemptedServerRequest: HttpRequest?) -> HttpRequest,
+        buildRequest: CreateRequestBuilder<O>,
         idempotencyKey: String,
         data: O,
         processingConstraints: ProcessingConstraints,
         requestTag: T,
-        unpackSyncData: (status: Int, response: JsonObject) -> O?,
+        unpackSyncData: ResponseUnpacker<O>,
     ): SyncableObjectServiceResponse<O> {
-        val request = buildRequest(data, idempotencyKey, false, null)
+        val request = buildRequest.buildRequest(data, idempotencyKey, false, null)
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
                 return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
@@ -108,7 +107,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     createAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
-                        httpRequest = buildRequest(data, idempotencyKey, true, null),
+                        httpRequest = buildRequest.buildRequest(data, idempotencyKey, true, null),
                         requestTag = requestTag,
                     )
                 }
@@ -125,18 +124,21 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     return createAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
-                        httpRequest = buildRequest(data, idempotencyKey, true, request),
+                        httpRequest = buildRequest.buildRequest(data, idempotencyKey, true, request),
                         requestTag = requestTag,
                     )
                 }
-                val updatedData = unpackSyncData(
-                    response.statusCode,
+                val lastSyncedTimestamp = response.responseEpochTimestamp.toString()
+                val syncStatus = SyncableObject.SyncStatus.Synced(lastSyncedTimestamp)
+                val updatedData = unpackSyncData.unpack(
                     response.responseBody,
+                    response.statusCode,
+                    syncStatus,
                 )
                 updatedData?.let {
                     localStoreManager.insertFromServerResponse(
                         serverData = it,
-                        responseTimestamp = response.responseEpochTimestamp.toString(),
+                        responseTimestamp = lastSyncedTimestamp,
                     )
                 }
                 return SyncableObjectServiceResponse.Finished.NetworkResponseReceived(
@@ -198,8 +200,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     protected suspend fun update(
         data: O,
         processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
-        request: (lastSyncedData: O, updatedData: O, idempotencyKey: String) -> HttpRequest,
-        unpackSyncData: (responseBody: JsonObject, statusCode: Int, syncStatus: SyncableObject.SyncStatus) -> O?,
+        request: UpdateRequestBuilder<O>,
+        unpackSyncData: ResponseUnpacker<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val idempotencyKey = idGenerator.generateId()
@@ -215,7 +217,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
         ) {
             updateSync(
-                request = request(effectiveLastSyncedData, data, idempotencyKey),
+                data = data,
+                request = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey),
                 unpackData = unpackSyncData,
             )
         } else {
@@ -261,8 +264,9 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      * server and returned to the client before storing the updated data locally.
      */
     private suspend fun updateSync(
+        data: O,
         request: HttpRequest,
-        unpackData: (responseBody: JsonObject, statusCode: Int, syncStatus: SyncableObject.SyncStatus) -> O?,
+        unpackData: ResponseUnpacker<O>,
     ): SyncableObjectServiceResponse<O> {
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
@@ -271,8 +275,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             is ServerManager.ServerManagerResponse.ServerResponse -> {
                 logger.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
                 val lastSyncedTimestamp = response.responseEpochTimestamp.toString()
-                val syncStatus = SyncableObject.SyncStatus.Synced(lastSyncedTimestamp)
-                val updatedData = unpackData(response.responseBody, response.statusCode, syncStatus)
+                val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {
                     // If the server returned updated data, store the update in the db.
                     localStoreManager.upsertFromServerResponse(
@@ -301,12 +304,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         idempotencyKey: String,
         data: O,
         lastSyncedData: O,
-        buildRequest: (lastSyncedData: O, updatedData: O, idempotencyKey: String) -> HttpRequest,
+        buildRequest: UpdateRequestBuilder<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.updateLocalData(
             data = data,
-            httpRequest = buildRequest(lastSyncedData, data, idempotencyKey),
+            httpRequest = buildRequest.buildRequest(lastSyncedData, data, idempotencyKey),
             idempotencyKey = idempotencyKey,
             buildRequest = buildRequest,
             lastSyncedData = lastSyncedData,
@@ -332,8 +335,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      */
     protected suspend fun void(
         data: O,
-        request: (data: O, serverAttemptedPendingRequests: List<PendingSyncRequest<O>>) -> HttpRequest,
-        unpackData: (status: Int, response: JsonObject) -> O?,
+        request: VoidRequestBuilder<O>,
+        unpackData: ResponseUnpacker<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val pendingSyncRequests = localStoreManager.pendingRequestQueueManager.getPendingRequests(data.clientId)
@@ -351,14 +354,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         return if (connectivityChecker.isOnline()) {
             voidSync(
                 data = data,
-                request = request(data, serverAttemptedPendingRequests),
+                request = request.buildRequest(data, serverAttemptedPendingRequests),
                 unpackData = unpackData,
             )
         } else {
             val idempotencyKey = idGenerator.generateId()
             voidAsync(
                 data = data,
-                request = request(data, serverAttemptedPendingRequests),
+                request = request.buildRequest(data, serverAttemptedPendingRequests),
                 idempotencyKey = idempotencyKey,
                 requestTag = requestTag,
             )
@@ -372,18 +375,19 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     private suspend fun voidSync(
         data: O,
         request: HttpRequest,
-        unpackData: (status: Int, response: JsonObject) -> O?,
+        unpackData: ResponseUnpacker<O>,
     ): SyncableObjectServiceResponse<O> {
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
                 return SyncableObjectServiceResponse.NoInternetConnection()
 
             is ServerManager.ServerManagerResponse.ServerResponse -> {
-                val updatedData = unpackData(response.statusCode, response.responseBody)
+                val lastSyncedTimestamp = response.responseEpochTimestamp.toString()
+                val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {
                     localStoreManager.upsertFromVoidServerResponse(
                         serverData = it,
-                        responseTimestamp = response.responseEpochTimestamp.toString(),
+                        responseTimestamp = lastSyncedTimestamp,
                     )
                 }
                 return SyncableObjectServiceResponse.Finished.NetworkResponseReceived(
@@ -440,7 +444,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         clientId: String,
         serverId: String?,
         request: HttpRequest,
-        unpackData: (status: Int, response: JsonObject) -> O?,
+        unpackData: ResponseUnpacker<O>,
     ): GetResponse<O> {
         return if (connectivityChecker.isOnline()) {
             when (val response = serverManager.sendRequest(httpRequest = request)) {
@@ -450,7 +454,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 }
 
                 is ServerManager.ServerManagerResponse.ServerResponse -> {
-                    val data = unpackData(response.statusCode, response.responseBody)
+                    val syncStatus = SyncableObject.SyncStatus.Synced(response.responseEpochTimestamp.toString())
+                    val data = unpackData.unpack(response.responseBody, response.statusCode, syncStatus)
                     GetResponse.ReceivedServerResponse(
                         statusCode = response.statusCode,
                         responseBody = response.responseBody,

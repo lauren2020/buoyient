@@ -116,7 +116,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         httpRequest: HttpRequest,
         idempotencyKey: String,
         lastSyncedData: O,
-        buildRequest: (lastSyncedData: O, updatedData: O, idempotencyKey: String) -> HttpRequest,
+        buildRequest: UpdateRequestBuilder<O>,
         requestTag: T,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
