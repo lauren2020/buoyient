@@ -586,6 +586,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         request: HttpRequest,
         unpackData: ResponseUnpacker<O>,
     ): GetResponse<O> {
+        // If there are pending requests for this object, the local store has the most
+        // up-to-date version of the data — skip the server call.
+        if (localStoreManager.hasPendingRequests(clientId)) {
+            return getFromLocalStore(clientId = clientId, serverId = serverId)
+        }
+
         return if (connectivityChecker.isOnline()) {
             when (val response = serverManager.sendRequest(httpRequest = request)) {
                 is ServerManager.ServerManagerResponse.ConnectionError -> {
