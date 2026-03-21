@@ -174,6 +174,15 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      */
     suspend fun syncUpLocalChanges(): Int {
         logger.d(TAG, "Starting sync up of local changes...")
+
+        // Block all uploads globally if any item (in any service) has unresolved
+        // conflicts. Cross-item request ordering may create dependencies, so it is
+        // unsafe to upload anything until every conflict is resolved.
+        if (localStoreManager.pendingRequestQueueManager.hasAnyConflictsGlobally()) {
+            logger.w(TAG, "Skipping sync-up: unresolved conflicts exist. Resolve all conflicts before uploads can resume.")
+            return 0
+        }
+
         // 1. Query all rows with a non-null pending_sync_request.
         val pendingSyncEntries = localStoreManager.pendingRequestQueueManager.getPendingRequests()
         logger.d(TAG, "Found ${pendingSyncEntries.size} pending sync rows.")

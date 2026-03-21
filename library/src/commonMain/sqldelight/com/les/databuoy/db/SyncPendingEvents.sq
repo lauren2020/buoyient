@@ -107,6 +107,14 @@ SELECT EXISTS(
     LIMIT 1
 );
 
+-- Check whether any pending request (across all services) has unresolved conflicts.
+hasAnyConflicts:
+SELECT EXISTS(
+    SELECT 1 FROM sync_pending_events
+    WHERE conflict_info IS NOT NULL
+    LIMIT 1
+);
+
 -- Save conflict info on a pending request.
 saveConflictInfo:
 UPDATE sync_pending_events

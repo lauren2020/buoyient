@@ -546,6 +546,9 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         object PendingChangesConflict : UpsertPendingChangesResult()
     }
 
+    fun hasAnyConflictsGlobally(): Boolean =
+        database.syncPendingEventsQueries.hasAnyConflicts().executeAsOne()
+
     fun getConflicts(clientId: String): List<SyncableObjectMergeHandler.FieldConflict<O>> {
         return getPendingRequests(clientId).mapNotNull { pendingSyncRequest ->
             pendingSyncRequest.conflict
