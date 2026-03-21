@@ -1,8 +1,11 @@
 package com.example.sync
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -29,6 +32,14 @@ class HttpRequest(
         put(METHOD_TAG, method.value)
         put(ENDPOINT_URL_TAG, endpointUrl)
         put(REQUEST_BODY_TAG, requestBody)
+        if (additionalHeaders.isNotEmpty()) {
+            put(ADDITIONAL_HEADERS_TAG, JsonArray(additionalHeaders.map { (name, value) ->
+                buildJsonObject {
+                    put(HEADER_NAME_TAG, name)
+                    put(HEADER_VALUE_TAG, value)
+                }
+            }))
+        }
     }
 
     fun resolveEndpoint(serverId: String): HttpRequest? {
@@ -75,11 +86,18 @@ class HttpRequest(
         const val METHOD_TAG = "method"
         const val ENDPOINT_URL_TAG = "endpoint"
         const val REQUEST_BODY_TAG = "request_body"
+        const val ADDITIONAL_HEADERS_TAG = "additional_headers"
+        private const val HEADER_NAME_TAG = "name"
+        private const val HEADER_VALUE_TAG = "value"
 
         fun fromJson(json: JsonObject) = HttpRequest(
             method = HttpMethod.fromValue(json[METHOD_TAG]!!.jsonPrimitive.content),
             endpointUrl = json[ENDPOINT_URL_TAG]!!.jsonPrimitive.content,
             requestBody = json[REQUEST_BODY_TAG]!!.jsonObject,
+            additionalHeaders = json[ADDITIONAL_HEADERS_TAG]?.jsonArray?.map { element ->
+                val header = element.jsonObject
+                header[HEADER_NAME_TAG]!!.jsonPrimitive.content to header[HEADER_VALUE_TAG]!!.jsonPrimitive.content
+            } ?: emptyList(),
         )
     }
 }

@@ -3,7 +3,7 @@ package com.example.sync
 interface SyncableObject<O> {
     /**
      * The id the server is aware of. This value should be null if
-     * and only if some version of this object has been synced to the
+     * and only if no version of this object has been synced to the
      * server.
      */
     val serverId: String?

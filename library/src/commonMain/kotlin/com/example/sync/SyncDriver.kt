@@ -307,7 +307,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     private fun startPeriodicSyncDown() {
         synchronized(syncJobLock) {
             if (syncDownJob?.isActive == true) return
-            val cadenceMs = serverProcessingConfig.syncFetchConfig.syncCadenceSeconds * 1000
+            val cadenceMs = serverProcessingConfig.syncFetchConfig.syncCadenceSeconds * 1000L
             syncDownJob = serviceScope.launch {
                 while (isActive) {
                     try {
