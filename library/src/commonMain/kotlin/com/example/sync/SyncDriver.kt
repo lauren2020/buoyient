@@ -78,7 +78,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
             }
 
             is ServerManager.ServerManagerResponse.ServerResponse -> {
-                val syncedAtTimestamp = response.responseEpochTimestamp.toString()
+                val syncedAtTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val items = serverProcessingConfig.syncFetchConfig.transformItemsListFromResponse(
                     response = response.responseBody,
                 )
@@ -249,7 +249,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                         requestTag = row.requestTag,
                         responseBody = response.responseBody,
                     )
-                    val lastSyncedTimestamp = response.responseEpochTimestamp.toString()
+                    val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
 
                     // Clear the queue entry, update the main table, and
                     // propagate server context atomically so concurrent

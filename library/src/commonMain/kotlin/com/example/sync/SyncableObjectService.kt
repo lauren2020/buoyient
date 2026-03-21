@@ -128,7 +128,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         requestTag = requestTag,
                     )
                 }
-                val lastSyncedTimestamp = response.responseEpochTimestamp.toString()
+                val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val syncStatus = SyncableObject.SyncStatus.Synced(lastSyncedTimestamp)
                 val updatedData = unpackSyncData.unpack(
                     response.responseBody,
@@ -298,7 +298,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
 
             is ServerManager.ServerManagerResponse.ServerResponse -> {
                 logger.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
-                val lastSyncedTimestamp = response.responseEpochTimestamp.toString()
+                val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {
                     // If the server returned updated data, store the update in the db.
@@ -406,7 +406,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 return SyncableObjectServiceResponse.NoInternetConnection()
 
             is ServerManager.ServerManagerResponse.ServerResponse -> {
-                val lastSyncedTimestamp = response.responseEpochTimestamp.toString()
+                val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {
                     localStoreManager.upsertFromVoidServerResponse(
@@ -478,7 +478,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 }
 
                 is ServerManager.ServerManagerResponse.ServerResponse -> {
-                    val syncStatus = SyncableObject.SyncStatus.Synced(response.responseEpochTimestamp.toString())
+                    val syncStatus = SyncableObject.SyncStatus.Synced(TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp))
                     val data = unpackData.unpack(response.responseBody, response.statusCode, syncStatus)
                     GetResponse.ReceivedServerResponse(
                         statusCode = response.statusCode,
