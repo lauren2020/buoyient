@@ -244,7 +244,10 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     idempotencyKey = idempotencyKey,
                     data = data,
                     lastSyncedData = effectiveLastSyncedData,
-                    buildRequest = request,
+                    instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                        httpRequest = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey),
+                        buildRequest = request,
+                    ),
                     requestTag = requestTag,
                 )
             } else {
@@ -263,7 +266,10 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 idempotencyKey = idempotencyKey,
                 data = data,
                 lastSyncedData = effectiveLastSyncedData,
-                buildRequest = request,
+                instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                    httpRequest = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey),
+                    buildRequest = request,
+                ),
                 requestTag = requestTag,
             )
         }
@@ -329,7 +335,10 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         idempotencyKey = idempotencyKey,
                         data = data,
                         lastSyncedData = lastSyncedData,
-                        buildRequest = buildRequest,
+                        instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                            httpRequest = request,
+                            buildRequest = buildRequest,
+                        ),
                         requestTag = requestTag,
                     )
                 }
@@ -340,16 +349,18 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     processingConstraints !is ProcessingConstraints.OnlineOnly
                 ) {
                     // Timeout means the request may or may not have reached the server.
-                    // Queue for async retry — the idempotency key ensures safe replay.
-                    // Mark serverAttemptMade=true to prevent squashing with other pending
-                    // requests, since the original request body may have already been processed.
+                    // Queue the exact request that was already sent for async retry — the
+                    // idempotency key ensures safe replay. StoreAfterServerAttempt ensures
+                    // the queue cannot rebuild or squash this request with other pending
+                    // entries, since the original request body may have already been processed.
                     return updateAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
                         lastSyncedData = lastSyncedData,
-                        buildRequest = buildRequest,
+                        instruction = PendingRequestQueueManager.UpdateQueueInstruction.StoreAfterServerAttempt(
+                            httpRequest = request,
+                        ),
                         requestTag = requestTag,
-                        serverAttemptMade = true,
                     )
                 }
                 logger.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
@@ -383,18 +394,15 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         idempotencyKey: String,
         data: O,
         lastSyncedData: O,
-        buildRequest: UpdateRequestBuilder<O>,
+        instruction: PendingRequestQueueManager.UpdateQueueInstruction<O>,
         requestTag: T,
-        serverAttemptMade: Boolean = false,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.updateLocalData(
             data = data,
-            httpRequest = buildRequest.buildRequest(lastSyncedData, data, idempotencyKey),
             idempotencyKey = idempotencyKey,
-            buildRequest = buildRequest,
             lastSyncedData = lastSyncedData,
+            instruction = instruction,
             requestTag = requestTag,
-            serverAttemptMade = serverAttemptMade,
         )
         return convertQueueResultToServiceResponse(updatedData, queueResult)
     }

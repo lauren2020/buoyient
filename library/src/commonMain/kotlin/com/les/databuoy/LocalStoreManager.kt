@@ -118,12 +118,10 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      */
     fun updateLocalData(
         data: O,
-        httpRequest: HttpRequest,
         idempotencyKey: String,
         lastSyncedData: O,
-        buildRequest: UpdateRequestBuilder<O>,
+        instruction: PendingRequestQueueManager.UpdateQueueInstruction<O>,
         requestTag: T,
-        serverAttemptMade: Boolean = false,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
             val result = transaction {
@@ -135,12 +133,10 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 )
 
                 pendingRequestQueueManager.queueUpdateRequest(
-                    httpRequest = httpRequest,
                     idempotencyKey = idempotencyKey,
                     data = data,
-                    serverAttemptMade = serverAttemptMade,
-                    buildUpdateRequest = buildRequest,
                     lastSyncedData = lastSyncedData,
+                    instruction = instruction,
                     requestTag = requestTag,
                 )
             }
