@@ -1,5 +1,6 @@
 package com.example.sync
 
+import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
 
@@ -54,7 +55,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     protected suspend fun create(
         data: O,
         processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
-        request: (data: O, idempotencyKey: String, isOffline: Boolean) -> HttpRequest,
+        request: (data: O, idempotencyKey: String, isOffline: Boolean, attemptedServerRequest: HttpRequest?) -> HttpRequest,
         unpackSyncData: (status: Int, response: JsonObject) -> O?,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
@@ -65,7 +66,11 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         ) {
             // Online path: send the request to the remote API
             createSync(
-                request = request(data, idempotencyKey, false),
+                buildRequest = request,
+                idempotencyKey = idempotencyKey,
+                data = data,
+                processingConstraints = processingConstraints,
+                requestTag = requestTag,
                 unpackSyncData = unpackSyncData,
             )
         } else {
@@ -73,7 +78,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             createAsync(
                 idempotencyKey = idempotencyKey,
                 data = data,
-                httpRequest = request(data, idempotencyKey, true),
+                httpRequest = request(data, idempotencyKey, true, null),
                 requestTag = requestTag,
             )
         }
@@ -84,14 +89,46 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      * server and returned to the client before storing the data locally.
      */
     private suspend fun createSync(
-        request: HttpRequest,
+        buildRequest: (data: O, idempotencyKey: String, isOffline: Boolean, attemptedServerRequest: HttpRequest?) -> HttpRequest,
+        idempotencyKey: String,
+        data: O,
+        processingConstraints: ProcessingConstraints,
+        requestTag: T,
         unpackSyncData: (status: Int, response: JsonObject) -> O?,
     ): SyncableObjectServiceResponse<O> {
+        val request = buildRequest(data, idempotencyKey, false, null)
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
-                return SyncableObjectServiceResponse.NoInternetConnection()
+                return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    SyncableObjectServiceResponse.NoInternetConnection()
+                } else {
+                    // If the request failed with a connection error, it means ktor errored before
+                    // even attempting the request. A request can be re-queued async without any
+                    // concern for idempotent retry.
+                    createAsync(
+                        idempotencyKey = idempotencyKey,
+                        data = data,
+                        httpRequest = buildRequest(data, idempotencyKey, true, null),
+                        requestTag = requestTag,
+                    )
+                }
 
             is ServerManager.ServerManagerResponse.ServerResponse -> {
+                if (
+                    response.statusCode == HttpStatusCode.RequestTimeout.value &&
+                    processingConstraints !is ProcessingConstraints.OnlineOnly
+                ) {
+                    // If the request failed with a timeout status code that means the request was
+                    // attempted and it may or may not have reached the server and created the data.
+                    // Any request queued here needs to ensure it has considered idempotent retry
+                    // concerns. Set attemptedServerRequest to communicate this.
+                    return createAsync(
+                        idempotencyKey = idempotencyKey,
+                        data = data,
+                        httpRequest = buildRequest(data, idempotencyKey, true, request),
+                        requestTag = requestTag,
+                    )
+                }
                 val updatedData = unpackSyncData(
                     response.statusCode,
                     response.responseBody,
