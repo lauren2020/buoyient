@@ -212,15 +212,39 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             logger.e(TAG, "Failed to execute update due to being in an invalid state: $e")
             return SyncableObjectServiceResponse.InvalidRequest()
         }
+
         return if (
             processingConstraints is ProcessingConstraints.OnlineOnly ||
             (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
         ) {
-            updateSync(
-                data = data,
-                request = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey),
-                unpackData = unpackSyncData,
-            )
+            // For performance, only check if pending requests exist inside the online processing
+            // block. There is no need to make this query if we already know we are just going to
+            // queue async anyways.
+            if (localStoreManager.hasPendingRequests(data.clientId)) {
+                // There are pending async requests queued for this item. Sending an online update
+                // now would cause the server to receive operations out of order. Force the update
+                // to be queued so it is processed after the pending requests during sync-up.
+                if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    // Caller explicitly requires online-only processing, but we can't safely
+                    // send online while prior requests are still queued.
+                    logger.e(TAG, "Cannot process OnlineOnly update for (client_id: ${data.clientId}) " +
+                            "while pending async requests exist.")
+                    return SyncableObjectServiceResponse.InvalidRequest()
+                }
+                updateAsync(
+                    idempotencyKey = idempotencyKey,
+                    data = data,
+                    lastSyncedData = effectiveLastSyncedData,
+                    buildRequest = request,
+                    requestTag = requestTag,
+                )
+            } else {
+                updateSync(
+                    data = data,
+                    request = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey),
+                    unpackData = unpackSyncData,
+                )
+            }
         } else {
             updateAsync(
                 idempotencyKey = idempotencyKey,

@@ -99,6 +99,14 @@ SET last_synced_data = ?,
     request = ?
 WHERE pending_request_id = ?;
 
+-- Check whether any pending requests exist for a specific client_id within a service.
+hasPendingRequestsByClientId:
+SELECT EXISTS(
+    SELECT 1 FROM sync_pending_events
+    WHERE service_name = ? AND client_id = ?
+    LIMIT 1
+);
+
 -- Save conflict info on a pending request.
 saveConflictInfo:
 UPDATE sync_pending_events

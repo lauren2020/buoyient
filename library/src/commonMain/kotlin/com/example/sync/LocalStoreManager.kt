@@ -37,6 +37,9 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private fun <T> transaction(block: () -> T): T =
         database.transactionWithResult { block() }
 
+    fun hasPendingRequests(clientId: String): Boolean =
+        pendingRequestQueueManager.hasPendingRequests(clientId)
+
     fun close() {
         // No-op: the database is application-scoped and outlives any
         // individual service instance. Android tears down the connection
