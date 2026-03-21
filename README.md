@@ -308,6 +308,18 @@ fun provideServerManager(useMock: Boolean): ServerManager {
 | `:hilt` | `com.les.databuoy:data-buoy-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
 | `:testing` | `com.les.databuoy:testing` | Test utilities — mock server, in-memory DB, test doubles |
 
+## Detailed Guides
+
+The `docs/` directory contains step-by-step guides for integrating data-buoy into a consuming application:
+
+| Guide | Description |
+|-------|-------------|
+| [Creating a Service](docs/creating-a-service.md) | Data model, `ServerProcessingConfig`, service class, and registration |
+| [Integration Testing](docs/integration-testing.md) | Automated JVM tests with `TestServiceEnvironment` and mock server |
+| [Mock Mode](docs/mock-mode.md) | Runtime mock mode for manual testing without a real backend |
+
+**For AI agents (Claude Code, Cursor, etc.):** This repo includes a `CLAUDE.md` and `.claude/skills/` with detailed instructions for service creation, testing, and mock mode setup. These are loaded automatically by Claude Code when working in this project.
+
 ## Build
 
 ```bash
