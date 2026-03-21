@@ -22,7 +22,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    val pendingRequestQueueManager: PendingRequestQueueManager<O, T> = PendingRequestQueueManager(
+    internal val pendingRequestQueueManager: PendingRequestQueueManager<O, T> = PendingRequestQueueManager(
         database = database,
         serviceName = serviceName,
         strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,

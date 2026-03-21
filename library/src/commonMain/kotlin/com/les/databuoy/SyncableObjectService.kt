@@ -63,9 +63,9 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         request: CreateRequestBuilder<O>,
         unpackSyncData: ResponseUnpacker<O>,
         requestTag: T,
-    ): SyncableObjectServiceResponse<O> {
+    ): SyncableObjectServiceResponse<O> = withClientLock(data.clientId) {
         val idempotencyKey = idGenerator.generateId()
-        return if (
+        if (
             processingConstraints is ProcessingConstraints.OnlineOnly ||
             (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
         ) {
@@ -212,17 +212,17 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         request: UpdateRequestBuilder<O>,
         unpackSyncData: ResponseUnpacker<O>,
         requestTag: T,
-    ): SyncableObjectServiceResponse<O> {
+    ): SyncableObjectServiceResponse<O> = withClientLock(data.clientId) {
         val idempotencyKey = idGenerator.generateId()
         val effectiveLastSyncedData = try {
             getEffectiveBaseDataForUpdate(data)
         } catch (e: Exception) {
             // The data was not in a valid state to be updated, return an error.
             logger.e(TAG, "Failed to execute update due to being in an invalid state: $e")
-            return SyncableObjectServiceResponse.InvalidRequest()
+            return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
         }
 
-        return if (
+        if (
             processingConstraints is ProcessingConstraints.OnlineOnly ||
             (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
         ) {
@@ -238,7 +238,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     // send online while prior requests are still queued.
                     logger.e(TAG, "Cannot process OnlineOnly update for (client_id: ${data.clientId}) " +
                             "while pending async requests exist.")
-                    return SyncableObjectServiceResponse.InvalidRequest()
+                    return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
                 }
                 updateAsync(
                     idempotencyKey = idempotencyKey,
@@ -428,7 +428,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         request: VoidRequestBuilder<O>,
         unpackData: ResponseUnpacker<O>,
         requestTag: T,
-    ): SyncableObjectServiceResponse<O> {
+    ): SyncableObjectServiceResponse<O> = withClientLock(data.clientId) {
         val pendingSyncRequests = localStoreManager.pendingRequestQueueManager.getPendingRequests(data.clientId)
         val serverAttemptedPendingRequests = pendingSyncRequests.filter { it.serverAttemptMade }
         // If the object has never been synced to the server & no pending sync request has been
@@ -436,7 +436,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         // Also clear any pending create/update since the object is being voided before it was
         // synced.
         if (data.serverId == null && serverAttemptedPendingRequests.isEmpty()) {
-            return try {
+            return@withClientLock try {
                 val updatedData = localStoreManager.voidLocalOnlyData(data = data)
                 SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = updatedData)
             } catch (e: Exception) {
@@ -449,7 +449,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         val httpRequest = request.buildRequest(data, serverAttemptedPendingRequests)
 
         // Object exists on server — use the online/offline dual-path.
-        return if (
+        if (
             processingConstraints is ProcessingConstraints.OnlineOnly ||
             (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
         ) {

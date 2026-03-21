@@ -8,6 +8,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -33,6 +35,12 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    // Per-clientId Mutex map for application-level mutual exclusion.
+    // Serializes all operations (CRUD, sync-down, sync-up) on the same object
+    // while allowing full concurrency across different objects.
+    private val lockMapMutex = Mutex()
+    private val clientLocks = mutableMapOf<String, Mutex>()
+
     // Guards `syncDownJob` against concurrent start/stop calls from different threads.
     // Without this, a race between startPeriodicSyncDown() and stopPeriodicSyncDown()
     // could lead to duplicate sync loops or missed cancellations.
@@ -55,6 +63,20 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         // initialization is complete.
         syncScheduleNotifier.scheduleSyncIfNeeded()
         startPeriodicSyncDown()
+    }
+
+    /**
+     * Acquires a per-clientId [Mutex], ensuring that all operations on the same
+     * object are serialized. Different objects can still be processed concurrently.
+     *
+     * This prevents races between user-initiated CRUD, periodic sync-down, and
+     * background sync-up when they target the same clientId.
+     */
+    protected suspend fun <R> withClientLock(clientId: String, block: suspend () -> R): R {
+        val mutex = lockMapMutex.withLock {
+            clientLocks.getOrPut(clientId) { Mutex() }
+        }
+        return mutex.withLock { block() }
     }
 
     /**
@@ -112,10 +134,12 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
 
                 items.forEach { serverObj ->
                     try {
-                        val upsertResult = upsertServerResultIntoLocal(
-                            serverObj = serverObj,
-                            syncedAtTimestamp = syncedAtTimestamp,
-                        )
+                        val upsertResult = withClientLock(serverObj.clientId) {
+                            upsertServerResultIntoLocal(
+                                serverObj = serverObj,
+                                syncedAtTimestamp = syncedAtTimestamp,
+                            )
+                        }
                         when (upsertResult) {
                             is UpsertResult.CleanUpsert -> upsertedCount++
                             is UpsertResult.MergedUpsert -> mergedCount++
@@ -170,8 +194,14 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 continue
             }
             try {
-                syncUpPendingData(entry)
-                syncedCount++
+                withClientLock(entry.data.clientId) {
+                    // Re-fetch inside the lock to ensure we have the latest state
+                    // after acquiring exclusive access for this clientId.
+                    val lockedEntry = localStoreManager.pendingRequestQueueManager
+                        .getPendingRequestById(pendingRequestId) ?: return@withClientLock
+                    syncUpPendingData(lockedEntry)
+                    syncedCount++
+                }
             } catch (e: Exception) {
                 logger.e(TAG, "Error syncing ${entry.type} for ${entry.data.clientId}.", e)
             }

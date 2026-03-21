@@ -5,11 +5,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
 class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
-    val database: SyncDatabase,
-    val serviceName: String,
-    val strategy: PendingRequestQueueStrategy,
-    val codec: SyncCodec<O>,
-    val logger: SyncLogger,
+    internal val database: SyncDatabase,
+    internal val serviceName: String,
+    internal val strategy: PendingRequestQueueStrategy,
+    internal val codec: SyncCodec<O>,
+    internal val logger: SyncLogger,
 ) {
     sealed class PendingRequestQueueStrategy {
         class Squash(
