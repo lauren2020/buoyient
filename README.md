@@ -198,18 +198,123 @@ DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
 | `SyncUpConfig` | `acceptUploadResponseAsProcessed()` | Custom success criteria |
 | `ServerProcessingConfig` | `fromServerProtoJson()` | Response deserialization |
 
+## Testing
+
+The `:testing` module provides utilities for both automated integration tests and runtime mock mode, so you can test your services without a real backend.
+
+```kotlin
+// build.gradle.kts
+testImplementation("com.les.databuoy:testing:<version>")
+```
+
+### Integration Tests
+
+Use `TestServiceEnvironment` to get a fully wired test harness with an in-memory database, mock HTTP server, and controllable connectivity:
+
+```kotlin
+@Test
+fun `create todo online returns server response`() = runBlocking {
+    val env = TestServiceEnvironment()
+
+    env.mockRouter.onPost("https://api.example.com/todos") { request ->
+        MockResponse(201, buildJsonObject {
+            put("item", buildJsonObject {
+                put("id", "srv-1")
+                put("reference_id", request.body["reference_id"]!!)
+                put("title", request.body["title"]!!)
+                put("version", 1)
+            })
+        })
+    }
+
+    val service = TodoService(
+        serverProcessingConfig = TodoServerProcessingConfig(),
+        connectivityChecker = env.connectivityChecker,
+        serverManager = env.serverManager,
+        localStoreManager = env.createLocalStoreManager(
+            codec = SyncCodec(Todo.serializer()),
+            serviceName = "todos",
+        ),
+        idGenerator = env.idGenerator,
+        logger = env.logger,
+        syncScheduleNotifier = env.syncScheduleNotifier,
+    )
+
+    val result = service.addTodo("Buy milk")
+    assertTrue(result is SyncableObjectServiceResponse.Finished.NetworkResponseReceived)
+    assertEquals(1, env.mockRouter.requestLog.size)
+
+    service.close()
+}
+```
+
+Test offline behavior by flipping connectivity mid-test:
+
+```kotlin
+env.connectivityChecker.online = false
+// Operations now queue locally instead of hitting the server
+```
+
+### Mock Mode (Manual Testing)
+
+Add the testing module as a regular dependency (scoped to debug builds) to run the full app against fake data:
+
+```kotlin
+// build.gradle.kts
+debugImplementation("com.les.databuoy:testing:<version>")
+```
+
+Wire a `MockEndpointRouter` into your DI graph behind a developer toggle:
+
+```kotlin
+fun provideServerManager(useMock: Boolean): ServerManager {
+    if (useMock) {
+        val router = MockEndpointRouter()
+        router.onGet("https://api.example.com/todos") { _ ->
+            MockResponse(200, loadFixture("todos.json"))
+        }
+        router.onPost("https://api.example.com/todos") { request ->
+            MockResponse(201, buildJsonObject { put("item", request.body) })
+        }
+        return router.buildServerManager()
+    }
+    return ServerManager(headers, logger)
+}
+```
+
+### Testing Utilities
+
+| Class | Purpose |
+|-------|---------|
+| `TestServiceEnvironment` | All-in-one harness bundling mock server, in-memory DB, and test doubles |
+| `MockEndpointRouter` | Register mock HTTP handlers by method + URL pattern; inspect request log |
+| `MockResponse` / `RecordedRequest` | Define responses and inspect captured requests |
+| `MockConnectionException` | Throw from a handler to simulate network failure |
+| `TestConnectivityChecker` | Mutable `online` flag to control online/offline paths |
+| `TestDatabaseFactory` | Create isolated in-memory SQLite databases |
+| `IncrementingIdGenerator` | Deterministic sequential IDs for predictable assertions |
+| `NoOpSyncLogger` / `PrintSyncLogger` | Silent or stdout logging |
+
 ## Modules
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
 | `:library` | `com.les.databuoy:library` | Core sync engine (KMP) |
 | `:hilt` | `com.les.databuoy:data-buoy-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
+| `:testing` | `com.les.databuoy:testing` | Test utilities — mock server, in-memory DB, test doubles |
 
 ## Build
 
 ```bash
 ./gradlew :library:build
 ./gradlew :hilt:build
+./gradlew :testing:build
+```
+
+To run tests:
+
+```bash
+./gradlew :testing:test
 ```
 
 To publish to local Maven:
@@ -217,4 +322,5 @@ To publish to local Maven:
 ```bash
 ./gradlew :library:publishToMavenLocal
 ./gradlew :hilt:publishToMavenLocal
+./gradlew :testing:publishToMavenLocal
 ```
