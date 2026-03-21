@@ -247,8 +247,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             } else {
                 updateSync(
                     data = data,
-                    request = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey),
                     unpackData = unpackSyncData,
+                    processingConstraints = processingConstraints,
+                    idempotencyKey = idempotencyKey,
+                    lastSyncedData = effectiveLastSyncedData,
+                    buildRequest = request,
+                    requestTag = requestTag,
                 )
             }
         } else {
@@ -292,17 +296,56 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     /**
      * Update data [O] by contacting the server immediately & waiting for it to be updated by the
      * server and returned to the client before storing the updated data locally.
+     *
+     * If the server request fails due to a connection error or 408 timeout and
+     * [processingConstraints] allows async processing, the update is queued for later sync
+     * rather than returning a hard failure. This mirrors the fallback behavior in [createSync].
      */
     private suspend fun updateSync(
         data: O,
-        request: HttpRequest,
         unpackData: ResponseUnpacker<O>,
+        processingConstraints: ProcessingConstraints,
+        idempotencyKey: String,
+        lastSyncedData: O,
+        buildRequest: UpdateRequestBuilder<O>,
+        requestTag: T,
     ): SyncableObjectServiceResponse<O> {
+        val request = buildRequest.buildRequest(
+            lastSyncedData = lastSyncedData,
+            updatedData = data,
+            idempotencyKey = idempotencyKey,
+        )
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
-                return SyncableObjectServiceResponse.NoInternetConnection()
+                return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    SyncableObjectServiceResponse.NoInternetConnection()
+                } else {
+                    // Connection error means ktor failed before even attempting the request.
+                    // Safe to re-queue async without idempotent retry concerns.
+                    updateAsync(
+                        idempotencyKey = idempotencyKey,
+                        data = data,
+                        lastSyncedData = lastSyncedData,
+                        buildRequest = buildRequest,
+                        requestTag = requestTag,
+                    )
+                }
 
             is ServerManager.ServerManagerResponse.ServerResponse -> {
+                if (
+                    response.statusCode == HttpStatusCode.RequestTimeout.value &&
+                    processingConstraints !is ProcessingConstraints.OnlineOnly
+                ) {
+                    // Timeout means the request may or may not have reached the server.
+                    // Queue for async retry — the idempotency key ensures safe replay.
+                    return updateAsync(
+                        idempotencyKey = idempotencyKey,
+                        data = data,
+                        lastSyncedData = lastSyncedData,
+                        buildRequest = buildRequest,
+                        requestTag = requestTag,
+                    )
+                }
                 logger.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
@@ -365,6 +408,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      */
     protected suspend fun void(
         data: O,
+        processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
         request: VoidRequestBuilder<O>,
         unpackData: ResponseUnpacker<O>,
         requestTag: T,
@@ -376,22 +420,35 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         // Also clear any pending create/update since the object is being voided before it was
         // synced.
         if (data.serverId == null && serverAttemptedPendingRequests.isEmpty()) {
-            val updatedData = localStoreManager.voidLocalOnlyData(data = data)
-            return SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = updatedData)
+            return try {
+                val updatedData = localStoreManager.voidLocalOnlyData(data = data)
+                SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = updatedData)
+            } catch (e: Exception) {
+                logger.e(TAG, "Failed to void local-only object (client_id: ${data.clientId}): ", e)
+                SyncableObjectServiceResponse.LocalStoreFailed(exception = e)
+            }
         }
 
+        val idempotencyKey = idGenerator.generateId()
+        val httpRequest = request.buildRequest(data, serverAttemptedPendingRequests)
+
         // Object exists on server — use the online/offline dual-path.
-        return if (connectivityChecker.isOnline()) {
+        return if (
+            processingConstraints is ProcessingConstraints.OnlineOnly ||
+            (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
+        ) {
             voidSync(
                 data = data,
-                request = request.buildRequest(data, serverAttemptedPendingRequests),
+                request = httpRequest,
                 unpackData = unpackData,
+                processingConstraints = processingConstraints,
+                idempotencyKey = idempotencyKey,
+                requestTag = requestTag,
             )
         } else {
-            val idempotencyKey = idGenerator.generateId()
             voidAsync(
                 data = data,
-                request = request.buildRequest(data, serverAttemptedPendingRequests),
+                request = httpRequest,
                 idempotencyKey = idempotencyKey,
                 requestTag = requestTag,
             )
@@ -401,17 +458,49 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     /**
      * Void data [O] by contacting the server immediately & waiting for it to be voided by the
      * server and returned to the client before storing the voided data locally.
+     *
+     * If the server request fails due to a connection error or 408 timeout and
+     * [processingConstraints] allows async processing, the void is queued for later sync
+     * rather than returning a hard failure. This mirrors the fallback behavior in [createSync]
+     * and [updateSync].
      */
     private suspend fun voidSync(
         data: O,
         request: HttpRequest,
         unpackData: ResponseUnpacker<O>,
+        processingConstraints: ProcessingConstraints,
+        idempotencyKey: String,
+        requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
-                return SyncableObjectServiceResponse.NoInternetConnection()
+                return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    SyncableObjectServiceResponse.NoInternetConnection()
+                } else {
+                    // Connection error means ktor failed before even attempting the request.
+                    // Safe to re-queue async without idempotent retry concerns.
+                    voidAsync(
+                        data = data,
+                        request = request,
+                        idempotencyKey = idempotencyKey,
+                        requestTag = requestTag,
+                    )
+                }
 
             is ServerManager.ServerManagerResponse.ServerResponse -> {
+                if (
+                    response.statusCode == HttpStatusCode.RequestTimeout.value &&
+                    processingConstraints !is ProcessingConstraints.OnlineOnly
+                ) {
+                    // Timeout means the request may or may not have reached the server.
+                    // Queue for async retry — the idempotency key ensures safe replay.
+                    return voidAsync(
+                        data = data,
+                        request = request,
+                        idempotencyKey = idempotencyKey,
+                        requestTag = requestTag,
+                    )
+                }
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {

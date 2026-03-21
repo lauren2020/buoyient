@@ -227,8 +227,9 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 request = request.resolveEndpoint(serverId) ?: request
             }
         }
-        val requestBodyString = row.request.requestBody.toString()
-        if (requestBodyString.contains(HttpRequest.SERVER_ID_PLACEHOLDER)) {
+        // Use the (potentially endpoint-resolved) request, not the original row.request,
+        // so that all placeholder checks operate on the latest resolved state.
+        if (request.requestBody.toString().contains(HttpRequest.SERVER_ID_PLACEHOLDER)) {
             val serverId = row.lastSyncedData?.serverId ?: row.data.serverId
             if (serverId == null) {
                 // If the request body contains unresolved placeholders and still has no server id,
@@ -241,7 +242,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 request = request.resolveBodyServerId(serverId) ?: request
             }
         }
-        if (requestBodyString.contains(HttpRequest.VERSION_PLACEHOLDER)) {
+        if (request.requestBody.toString().contains(HttpRequest.VERSION_PLACEHOLDER)) {
             // Resolve the version placeholder in the request body with the most up-to-date version.
             val version = row.lastSyncedData?.version ?: row.data.version
             request = request.resolveBodyVersion(version.toString()) ?: request

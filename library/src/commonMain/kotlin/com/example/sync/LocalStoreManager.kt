@@ -1,6 +1,7 @@
 package com.example.sync
 
 import com.example.sync.db.SyncDatabase
+import kotlin.jvm.Throws
 
 class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val database: SyncDatabase = createSyncDatabase(),
@@ -236,25 +237,21 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
+    @Throws
     fun voidLocalOnlyData(data: O): O {
-        try {
-            val jsonData = codec.encode(data)
-            transaction {
-                database.syncDataQueries.voidLocalOnly(
-                    sync_status = SyncableObject.SyncStatus.LOCAL_ONLY,
-                    data_blob = jsonData.toString(),
-                    service_name = serviceName,
-                    client_id = data.clientId,
-                )
-                pendingRequestQueueManager.clearAllPendingRequests(data.clientId)
-            }
-
-            logger.d(TAG, "Voided local-only object (client_id: ${data.clientId})")
-            return data.withSyncStatus(SyncableObject.SyncStatus.LocalOnly)
-        } catch (e: Exception) {
-            logger.e(TAG, "Failed to void local object: ", e)
-            return data
+        val jsonData = codec.encode(data)
+        transaction {
+            database.syncDataQueries.voidLocalOnly(
+                sync_status = SyncableObject.SyncStatus.LOCAL_ONLY,
+                data_blob = jsonData.toString(),
+                service_name = serviceName,
+                client_id = data.clientId,
+            )
+            pendingRequestQueueManager.clearAllPendingRequests(data.clientId)
         }
+
+        logger.d(TAG, "Voided local-only object (client_id: ${data.clientId})")
+        return data.withSyncStatus(SyncableObject.SyncStatus.LocalOnly)
     }
 
     /**
