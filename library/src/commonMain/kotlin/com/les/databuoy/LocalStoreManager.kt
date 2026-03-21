@@ -55,6 +55,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         httpRequest: HttpRequest,
         idempotencyKey: String,
         requestTag: T,
+        serverAttemptMade: Boolean = false,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
             val jsonData = codec.encode(data)
@@ -72,7 +73,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     data = data,
                     httpRequest = httpRequest,
                     idempotencyKey = idempotencyKey,
-                    serverAttemptMade = false,
+                    serverAttemptMade = serverAttemptMade,
                     requestTag = requestTag,
                 )
             }
@@ -122,6 +123,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         lastSyncedData: O,
         buildRequest: UpdateRequestBuilder<O>,
         requestTag: T,
+        serverAttemptMade: Boolean = false,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
             val result = transaction {
@@ -136,7 +138,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     httpRequest = httpRequest,
                     idempotencyKey = idempotencyKey,
                     data = data,
-                    serverAttemptMade = false,
+                    serverAttemptMade = serverAttemptMade,
                     buildUpdateRequest = buildRequest,
                     lastSyncedData = lastSyncedData,
                     requestTag = requestTag,
@@ -195,6 +197,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         httpRequest: HttpRequest,
         idempotencyKey: String,
         requestTag: T,
+        serverAttemptMade: Boolean = false,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
             val result = transaction {
@@ -207,7 +210,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     data = data,
                     httpRequest = httpRequest,
                     idempotencyKey = idempotencyKey,
-                    serverAttemptMade = false,
+                    serverAttemptMade = serverAttemptMade,
                     lastSyncedServerData = null,
                     requestTag = requestTag,
                 )

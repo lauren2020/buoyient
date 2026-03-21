@@ -126,12 +126,13 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     // If the request failed with a timeout status code that means the request was
                     // attempted and it may or may not have reached the server and created the data.
                     // Any request queued here needs to ensure it has considered idempotent retry
-                    // concerns. Set attemptedServerRequest to communicate this.
+                    // concerns. Set serverAttemptMade to communicate this.
                     return createAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
                         httpRequest = buildRequest.buildRequest(data, idempotencyKey, true, request),
                         requestTag = requestTag,
+                        serverAttemptMade = true,
                     )
                 }
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
@@ -169,12 +170,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         data: O,
         httpRequest: HttpRequest,
         requestTag: T,
+        serverAttemptMade: Boolean = false,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.insertLocalData(
             data = data,
             httpRequest = httpRequest,
             idempotencyKey = idempotencyKey,
             requestTag = requestTag,
+            serverAttemptMade = serverAttemptMade,
         )
         return convertQueueResultToServiceResponse(updatedData, queueResult)
     }
@@ -338,12 +341,15 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 ) {
                     // Timeout means the request may or may not have reached the server.
                     // Queue for async retry — the idempotency key ensures safe replay.
+                    // Mark serverAttemptMade=true to prevent squashing with other pending
+                    // requests, since the original request body may have already been processed.
                     return updateAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
                         lastSyncedData = lastSyncedData,
                         buildRequest = buildRequest,
                         requestTag = requestTag,
+                        serverAttemptMade = true,
                     )
                 }
                 logger.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
@@ -379,6 +385,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         lastSyncedData: O,
         buildRequest: UpdateRequestBuilder<O>,
         requestTag: T,
+        serverAttemptMade: Boolean = false,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.updateLocalData(
             data = data,
@@ -387,6 +394,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             buildRequest = buildRequest,
             lastSyncedData = lastSyncedData,
             requestTag = requestTag,
+            serverAttemptMade = serverAttemptMade,
         )
         return convertQueueResultToServiceResponse(updatedData, queueResult)
     }
@@ -494,11 +502,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 ) {
                     // Timeout means the request may or may not have reached the server.
                     // Queue for async retry — the idempotency key ensures safe replay.
+                    // Mark serverAttemptMade=true to prevent squashing with other pending
+                    // requests, since the original request body may have already been processed.
                     return voidAsync(
                         data = data,
                         request = request,
                         idempotencyKey = idempotencyKey,
                         requestTag = requestTag,
+                        serverAttemptMade = true,
                     )
                 }
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
@@ -531,12 +542,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         request: HttpRequest,
         idempotencyKey: String,
         requestTag: T,
+        serverAttemptMade: Boolean = false,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.voidData(
             data = data,
             httpRequest = request,
             idempotencyKey = idempotencyKey,
             requestTag = requestTag,
+            serverAttemptMade = serverAttemptMade,
         )
         return convertQueueResultToServiceResponse(updatedData, queueResult)
     }
