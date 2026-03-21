@@ -386,6 +386,90 @@ fixtures.router.requestLog.forEachIndexed { i, req ->
 
 ---
 
+## Using MockServerStore for Stateful Mock Mode
+
+Instead of hand-writing static responses for every endpoint, use `MockServerStore` to back your mock handlers with persistent server-side state. CREATEs actually create records, GETs return real data, and the app behaves much more realistically during manual testing.
+
+### Replacing MockServerFixtures with a Store-Backed Approach
+
+```kotlin
+class MockServerFixtures {
+
+    val router = MockEndpointRouter()
+    val store = MockServerStore()
+
+    init {
+        setupItemEndpoints()
+    }
+
+    private fun setupItemEndpoints() {
+        val items = store.collection("items")
+
+        // Seed some initial data
+        items.seed("mock-srv-1", buildJsonObject {
+            put("name", "Sample Item A")
+            put("amount", 1500)
+            put("status", "ACTIVE")
+        }, version = 1, clientId = "mock-client-1")
+
+        items.seed("mock-srv-2", buildJsonObject {
+            put("name", "Sample Item B")
+            put("amount", 2500)
+            put("status", "DRAFT")
+        }, version = 1, clientId = "mock-client-2")
+
+        // Wire automatic CRUD handlers — replaces all the manual onGet/onPost/onPut/onDelete
+        router.registerCrudHandlers(
+            collection = items,
+            baseUrl = "https://api.example.com/v2/items",
+            responseWrapper = { record ->
+                buildJsonObject { put("item", record.toJsonObject()) }
+            },
+            listResponseWrapper = { records ->
+                buildJsonObject {
+                    put("items", JsonArray(records.map { it.toJsonObject() }))
+                }
+            },
+        )
+    }
+}
+```
+
+This replaces the manual handler code from Step 1 with a single `registerCrudHandlers` call. The store handles ID generation, version tracking, and data persistence automatically.
+
+### Benefits for Manual Testing
+
+- **Realistic round-trips**: Create an item in the app, then navigate to the list view and see it there — because it's actually stored.
+- **Multi-device simulation**: Open a debug console or developer settings UI that calls `store.collection("items").mutate(...)` to simulate another device's edit, then pull-to-refresh.
+- **Sync conflict demo**: Modify a record via the store while the app has a local pending update, then trigger sync to see the conflict resolution UI in action.
+
+### Exposing the Store in Developer Settings
+
+```kotlin
+// In a debug-only developer tools screen:
+val items = fixtures.store.collection("items")
+Button("Add random server item") {
+    items.create(buildJsonObject {
+        put("name", "Random ${System.currentTimeMillis()}")
+        put("amount", (100..9999).random())
+    })
+}
+Button("Mutate first item") {
+    val first = items.getAll().firstOrNull()
+    if (first != null) {
+        items.mutate(first.serverId) { data ->
+            buildJsonObject {
+                data.forEach { (k, v) -> put(k, v) }
+                put("name", "Mutated at ${System.currentTimeMillis()}")
+            }
+        }
+    }
+}
+Text("Server records: ${items.count()}")
+```
+
+---
+
 ## Important Rules
 
 - **Mock mode uses the same database as real mode** (the normal Android SQLite database). If you switch between mock and real mode, previously synced data persists. Clear the database on mode switch if you want a fresh start.

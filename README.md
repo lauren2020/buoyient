@@ -290,6 +290,11 @@ fun provideServerManager(useMock: Boolean): ServerManager {
 | `MockEndpointRouter` | Register mock HTTP handlers by method + URL pattern; inspect request log |
 | `MockResponse` / `RecordedRequest` | Define responses and inspect captured requests |
 | `MockConnectionException` | Throw from a handler to simulate network failure |
+| `MockServerStore` | Stateful mock server — manages named collections of server-side records |
+| `MockServerCollection` | Per-collection CRUD, seed, mutate, and inspect server-side data |
+| `MockServerRecord` | A single server-side record with serverId, version, data, and timestamps |
+| `registerCrudHandlers()` | Extension on `MockEndpointRouter` — auto-wires CRUD handlers backed by a collection |
+| `registerSyncDownHandler()` | Extension on `MockEndpointRouter` — auto-wires sync-down with timestamp filtering |
 | `TestConnectivityChecker` | Mutable `online` flag to control online/offline paths |
 | `TestDatabaseFactory` | Create isolated in-memory SQLite databases |
 | `IncrementingIdGenerator` | Deterministic sequential IDs for predictable assertions |

@@ -40,6 +40,10 @@ import com.example.sync.db.SyncDatabase
  * @property idGenerator deterministic ID generator for predictable assertions.
  * @property database in-memory SQLite database. Each [TestServiceEnvironment] instance
  *   gets its own isolated database.
+ * @property mockServerStore optional stateful mock server store. Use
+ *   [MockServerStore.collection] to get a [MockServerCollection] and wire it to
+ *   [mockRouter] via [registerCrudHandlers] or [registerSyncDownHandler] for
+ *   realistic server-side state. Defaults to a fresh store instance.
  */
 class TestServiceEnvironment(
     val mockRouter: MockEndpointRouter = MockEndpointRouter(),
@@ -48,6 +52,7 @@ class TestServiceEnvironment(
     val syncScheduleNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier,
     val idGenerator: IdGenerator = IncrementingIdGenerator(),
     val database: SyncDatabase = TestDatabaseFactory.createInMemory(),
+    val mockServerStore: MockServerStore = MockServerStore(),
 ) {
     /**
      * A [ServerManager] backed by [mockRouter]. Lazily created so that handlers

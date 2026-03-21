@@ -419,6 +419,129 @@ private fun buildService(env: TestServiceEnvironment): YourModelService {
 
 ---
 
+## Stateful Mock Server (MockServerStore)
+
+For tests that need realistic server-side state — divergence simulation, conflict testing, delta sync-down — use `MockServerStore` instead of canned responses. The store holds persistent server-side records that mock handlers read from and write to.
+
+### Setup
+
+```kotlin
+val env = TestServiceEnvironment()
+val todos = env.mockServerStore.collection("todos")
+
+// Wire the collection to automatic CRUD handlers
+env.mockRouter.registerCrudHandlers(
+    collection = todos,
+    baseUrl = "https://api.example.com/v2/items",
+    responseWrapper = { record ->
+        buildJsonObject { put("item", record.toJsonObject()) }
+    },
+)
+```
+
+Now `POST /items` creates a real record in the store, `GET /items/srv-1` returns it, `PUT /items/srv-1` updates it, etc. No need to hand-write mock handlers for standard CRUD.
+
+### Seeding Initial Server State
+
+```kotlin
+todos.seed("srv-1", buildJsonObject {
+    put("name", "Existing Item")
+    put("amount", 1500)
+}, version = 3, clientId = "c-1")
+```
+
+### Simulating Another Client's Edit (Divergence)
+
+Use `mutate` to change a record as if another client updated the server. This increments the version and updates the timestamp:
+
+```kotlin
+// After the client has synced and has a local copy of srv-1...
+todos.mutate("srv-1") { data ->
+    buildJsonObject {
+        data.forEach { (k, v) -> put(k, v) }
+        put("name", "Changed by another device")
+    }
+}
+
+// Now trigger sync-down — the merge handler will see the server's change
+service.syncDownFromServer()
+```
+
+### Testing 3-Way Merge Conflicts
+
+```kotlin
+@Test
+fun `conflicting edits produce Conflict sync status`() = runBlocking {
+    val env = TestServiceEnvironment()
+    val items = env.mockServerStore.collection("items")
+
+    // Seed server state and sync-down so the client has a copy
+    items.seed("srv-1", buildJsonObject {
+        put("name", "Original")
+        put("amount", 100)
+    }, version = 1, clientId = "c-1")
+
+    // ... construct service, sync-down to get local copy ...
+
+    // Client edits locally while offline
+    env.connectivityChecker.online = false
+    service.updateItem(localItem, newName = "Client Edit")
+
+    // Meanwhile, another client updates the server
+    items.mutate("srv-1") { data ->
+        buildJsonObject {
+            data.forEach { (k, v) -> put(k, v) }
+            put("name", "Server Edit")  // same field -> conflict!
+        }
+    }
+
+    // Go online and sync-down — should detect conflict on "name" field
+    env.connectivityChecker.online = true
+    service.syncDownFromServer()
+
+    val local = service.get("c-1")
+    assertTrue(local.syncStatus is SyncStatus.Conflict)
+}
+```
+
+### Delta Sync-Down (Timestamp Filtering)
+
+Register a sync-down handler that uses the store's `getUpdatedSince`:
+
+```kotlin
+env.mockRouter.registerSyncDownHandler(
+    collection = items,
+    urlPattern = "https://api.example.com/v2/items/sync",
+    extractTimestamp = { request ->
+        request.body["last_synced_timestamp"]?.jsonPrimitive?.content?.toLongOrNull()
+    },
+    listResponseWrapper = { records ->
+        buildJsonObject { put("items", JsonArray(records.map { it.toJsonObject() })) }
+    },
+)
+```
+
+### Inspecting Server-Side State
+
+```kotlin
+assertEquals(3, items.count())
+assertNotNull(items.findByClientId("c-1"))
+assertTrue(items.get("srv-1")!!.voided)
+```
+
+### Clock Control for Deterministic Timestamps
+
+```kotlin
+var now = 1000L
+val env = TestServiceEnvironment(
+    mockServerStore = MockServerStore(clock = { now }),
+)
+// Advance time between operations:
+now = 2000L
+```
+
+---
+
 ## Available Testing Utilities Reference
 
 All classes are in the `com.example.sync.testing` package:
@@ -431,6 +554,11 @@ All classes are in the `com.example.sync.testing` package:
 | `RecordedRequest` | Captured request: method, url, body, headers |
 | `MockResponse` | Mock response: statusCode, body, epochTimestamp |
 | `MockConnectionException` | Throw to simulate network failure |
+| `MockServerStore` | Top-level stateful mock server managing named collections |
+| `MockServerCollection` | Per-collection CRUD, seed, mutate, inspect operations |
+| `MockServerRecord` | Data class for a single server-side record |
+| `registerCrudHandlers()` | Extension on `MockEndpointRouter` to auto-wire CRUD handlers to a collection |
+| `registerSyncDownHandler()` | Extension on `MockEndpointRouter` to auto-wire sync-down with timestamp filtering |
 | `TestConnectivityChecker` | Mutable `online` property to control connectivity |
 | `TestDatabaseFactory` | `createInMemory()` for isolated in-memory databases |
 | `IncrementingIdGenerator` | Deterministic sequential IDs |
