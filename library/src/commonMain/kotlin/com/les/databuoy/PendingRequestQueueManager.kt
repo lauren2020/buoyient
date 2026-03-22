@@ -447,10 +447,10 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         newBaseData: O,
         mergeHandler: SyncableObjectMergeHandler<O>,
     ): SyncableObjectMergeHandler.MergeResult<O> {
-        val mergeResult = mergeHandler.mergeServerAndLocalChanges(
-            baseData = pendingSyncRequest.lastSyncedData,
-            localData = pendingSyncRequest.data,
-            serverData = newBaseData,
+        val mergeResult = mergeHandler.rebaseDataForPendingRequest(
+            oldBaseData = pendingSyncRequest.lastSyncedData,
+            currentData = pendingSyncRequest.data,
+            newBaseData = newBaseData,
             pendingHttpRequest = pendingSyncRequest.request,
             pendingRequestId = pendingSyncRequest.pendingRequestId,
             requestTag = pendingSyncRequest.requestTag,

@@ -12,7 +12,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * to reconcile local and server changes.
  *
  * This is an `open class` so that service implementations can subclass it to override
- * [handleMergeConflict] and/or [mergeServerAndLocalChanges] with custom merge policies.
+ * [handleMergeConflict] and/or [rebaseDataForPendingRequest] with custom merge policies.
  *
  * Provide a custom subclass to [SyncableObjectService] by overriding its
  * `mergeHandler` property.
@@ -115,11 +115,11 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
      * This function is open so that subclasses can override it if they need
      * custom merge logic beyond simple field comparison.
      *
-     * @param baseData - the last synced data from the server which the local changes have
+     * @param oldBaseData - the last synced data from the server which the local changes have
      * been built on top of.
-     * @param localData - the version containing all local changes made by this client
+     * @param currentData - the version containing all local changes made by this client
      * on top of the base state.
-     * @param serverData - the latest version from the server.
+     * @param newBaseData - the latest version from the server.
      * @param pendingHttpRequest - the pending sync request associated with the local changes.
      * @param pendingRequestId - the id of the pending change row in the db.
      *
@@ -129,17 +129,17 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
      * - [MergeResult.serverOnlyChanges]: field names changed only on the server
      * - [MergeResult.localOnlyChanges]: field names changed only locally
      */
-    open fun mergeServerAndLocalChanges(
-        baseData: O?,
-        localData: O,
-        serverData: O,
+    open fun rebaseDataForPendingRequest(
+        oldBaseData: O?,
+        currentData: O,
+        newBaseData: O,
         pendingHttpRequest: HttpRequest,
         pendingRequestId: Int,
-        requestTag: String?,
+        requestTag: String,
     ): MergeResult<O> {
-        val base = baseData?.let { codec.encode(it) } ?: JsonObject(emptyMap())
-        val local = codec.encode(localData)
-        val server = codec.encode(serverData)
+        val base = oldBaseData?.let { codec.encode(it) } ?: JsonObject(emptyMap())
+        val local = codec.encode(currentData)
+        val server = codec.encode(newBaseData)
         val allKeys = (base.keys + local.keys + server.keys).toSet()
         val mergedMap = local.toMutableMap()
         val conflicts = mutableListOf<String>()
@@ -185,7 +185,7 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
         val merged = JsonObject(mergedMap)
         return if (conflicts.isEmpty()) {
             MergeResult.Merged(
-                mergedData = codec.decode(merged, localData.syncStatus),
+                mergedData = codec.decode(merged, currentData.syncStatus),
                 updatedHttpRequest = null,
             )
         } else {
@@ -193,9 +193,9 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
                 conflict = FieldConflict(
                     pendingRequestId = pendingRequestId,
                     fieldNames = conflicts,
-                    baseValue = baseData,
-                    localValue = localData,
-                    serverValue = serverData,
+                    baseValue = oldBaseData,
+                    localValue = currentData,
+                    serverValue = newBaseData,
                     requestTag = requestTag,
                 ),
             )
