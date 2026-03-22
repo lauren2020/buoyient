@@ -185,7 +185,7 @@ class ConflictResolutionTest {
         )
 
         // Step 6: Verify the result and sync_data status.
-        assertIs<LocalStoreManager.ResolveConflictResult.Resolved<TestItem>>(resolveResult,
+        assertIs<ResolveConflictResult.Resolved<TestItem>>(resolveResult,
             "Resolution should succeed")
 
         val resolvedEntry = localStore.getData(clientId = "c1", serverId = "srv-1")!!
@@ -202,11 +202,12 @@ class ConflictResolutionTest {
     }
 
     /**
-     * Verifies that resolveConflictData returns Failed when the row
-     * is not actually in CONFLICT status.
+     * Verifies that resolveConflictData self-heals when called on a row that is not
+     * in CONFLICT status — no conflicting pending request exists, so the repair path
+     * runs and returns Resolved with the current data.
      */
     @Test
-    fun `resolveConflictData rejects resolution when not in conflict`() {
+    fun `resolveConflictData self-heals when not in conflict`() {
         val db = createInMemoryDatabase()
         val localStore = createLocalStore(db)
 
@@ -230,8 +231,8 @@ class ConflictResolutionTest {
             mergeHandler = mergeHandler,
         )
 
-        assertIs<LocalStoreManager.ResolveConflictResult.Failed<TestItem>>(result,
-            "Should reject resolution when row is not in CONFLICT status")
+        assertIs<ResolveConflictResult.Resolved<TestItem>>(result,
+            "Should self-heal and return Resolved when row is not in CONFLICT status")
     }
 
     /**
@@ -275,7 +276,7 @@ class ConflictResolutionTest {
             mergeHandler = mergeHandler,
         )
 
-        assertIs<LocalStoreManager.ResolveConflictResult.Resolved<TestItem>>(result,
+        assertIs<ResolveConflictResult.Resolved<TestItem>>(result,
             "Repair should succeed")
 
         val afterRepair = localStore.getData(clientId = "c1", serverId = "srv-1")!!
@@ -342,7 +343,7 @@ class ConflictResolutionTest {
             mergeHandler = mergeHandler,
         )
 
-        assertIs<LocalStoreManager.ResolveConflictResult.Resolved<TestItem>>(result,
+        assertIs<ResolveConflictResult.Resolved<TestItem>>(result,
             "Repair should succeed")
 
         val afterRepair = localStore.getData(clientId = "c1", serverId = "srv-1")!!
@@ -447,7 +448,7 @@ class ConflictResolutionTest {
             mergeHandler = mergeHandler,
         )
 
-        assertIs<LocalStoreManager.ResolveConflictResult.Resolved<TestItem>>(resolveResult)
+        assertIs<ResolveConflictResult.Resolved<TestItem>>(resolveResult)
 
         // Verify both pending requests are now conflict-free.
         val pendingAfter = localStore.pendingRequestQueueManager.getPendingRequests("c1")

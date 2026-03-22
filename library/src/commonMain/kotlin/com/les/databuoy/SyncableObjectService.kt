@@ -657,7 +657,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      */
     protected fun resolveConflict(
         resolution: SyncableObjectMergeHandler.MergeResult.Merged<O>,
-    ): LocalStoreManager.ResolveConflictResult<O> {
+    ): ResolveConflictResult<O> {
         val clientId = resolution.mergedData.clientId
         val conflictingRequest = localStoreManager.pendingRequestQueueManager
             .getConflictingPendingRequest(clientId)
@@ -672,7 +672,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 serverId = resolution.mergedData.serverId,
                 mergeHandler = mergeHandler,
             )
-            if (repairResult is LocalStoreManager.ResolveConflictResult.Resolved) {
+            if (repairResult is ResolveConflictResult.Resolved) {
                 syncScheduleNotifier.scheduleSyncIfNeeded()
             }
             return repairResult
@@ -686,16 +686,16 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         )
 
         when (result) {
-            is LocalStoreManager.ResolveConflictResult.Resolved -> {
+            is ResolveConflictResult.Resolved -> {
                 syncScheduleNotifier.scheduleSyncIfNeeded()
                 logger.d(TAG, "Conflict resolved for (client_id: $clientId).")
             }
 
-            is LocalStoreManager.ResolveConflictResult.RebaseConflict -> {
+            is ResolveConflictResult.RebaseConflict -> {
                 logger.w(TAG, "Conflict resolved for (client_id: $clientId) but a subsequent pending request also has a conflict.")
             }
 
-            is LocalStoreManager.ResolveConflictResult.Failed -> {
+            is ResolveConflictResult.Failed -> {
                 logger.e(TAG, "Failed to resolve conflict for (client_id: $clientId): ${result.exception}")
             }
         }
