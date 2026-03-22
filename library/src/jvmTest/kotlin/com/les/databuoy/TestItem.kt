@@ -19,6 +19,7 @@ data class TestItem(
     @Transient override val syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
     val name: String,
     val value: Int,
+    val tags: List<String> = emptyList(),
 ) : SyncableObject<TestItem> {
 
     override fun withSyncStatus(syncStatus: SyncableObject.SyncStatus) = copy(syncStatus = syncStatus)

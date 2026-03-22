@@ -1,5 +1,6 @@
 package com.les.databuoy
 
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -177,8 +178,16 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
                     // Both changed to the same value → no conflict
                 }
                 else -> {
-                    // TRUE CONFLICT — both changed to different values, keep local
-                    conflicts.add(key)
+                    // Both changed to different values.
+                    // If the field is an array and both sides only added elements
+                    // (i.e. both are supersets of the base), merge the additions
+                    // instead of treating it as a conflict.
+                    val mergedArray = tryMergeArrayAdditions(baseVal, localVal, serverVal)
+                    if (mergedArray != null) {
+                        mergedMap[key] = mergedArray
+                    } else {
+                        conflicts.add(key)
+                    }
                 }
             }
         }
@@ -200,6 +209,36 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
                 ),
             )
         }
+    }
+
+    /**
+     * If [baseVal], [localVal], and [serverVal] are all [JsonArray]s (or base is null)
+     * and both local and server are strict supersets of base (only additions, no removals),
+     * returns a merged array containing base elements + local additions + server additions.
+     *
+     * Returns `null` if the values are not arrays or if either side removed elements.
+     */
+    private fun tryMergeArrayAdditions(
+        baseVal: kotlinx.serialization.json.JsonElement?,
+        localVal: kotlinx.serialization.json.JsonElement?,
+        serverVal: kotlinx.serialization.json.JsonElement?,
+    ): JsonArray? {
+        val localArray = localVal as? JsonArray ?: return null
+        val serverArray = serverVal as? JsonArray ?: return null
+        val baseArray = (baseVal as? JsonArray) ?: JsonArray(emptyList())
+
+        val baseElements = baseArray.toSet()
+
+        // Both sides must contain every base element (no removals).
+        if (!localArray.toSet().containsAll(baseElements)) return null
+        if (!serverArray.toSet().containsAll(baseElements)) return null
+
+        val localAdditions = localArray.filter { it !in baseElements }
+        val serverAdditions = serverArray.filter { it !in baseElements }
+
+        // Preserve order: base elements (in local order) + server-only additions.
+        val merged = localArray + serverAdditions.filter { it !in localArray.toSet() }
+        return JsonArray(merged)
     }
 
     // endregion
