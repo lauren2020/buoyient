@@ -27,7 +27,7 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
         /** The conflict was resolved — use [resolvedData] as the merged data. */
         class Resolved<O>(
             val resolvedData: O,
-            val updatedHttpRequest: HttpRequest,
+            val updatedHttpRequest: HttpRequest?,
         ) : ConflictResolution<O>()
 
         /** The conflict is unresolved — mark the row as CONFLICT for manual resolution. */

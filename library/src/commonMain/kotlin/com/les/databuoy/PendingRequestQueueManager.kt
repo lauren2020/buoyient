@@ -457,90 +457,71 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         )
         when (mergeResult) {
             is SyncableObjectMergeHandler.MergeResult.Merged -> {
-                val rebasedData = mergeResult.mergedData
-                val updatedRequest = mergeResult.updatedHttpRequest
-                if (updatedRequest != null) {
-                    database.syncPendingEventsQueries.rebasePendingSyncWithRequest(
-                        last_synced_data = codec.encodeToString(newBaseData),
-                        data_blob = codec.encodeToString(rebasedData),
-                        request = updatedRequest.toJson().toString(),
-                        pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
-                    )
-                } else {
-                    database.syncPendingEventsQueries.rebasePendingSync(
-                        last_synced_data = codec.encodeToString(newBaseData),
-                        data_blob = codec.encodeToString(rebasedData),
-                        pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
-                    )
-                }
+                storeRebasedPendingRequest(
+                    rebasedData = mergeResult.mergedData,
+                    newBaseData = newBaseData,
+                    updatedRequest = mergeResult.updatedHttpRequest,
+                    pendingRequestId = pendingSyncRequest.pendingRequestId,
+                )
             }
 
             is SyncableObjectMergeHandler.MergeResult.Conflict -> {
-                database.syncPendingEventsQueries.saveConflictInfo(
-                    conflict_info = mergeResult.conflict.toJson(codec).toString(),
-                    pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
+                handlePendingRequestRebaseConflict(
+                    pendingSyncRequest = pendingSyncRequest,
+                    newBaseData = newBaseData,
+                    conflict = mergeResult,
+                    mergeHandler = mergeHandler,
                 )
             }
         }
         return mergeResult
     }
 
-    fun mergeServerDataIntoPendingChanges(
-        updatedServerData: O,
-        lastSyncedServerData: O?,
-        clientId: String,
-        mergeHandler: SyncableObjectMergeHandler<O>,
-    ): UpsertPendingChangesResult {
-        val pendingRequests = getPendingRequests(clientId)
-        if (pendingRequests.isEmpty()) {
-            return UpsertPendingChangesResult.NoPendingRequests
-        }
-        var hasConflict = false
-        var resolvedConflicts = false
-        pendingRequests.forEach {
-            val mergeResult = mergeHandler.mergeServerAndLocalChanges(
-                baseData = lastSyncedServerData,
-                localData = it.data,
-                serverData = updatedServerData,
-                pendingHttpRequest = it.request,
-                pendingRequestId = it.pendingRequestId,
-                requestTag = it.requestTag,
+    private fun storeRebasedPendingRequest(
+        rebasedData: O,
+        newBaseData: O,
+        updatedRequest: HttpRequest?,
+        pendingRequestId: Int,
+    ) {
+        if (updatedRequest != null) {
+            database.syncPendingEventsQueries.rebasePendingSyncWithRequest(
+                // TODO: Should we rename last_synced_data to base_data
+                last_synced_data = codec.encodeToString(newBaseData),
+                data_blob = codec.encodeToString(rebasedData),
+                request = updatedRequest.toJson().toString(),
+                pending_request_id = pendingRequestId.toLong(),
             )
-            when (mergeResult) {
-                is SyncableObjectMergeHandler.MergeResult.Conflict -> {
-                    when (val resolution = mergeHandler.handleMergeConflict(mergeResult, requestTag = it.requestTag)) {
-                        is SyncableObjectMergeHandler.ConflictResolution.Resolved -> {
-                            replaceEntry(
-                                it.copy(
-                                    data = resolution.resolvedData,
-                                    request = resolution.updatedHttpRequest,
-                                    conflict = null,
-                                )
-                            )
-                            resolvedConflicts = true
-                        }
-
-                        is SyncableObjectMergeHandler.ConflictResolution.Unresolved -> {
-                            replaceEntry(it.copy(conflict = mergeResult.conflict))
-                            hasConflict = true
-                        }
-                    }
-                }
-
-                is SyncableObjectMergeHandler.MergeResult.Merged -> {
-                    replaceEntry(
-                        it.copy(
-                            data = mergeResult.mergedData,
-                            request = mergeResult.updatedHttpRequest ?: it.request,
-                        )
-                    )
-                }
-            }
-        }
-        return if (hasConflict) {
-            UpsertPendingChangesResult.PendingChangesConflict
         } else {
-            UpsertPendingChangesResult.MergedAllPendingChanges(resolvedConflicts)
+            database.syncPendingEventsQueries.rebasePendingSync(
+                last_synced_data = codec.encodeToString(newBaseData),
+                data_blob = codec.encodeToString(rebasedData),
+                pending_request_id = pendingRequestId.toLong(),
+            )
+        }
+    }
+
+    private fun handlePendingRequestRebaseConflict(
+        pendingSyncRequest: PendingSyncRequest<O>,
+        newBaseData: O,
+        conflict: SyncableObjectMergeHandler.MergeResult.Conflict<O>,
+        mergeHandler: SyncableObjectMergeHandler<O>,
+    ) = when (
+        val resolution = mergeHandler.handleMergeConflict(conflict, requestTag = pendingSyncRequest.requestTag)
+    ) {
+        is SyncableObjectMergeHandler.ConflictResolution.Resolved -> {
+            storeRebasedPendingRequest(
+                rebasedData = resolution.resolvedData,
+                newBaseData = newBaseData,
+                updatedRequest = resolution.updatedHttpRequest,
+                pendingRequestId = pendingSyncRequest.pendingRequestId,
+            )
+        }
+
+        is SyncableObjectMergeHandler.ConflictResolution.Unresolved -> {
+            database.syncPendingEventsQueries.saveConflictInfo(
+                conflict_info = conflict.conflict.toJson(codec).toString(),
+                pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
+            )
         }
     }
 
