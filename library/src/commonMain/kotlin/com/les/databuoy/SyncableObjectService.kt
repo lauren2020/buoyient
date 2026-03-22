@@ -652,13 +652,13 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      * own public facing api for the app to interface with and this is only used by the
      * service implementation internally.
      *
-     * @param resolution - a [SyncableObjectMergeHandler.MergeResult.Merged] containing the
+     * @param resolution - a [SyncableObjectMergeHandler.ConflictResolution.Resolved] containing the
      *  consumer's resolved data and the rebuilt HTTP request to use for the pending upload.
      */
     protected fun resolveConflict(
-        resolution: SyncableObjectMergeHandler.MergeResult.Merged<O>,
+        resolution: SyncableObjectMergeHandler.ConflictResolution.Resolved<O>,
     ): ResolveConflictResult<O> {
-        val clientId = resolution.mergedData.clientId
+        val clientId = resolution.resolvedData.clientId
         val conflictingRequest = localStoreManager.pendingRequestQueueManager
             .getConflictingPendingRequest(clientId)
         if (conflictingRequest?.conflict == null) {
@@ -669,7 +669,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             logger.w(TAG, "No conflicting pending request found for (client_id: $clientId), repairing orphaned conflict status.")
             val repairResult = localStoreManager.repairOrphanedConflictStatus(
                 clientId = clientId,
-                serverId = resolution.mergedData.serverId,
+                serverId = resolution.resolvedData.serverId,
                 mergeHandler = mergeHandler,
             )
             if (repairResult is ResolveConflictResult.Resolved) {
@@ -679,7 +679,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         }
 
         val result = localStoreManager.resolveConflictData(
-            resolvedData = resolution.mergedData,
+            resolvedData = resolution.resolvedData,
             resolvedHttpRequest = resolution.updatedHttpRequest
                 ?: conflictingRequest.request,
             mergeHandler = mergeHandler,
