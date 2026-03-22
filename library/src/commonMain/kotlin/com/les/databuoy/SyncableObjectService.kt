@@ -22,6 +22,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         syncScheduleNotifier = syncScheduleNotifier,
     ),
     private val idGenerator: IdGenerator = createPlatformIdGenerator(),
+    private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler(),
 ) : Service<O>,
     SyncUpParticipant,
     SyncDriver<O, T>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, logger, syncScheduleNotifier)
@@ -643,6 +644,25 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      */
     fun getAllFromLocalStore(limit: Int = 100): List<O> =
         localStoreManager.getAllData(limit = limit).map { it.data }
+
+    /**
+     * Fires a background HTTP request to void a previous server request by its idempotency key.
+     *
+     * Unlike [void], this method does NOT modify the local SQLite store. It is a fire-and-forget
+     * server-side operation. On Android, the request is scheduled via a dedicated WorkManager
+     * queue (separate from the sync queue) with a network connectivity constraint and
+     * exponential backoff.
+     *
+     * @param voidRequest the fully-constructed [HttpRequest] to send to the server.
+     *   The caller is responsible for including the idempotency key in the request
+     *   body or headers as required by the server API.
+     */
+    protected fun voidRequestByIdempotencyKey(voidRequest: HttpRequest) {
+        backgroundRequestScheduler.scheduleRequest(
+            httpRequest = voidRequest,
+            globalHeaders = serverProcessingConfig.globalHeaders,
+        )
+    }
 
     override fun close() {
         serverManager.close()
