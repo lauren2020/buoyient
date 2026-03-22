@@ -154,70 +154,39 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
             }
         }
     }
-
+    
     /**
-     * Attempts to upload all locally-stored, unsynced objects to the remote
-     * API. For each row where [pending_sync_request] is non-null, this method
-     * POSTs the stored request body to the endpoint URL embedded in the
-     * pending request and dispatches the success handling based on
-     * [PendingSyncRequest.type]:
+     * Attempts to sync a single pending request by its ID.
      *
-     * - **CREATE / UPDATE**: [server_id], [version], [last_synced_timestamp],
-     *   and [data] are set from the API response.
-     * - **VOID**: [last_synced_timestamp] and [data] are set from the API
-     *   response (server_id and version are left unchanged).
+     * Re-fetches the entry from the DB before processing so that any rebases
+     * applied by earlier uploads (e.g., a CREATE that updates server context
+     * for subsequent UPDATEs) are reflected in the entry we actually send.
      *
-     * In all cases [pending_sync_request] is cleared and [sync_status] is
-     * set to SYNCED on success.
-     *
-     * @return the number of rows that were successfully synced.
+     * @return `true` if the request was synced successfully, `false` otherwise.
      */
-    suspend fun syncUpLocalChanges(): Int {
-        logger.d(TAG, "Starting sync up of local changes...")
-
-        // Block all uploads globally if any item (in any service) has unresolved
-        // conflicts. Cross-item request ordering may create dependencies, so it is
-        // unsafe to upload anything until every conflict is resolved.
-        if (localStoreManager.pendingRequestQueueManager.hasAnyConflictsGlobally()) {
-            logger.w(TAG, "Skipping sync-up: unresolved conflicts exist. Resolve all conflicts before uploads can resume.")
-            return 0
+    suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean {
+        // Re-fetch the entry so we always use the latest rebased state.
+        val entry = localStoreManager.pendingRequestQueueManager
+            .getPendingRequestById(pendingRequestId)
+        if (entry == null) {
+            // Entry was cleared by a previous iteration (e.g., squash); skip.
+            return false
         }
-
-        // 1. Query all rows with a non-null pending_sync_request.
-        val pendingSyncEntries = localStoreManager.pendingRequestQueueManager.getPendingRequests()
-        logger.d(TAG, "Found ${pendingSyncEntries.size} pending sync rows.")
-
-        // 2. Attempt to sync each row.
-        // We collect pending_request_ids upfront but re-fetch each entry from the DB
-        // before processing it so that any rebases applied by earlier iterations
-        // (e.g., a CREATE that updates server context for subsequent UPDATEs) are
-        // reflected in the entry we actually send.
-        val pendingRequestIds = pendingSyncEntries.map { it.pendingRequestId }
-        var syncedCount = 0
-        for (pendingRequestId in pendingRequestIds) {
-            // Re-fetch the entry so we always use the latest rebased state.
-            val entry = localStoreManager.pendingRequestQueueManager
-                .getPendingRequestById(pendingRequestId)
-            if (entry == null) {
-                // Entry was cleared by a previous iteration (e.g., squash); skip.
-                continue
+        return try {
+            var synced = false
+            withClientLock(entry.data.clientId) {
+                // Re-fetch inside the lock to ensure we have the latest state
+                // after acquiring exclusive access for this clientId.
+                val lockedEntry = localStoreManager.pendingRequestQueueManager
+                    .getPendingRequestById(pendingRequestId) ?: return@withClientLock
+                syncUpPendingData(lockedEntry)
+                synced = true
             }
-            try {
-                withClientLock(entry.data.clientId) {
-                    // Re-fetch inside the lock to ensure we have the latest state
-                    // after acquiring exclusive access for this clientId.
-                    val lockedEntry = localStoreManager.pendingRequestQueueManager
-                        .getPendingRequestById(pendingRequestId) ?: return@withClientLock
-                    syncUpPendingData(lockedEntry)
-                    syncedCount++
-                }
-            } catch (e: Exception) {
-                logger.e(TAG, "Error syncing ${entry.type} for ${entry.data.clientId}.", e)
-            }
+            synced
+        } catch (e: Exception) {
+            logger.e(TAG, "Error syncing ${entry.type} for ${entry.data.clientId}.", e)
+            false
         }
-
-        logger.d(TAG, "Sync complete: $syncedCount/${pendingRequestIds.size} succeeded")
-        return syncedCount
     }
 
     // Sync Down Region

@@ -76,7 +76,7 @@ class SyncUpRegressionTest {
 
     /**
      * Wraps item JSON inside `{"data": <item>}` to match the response shape
-     * parsed by [testServerConfig]'s `fromSyncUpResponseBody`.
+     * parsed by [testServerConfig]'s `fromResponseBody`.
      */
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -96,13 +96,30 @@ class SyncUpRegressionTest {
             transformResponse = { emptyList() },
         )
         override val syncUpConfig = object : SyncUpConfig<TestItem>() {
-            override fun fromSyncUpResponseBody(requestTag: String, responseBody: JsonObject): TestItem? {
+            override fun fromResponseBody(requestTag: String, responseBody: JsonObject): TestItem? {
                 val data = responseBody["data"]?.jsonObject ?: return null
                 return Json.decodeFromJsonElement(TestItem.serializer(), data)
                     .withSyncStatus(SyncableObject.SyncStatus.Synced(""))
             }
         }
-        override val headers: List<Pair<String, String>> = emptyList()
+        override val globalHeaders: List<Pair<String, String>> = emptyList()
+    }
+
+    /**
+     * Wraps a [SyncDriver] as a [SyncUpParticipant] and runs a single-service
+     * [SyncUpCoordinator] sync pass — the same path production code takes.
+     */
+    private suspend fun syncUpViaCoordinator(
+        driver: SyncDriver<TestItem, TestRequestTag>,
+        serviceName: String,
+        database: SyncDatabase,
+    ): Int {
+        val participant = object : SyncUpParticipant {
+            override val serviceName: String = serviceName
+            override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean =
+                driver.syncUpSinglePendingRequest(pendingRequestId)
+        }
+        return SyncUpCoordinator(listOf(participant), database, logger).syncUpAll()
     }
 
     // endregion
@@ -212,7 +229,7 @@ class SyncUpRegressionTest {
         driver.stopPeriodicSyncDown()
 
         // Act
-        val synced = driver.syncUpLocalChanges()
+        val synced = syncUpViaCoordinator(driver, "test", db)
 
         // Assert
         assertEquals(1, synced, "The single CREATE should have synced")
@@ -293,20 +310,22 @@ class SyncUpRegressionTest {
         val updateEndpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"
         localStore.updateLocalData(
             data = updateData,
-            httpRequest = makeRequest(
-                method = HttpRequest.HttpMethod.PUT,
-                endpoint = updateEndpoint,
-                body = buildJsonObject { put("name", "Updated") },
-            ),
             idempotencyKey = "idem-update-c1",
             lastSyncedData = createData, // base for the 3-way merge
-            buildRequest = { lastSynced, updated, idemKey ->
-                makeRequest(
+            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                httpRequest = makeRequest(
                     method = HttpRequest.HttpMethod.PUT,
                     endpoint = updateEndpoint,
-                    body = buildJsonObject { put("name", updated.name) },
-                )
-            },
+                    body = buildJsonObject { put("name", "Updated") },
+                ),
+                buildRequest = { lastSynced, updated, idemKey ->
+                    makeRequest(
+                        method = HttpRequest.HttpMethod.PUT,
+                        endpoint = updateEndpoint,
+                        body = buildJsonObject { put("name", updated.name) },
+                    )
+                },
+            ),
             requestTag = TestRequestTag.DEFAULT,
         )
 
@@ -320,7 +339,7 @@ class SyncUpRegressionTest {
         driver.stopPeriodicSyncDown()
 
         // Act — should process CREATE *and* UPDATE in one pass.
-        val synced = driver.syncUpLocalChanges()
+        val synced = syncUpViaCoordinator(driver, "test", db)
 
         // Assert
         assertEquals(2, synced,
@@ -415,29 +434,33 @@ class SyncUpRegressionTest {
         // 3. UPDATE item 1 (update 1)
         localStore.updateLocalData(
             data = item1Update1,
-            httpRequest = makeRequest(
-                method = HttpRequest.HttpMethod.PUT,
-                endpoint = updateEndpoint,
-            ),
             idempotencyKey = "idem-update1-c1",
             lastSyncedData = item1Create,
-            buildRequest = { _, updated, _ ->
-                makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
-            },
+            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                httpRequest = makeRequest(
+                    method = HttpRequest.HttpMethod.PUT,
+                    endpoint = updateEndpoint,
+                ),
+                buildRequest = { _, updated, _ ->
+                    makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
+                },
+            ),
             requestTag = TestRequestTag.DEFAULT,
         )
         // 4. UPDATE item 1 (update 2)
         localStore.updateLocalData(
             data = item1Update2,
-            httpRequest = makeRequest(
-                method = HttpRequest.HttpMethod.PUT,
-                endpoint = updateEndpoint,
-            ),
             idempotencyKey = "idem-update2-c1",
             lastSyncedData = item1Update1,
-            buildRequest = { _, updated, _ ->
-                makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
-            },
+            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                httpRequest = makeRequest(
+                    method = HttpRequest.HttpMethod.PUT,
+                    endpoint = updateEndpoint,
+                ),
+                buildRequest = { _, updated, _ ->
+                    makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
+                },
+            ),
             requestTag = TestRequestTag.DEFAULT,
         )
 
@@ -451,7 +474,7 @@ class SyncUpRegressionTest {
         driver.stopPeriodicSyncDown()
 
         // Act
-        val synced = driver.syncUpLocalChanges()
+        val synced = syncUpViaCoordinator(driver, "test", db)
 
         // Assert — all 4 operations should succeed in one pass.
         assertEquals(4, synced, "All 4 pending requests should have been synced")

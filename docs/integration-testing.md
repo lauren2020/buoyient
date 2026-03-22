@@ -217,7 +217,7 @@ fun `create item offline queues locally then syncs up`() = runBlocking {
 
     // Now go online and sync
     env.connectivityChecker.online = true
-    val synced = service.syncUpLocalChanges()
+    val synced = service.syncUpLocalChanges(env.database) // test helper from :testing module
     assertEquals(1, synced)
     assertEquals(1, env.mockRouter.requestLog.size) // Now the request was sent
 }

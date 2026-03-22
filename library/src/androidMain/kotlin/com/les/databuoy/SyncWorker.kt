@@ -49,11 +49,12 @@ class SyncWorker(
         val services = provider.createServices(applicationContext)
 
         return try {
-            var totalSynced = 0
-
-            for (service in services) {
-                totalSynced += service.syncUpLocalChanges()
-            }
+            val coordinator = SyncUpCoordinator(
+                participants = services,
+                database = createSyncDatabase(),
+                logger = createPlatformSyncLogger(),
+            )
+            val totalSynced = coordinator.syncUpAll()
 
             Log.d(TAG, "SyncWorker finished: synced $totalSynced items")
 

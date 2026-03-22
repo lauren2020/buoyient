@@ -6,7 +6,7 @@ import kotlinx.serialization.KSerializer
 abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
     serializer: KSerializer<O>,
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
-    serviceName: String,
+    override val serviceName: String,
     private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     private val logger: SyncLogger = createPlatformSyncLogger(),
     private val syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
@@ -23,6 +23,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     ),
     private val idGenerator: IdGenerator = createPlatformIdGenerator(),
 ) : Service<O>,
+    SyncUpParticipant,
     SyncDriver<O, T>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, logger, syncScheduleNotifier)
 {
 

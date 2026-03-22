@@ -115,6 +115,12 @@ SELECT EXISTS(
     LIMIT 1
 );
 
+-- Get all pending requests across all services, ordered by insertion order.
+getAllPendingRequestsGlobally:
+SELECT pending_request_id, service_name
+FROM sync_pending_events
+ORDER BY pending_request_id;
+
 -- Save conflict info on a pending request.
 saveConflictInfo:
 UPDATE sync_pending_events

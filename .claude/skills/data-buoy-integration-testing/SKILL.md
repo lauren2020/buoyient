@@ -222,9 +222,9 @@ fun `create item offline queues locally then syncs up`() = runBlocking {
 
     // Now go online and sync
     env.connectivityChecker.online = true
-    // Note: use SyncDriver.syncUpLocalChanges() directly if you have access,
-    // or trigger via the service's sync mechanism
-    val synced = service.syncUpLocalChanges()
+    // Test helper from :testing module — syncs a single service via SyncUpCoordinator.
+    // In production, SyncWorker uses SyncUpCoordinator.syncUpAll() for global ordering.
+    val synced = service.syncUpLocalChanges(env.database)
     assertEquals(1, synced)
     assertEquals(1, env.mockRouter.requestLog.size) // Now the request was sent
 }
