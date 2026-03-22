@@ -1,7 +1,9 @@
 package com.les.databuoy
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.les.databuoy.db.SyncDatabase
+import com.les.databuoy.testing.NoOpSyncLogger
+import com.les.databuoy.testing.NoOpSyncScheduleNotifier
+import com.les.databuoy.testing.TestDatabaseFactory
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -39,21 +41,9 @@ class SyncUpRegressionTest {
         DEFAULT("default"),
     }
 
-    private fun createInMemoryDatabase(): SyncDatabase {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        SyncDatabase.Schema.create(driver)
-        return SyncDatabase(driver)
-    }
+    private val logger: SyncLogger = NoOpSyncLogger
 
-    private val logger = object : SyncLogger {
-        override fun d(tag: String, message: String) {}
-        override fun w(tag: String, message: String) {}
-        override fun e(tag: String, message: String, throwable: Throwable?) {}
-    }
-
-    private val noOpNotifier = object : SyncScheduleNotifier {
-        override fun scheduleSyncIfNeeded() {}
-    }
+    private val noOpNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier
 
     private fun testItem(
         clientId: String,
@@ -139,7 +129,7 @@ class SyncUpRegressionTest {
      */
     @Test
     fun `upsertEntry updates sync_status on existing row`() {
-        val db = createInMemoryDatabase()
+        val db = TestDatabaseFactory.createInMemory()
 
         // Insert a locally-created row — status is PENDING_CREATE.
         db.syncDataQueries.insertLocalData(
@@ -185,7 +175,7 @@ class SyncUpRegressionTest {
      */
     @Test
     fun `syncUp for create-only item transitions status to SYNCED`() = runBlocking {
-        val db = createInMemoryDatabase()
+        val db = TestDatabaseFactory.createInMemory()
         val item = testItem(clientId = "c2", name = "CreateOnly", value = 42)
         val serverItem = item.copy(serverId = "server_2")
 
@@ -262,7 +252,7 @@ class SyncUpRegressionTest {
      */
     @Test
     fun `syncUp re-fetches pending entries so rebased UPDATE gets server_id`() = runBlocking {
-        val db = createInMemoryDatabase()
+        val db = TestDatabaseFactory.createInMemory()
 
         // The original data stored in the CREATE.
         val createData = testItem(clientId = "c1", name = "Original", value = 10, version = 1)
@@ -374,7 +364,7 @@ class SyncUpRegressionTest {
      */
     @Test
     fun `full offline queue scenario syncs all items correctly`() = runBlocking {
-        val db = createInMemoryDatabase()
+        val db = TestDatabaseFactory.createInMemory()
 
         val item1Create = testItem(clientId = "c1", name = "Item 1", value = 10, version = 1)
         val item2Create = testItem(clientId = "c2", name = "Item 2", value = 20, version = 1)

@@ -31,7 +31,7 @@ dependencies {
     implementation(project(":library"))
     implementation("com.google.dagger:hilt-android:2.51")
     ksp("com.google.dagger:hilt-compiler:2.51")
-    implementation("androidx.startup:startup-runtime:1.1.1")
+    implementation("androidx.startup:startup-runtime:1.2.0")
 }
 
 afterEvaluate {

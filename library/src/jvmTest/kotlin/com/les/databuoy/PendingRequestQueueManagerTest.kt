@@ -1,7 +1,8 @@
 package com.les.databuoy
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.les.databuoy.db.SyncDatabase
+import com.les.databuoy.testing.NoOpSyncLogger
+import com.les.databuoy.testing.TestDatabaseFactory
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -22,17 +23,7 @@ class PendingRequestQueueManagerTest {
         ALTERNATE("alternate"),
     }
 
-    private fun createInMemoryDatabase(): SyncDatabase {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        SyncDatabase.Schema.create(driver)
-        return SyncDatabase(driver)
-    }
-
-    private val logger = object : SyncLogger {
-        override fun d(tag: String, message: String) {}
-        override fun w(tag: String, message: String) {}
-        override fun e(tag: String, message: String, throwable: Throwable?) {}
-    }
+    private val logger: SyncLogger = NoOpSyncLogger
 
     private val codec = SyncCodec(TestItem.serializer())
 
@@ -77,7 +68,7 @@ class PendingRequestQueueManagerTest {
     }
 
     private fun createManager(
-        database: SyncDatabase = createInMemoryDatabase(),
+        database: SyncDatabase = TestDatabaseFactory.createInMemory(),
         serviceName: String = "test-service",
         strategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
             PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
@@ -613,7 +604,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `getPendingRequests is scoped to serviceName`() {
-        val db = createInMemoryDatabase()
+        val db = TestDatabaseFactory.createInMemory()
         val manager1 = createManager(database = db, serviceName = "service-a")
         val manager2 = createManager(database = db, serviceName = "service-b")
         manager1.queueCreateRequest(

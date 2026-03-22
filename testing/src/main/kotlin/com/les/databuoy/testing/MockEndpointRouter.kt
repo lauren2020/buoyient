@@ -36,7 +36,7 @@ class MockEndpointRouter {
         val handler: MockRequestHandler,
     )
 
-    private val routes = mutableListOf<Route>()
+    private val routes = CopyOnWriteArrayList<Route>()
     private val _requestLog = CopyOnWriteArrayList<RecordedRequest>()
 
     /** All requests that have been received, in order. */

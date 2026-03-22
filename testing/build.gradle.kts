@@ -7,17 +7,21 @@ group = "com.les.databuoy"
 version = "0.1.0-SNAPSHOT"
 
 dependencies {
+    // Depend on the JVM variant of the KMP :library module.
     api(project(":library")) {
-        // Exclude Android-specific transitive dependencies since this is a JVM module.
-        // Consumers on Android will already have these from :library directly.
-        targetConfiguration = "jvmRuntimeElements"
+        attributes {
+            attribute(
+                org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.attribute,
+                org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.jvm,
+            )
+        }
     }
-    implementation("io.ktor:ktor-client-mock:2.3.12")
+    implementation("io.ktor:ktor-client-mock:2.3.13")
     implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 }
 
 publishing {
