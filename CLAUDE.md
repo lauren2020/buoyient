@@ -16,9 +16,14 @@ These guides contain complete templates, required field tables, and common patte
 
 | Class | Purpose |
 |-------|---------|
-| `SyncableObject<T>` | Interface for your domain model |
-| `SyncableObjectService<T>` | Base class for services — exposes `create()`, `update()`, `void()` |
-| `ServerProcessingConfig<T>` | Tells the sync engine how to talk to your API |
+| `SyncableObject<O>` | Interface for your domain model (`@Serializable` data class) |
+| `SyncableObjectService<O, T>` | Base class for services — exposes `create()`, `update()`, `void()`, `get()` |
+| `ServiceRequestTag` | Interface for request type enums — passed to every operation |
+| `ServerProcessingConfig<O>` | Tells the sync engine how to talk to your API |
+| `SyncFetchConfig<O>` | Configures periodic sync-down (GET or POST) |
+| `SyncUpConfig<O>` | Controls sync-up retry logic and response parsing via `fromResponseBody()` |
+| `SyncCodec<O>` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
+| `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
 | `DataBuoy` | Convenience API for service registration |
 | `TestServiceEnvironment` | All-in-one test harness (`:testing` module) |
 | `MockEndpointRouter` | Mock HTTP server for tests and mock mode (`:testing` module) |
@@ -36,6 +41,10 @@ These guides contain complete templates, required field tables, and common patte
 
 - `serviceName` must be unique per service — it's the SQLite partition key.
 - Use `HttpRequest.SERVER_ID_PLACEHOLDER` (`{serverId}`) and `HttpRequest.VERSION_PLACEHOLDER` (`{version}`) in requests for objects that may not have synced yet.
-- `SyncableObject.toJson()` must include `SERVER_ID_TAG`, `CLIENT_ID_TAG`, and `VERSION_TAG`.
-- `fromJson()` accepts a `syncStatus` parameter — data-buoy manages sync status separately.
+- Data models must be `@Serializable` and implement `withSyncStatus()`. Mark `syncStatus` as `@Transient` — data-buoy manages it separately.
+- The service constructor takes a `KSerializer<O>` (from `kotlinx.serialization`) — not a manual deserializer.
+- `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.
+- Every operation (`create`, `update`, `void`) requires a `ServiceRequestTag` and uses functional interfaces: `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`.
+- `SyncUpConfig.fromResponseBody(requestTag, responseBody)` is the method for parsing sync-up server responses.
+- `getAllFromLocalStore(limit)` retrieves all items from the local database.
 - Registration for background sync: use Hilt `@IntoSet` multibinding with `:hilt`, or `DataBuoy.registerServices()` / `DataBuoy.registerServiceProvider()` without Hilt.

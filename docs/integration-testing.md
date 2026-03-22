@@ -32,6 +32,7 @@ The `:testing` module transitively provides everything from `:library`, plus `kt
 | `syncScheduleNotifier` | `SyncScheduleNotifier` | `NoOpSyncScheduleNotifier` | No-op (no WorkManager in tests) |
 | `idGenerator` | `IdGenerator` | `IncrementingIdGenerator` | Deterministic IDs: `test-id-1`, `test-id-2`, ... |
 | `database` | `SyncDatabase` | in-memory SQLite | Isolated per `TestServiceEnvironment` instance |
+| `mockServerStore` | `MockServerStore` | fresh store | Stateful mock server for realistic CRUD |
 | `serverManager` | `ServerManager` | built from `mockRouter` (lazy) | Pass to service constructor |
 
 Each `TestServiceEnvironment` instance gets its own isolated in-memory database, so tests cannot interfere with each other.
@@ -297,7 +298,7 @@ fun `sync down upserts server items into local store`() = runBlocking {
 
     val localItems = service.getAllFromLocalStore()
     assertEquals(1, localItems.size)
-    assertEquals("Server Item", localItems[0].name)
+    assertEquals("Server Item", localItems.first().name)
 }
 ```
 

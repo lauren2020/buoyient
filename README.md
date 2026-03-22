@@ -18,10 +18,10 @@ A Kotlin Multiplatform offline-first sync library that handles bidirectional dat
 
 - **Offline-First** — Create, update, and void data locally when offline. Changes are automatically queued and synced when connectivity returns.
 - **Bidirectional Sync** — Periodic sync-down (server to local) and on-demand sync-up (local to server).
-- **3-Way Merge & Conflict Resolution** — Field-level conflict detection using base/local/server comparison. Pluggable merge policies via `SyncableObjectMergeHandler`.
+- **3-Way Merge & Conflict Resolution** — Field-level conflict detection using base/local/server comparison. Pluggable merge policies via `SyncableObjectRebaseHandler`.
 - **Pending Request Queue** — Queued requests are persisted to SQLite, survive app restarts, and support idempotency keys for safe retries.
 - **Placeholder Resolution** — Use `{serverId}` and `{version}` placeholders in endpoint URLs and request bodies. These are resolved at sync time with the most up-to-date values, enabling safe chaining of CREATE -> UPDATE -> VOID operations.
-- **Request Tagging** — Optional tags for tracking and custom response handling.
+- **Request Tagging** — `ServiceRequestTag` enums for tracking request types and custom response handling per operation.
 
 ## Features in progress
 
@@ -64,7 +64,7 @@ A Kotlin Multiplatform offline-first sync library that handles bidirectional dat
     ┌──────────┼──────────────┐
     │          │              │
     ▼          ▼              ▼
-ServerManager  LocalStoreManager  SyncableObjectMergeHandler
+ServerManager  LocalStoreManager  SyncableObjectRebaseHandler
 (Ktor HTTP)   (SQLDelight)        (3-way merge)
                │
                ▼
@@ -76,39 +76,30 @@ ServerManager  LocalStoreManager  SyncableObjectMergeHandler
 
 ### 1. Define your data model
 
-Implement `SyncableObject<O>` on your domain object:
+Implement `SyncableObject<O>` on a `@Serializable` data class:
 
 ```kotlin
+@Serializable
 data class Todo(
-    override val serverId: String?,
-    override val clientId: String,
-    override val version: Int,
-    override val syncStatus: SyncStatus,
+    override val serverId: String? = null,
+    override val clientId: String = UUID.randomUUID().toString(),
+    override val version: Int = 0,
+    @Transient override val syncStatus: SyncStatus = SyncStatus.LocalOnly,
     val title: String,
-    val completed: Boolean,
+    val completed: Boolean = false,
 ) : SyncableObject<Todo> {
-    override fun toJson(): JsonObject = buildJsonObject {
-        put("title", title)
-        put("completed", completed)
-        // ... include serverId, clientId, version, syncStatus
-    }
+    override fun withSyncStatus(syncStatus: SyncStatus): Todo =
+        copy(syncStatus = syncStatus)
 }
 ```
 
-### 2. Create a deserializer
+### 2. Define a request tag
 
 ```kotlin
-class TodoDeserializer : SyncableObject.SyncableObjectDeserializer<Todo> {
-    override fun fromJson(json: JsonObject, syncStatus: SyncStatus): Todo {
-        return Todo(
-            serverId = json["server_id"]?.jsonPrimitive?.contentOrNull,
-            clientId = json["client_id"]!!.jsonPrimitive.content,
-            version = json["version"]!!.jsonPrimitive.int,
-            syncStatus = syncStatus,
-            title = json["title"]!!.jsonPrimitive.content,
-            completed = json["completed"]!!.jsonPrimitive.boolean,
-        )
-    }
+enum class TodoRequestTag(override val value: String) : ServiceRequestTag {
+    CREATE("create"),
+    UPDATE("update"),
+    VOID("void"),
 }
 ```
 
@@ -118,27 +109,40 @@ Implement `ServerProcessingConfig<O>` to define how your service communicates wi
 
 ### 4. Implement your service
 
-Extend `SyncableObjectService<O>` and expose domain-specific operations using the protected `create()`, `update()`, and `void()` methods:
+Extend `SyncableObjectService<O, T>` and expose domain-specific operations using the protected `create()`, `update()`, `void()`, and `get()` methods:
 
 ```kotlin
-class TodoService : SyncableObjectService<Todo>(
-    deserializer = TodoDeserializer(),
-    serverProcessingConfig = TodoServerProcessingConfig(),
+class TodoService(
+    serverProcessingConfig: ServerProcessingConfig<Todo> = TodoServerProcessingConfig(),
+    // ... other constructor params with defaults (see docs/creating-a-service.md)
+) : SyncableObjectService<Todo, TodoRequestTag>(
+    serializer = Todo.serializer(),
+    serverProcessingConfig = serverProcessingConfig,
     serviceName = "todos",
+    // ... pass through other params
 ) {
     suspend fun addTodo(title: String): SyncableObjectServiceResponse<Todo> {
-        val todo = Todo(
-            serverId = null,
-            clientId = "", // generated internally
-            version = 0,
-            syncStatus = SyncStatus.LocalOnly,
-            title = title,
-            completed = false,
-        )
+        val todo = Todo(title = title)
         return create(
             data = todo,
-            request = { data, idempotencyKey, isOffline -> /* build HttpRequest */ },
-            unpackSyncData = { status, response -> /* parse response */ },
+            requestTag = TodoRequestTag.CREATE,
+            request = CreateRequestBuilder { data, idempotencyKey, isOffline, attemptedServerRequest ->
+                HttpRequest(
+                    method = HttpRequest.HttpMethod.POST,
+                    endpointUrl = "https://api.example.com/todos",
+                    requestBody = buildJsonObject {
+                        put("idempotency_key", idempotencyKey)
+                        put("title", data.title)
+                        put("reference_id", data.clientId)
+                    },
+                )
+            },
+            unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+                if (statusCode in 200..299 && responseBody.containsKey("item")) {
+                    json.decodeFromJsonElement(Todo.serializer(), responseBody["item"]!!.jsonObject)
+                        .withSyncStatus(syncStatus)
+                } else null
+            },
         )
     }
 }
@@ -192,11 +196,11 @@ DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
 
 | Class | Override | Purpose |
 |-------|----------|---------|
-| `SyncableObjectService` | `create()`, `update()`, `void()` | Define your public API |
-| `SyncableObjectMergeHandler` | `mergeServerAndLocalChanges()` | Custom 3-way merge logic |
-| `SyncableObjectMergeHandler` | `handleMergeConflict()` | Custom conflict resolution |
+| `SyncableObjectService` | `create()`, `update()`, `void()`, `get()` | Define your public API |
+| `SyncableObjectRebaseHandler` | `rebaseDataForPendingRequest()` | Custom 3-way merge logic |
+| `SyncableObjectRebaseHandler` | `handleMergeConflict()` | Custom conflict resolution |
 | `SyncUpConfig` | `acceptUploadResponseAsProcessed()` | Custom success criteria |
-| `ServerProcessingConfig` | `fromServerProtoJson()` | Response deserialization |
+| `SyncUpConfig` | `fromResponseBody()` | Response deserialization for sync-up |
 
 ## Testing
 

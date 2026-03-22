@@ -2,10 +2,11 @@
 
 This guide walks through creating a complete offline-first syncable service using data-buoy. A service consists of four pieces that work together:
 
-1. **Data model** — a Kotlin class implementing `SyncableObject<T>` that defines your domain entity
-2. **Server processing config** — a `ServerProcessingConfig<T>` that tells data-buoy how to communicate with your API
-3. **Service class** — a `SyncableObjectService<T>` subclass that exposes create/update/void operations
-4. **Registration** — registering the service so background sync picks it up (via `DataBuoy` API, Hilt multibinding, or a manual `SyncServiceRegistryProvider`)
+1. **Data model** — a `@Serializable` data class implementing `SyncableObject<T>` that defines your domain entity
+2. **Request tag** — a `ServiceRequestTag` enum that identifies different request types (create, update, void)
+3. **Server processing config** — a `ServerProcessingConfig<T>` that tells data-buoy how to communicate with your API
+4. **Service class** — a `SyncableObjectService<T, Tag>` subclass that exposes create/update/void operations
+5. **Registration** — registering the service so background sync picks it up (via `DataBuoy` API, Hilt multibinding, or a manual `SyncServiceRegistryProvider`)
 
 The library handles online/offline dual-path execution, local SQLite persistence, pending request queuing, idempotent retries, background sync via WorkManager, and 3-way merge conflict resolution automatically. Your job is just to define the shape of your data and how to talk to your API.
 
@@ -15,7 +16,7 @@ The library handles online/offline dual-path execution, local SQLite persistence
 
 ## Step 1: Create the Data Model
 
-Create a class that implements `SyncableObject<YourModel>`. This is the domain object that data-buoy persists and syncs.
+Create a `@Serializable` data class that implements `SyncableObject<YourModel>`. This is the domain object that data-buoy persists and syncs.
 
 ### Required interface members
 
@@ -27,14 +28,18 @@ Every `SyncableObject` must have:
 | `clientId` | `String` | Locally-generated UUID. Stable identifier regardless of sync state. |
 | `version` | `Int` | Incremented on each update. Used for optimistic concurrency. |
 | `syncStatus` | `SyncStatus` | Tracks sync lifecycle (LocalOnly, PendingCreate, Synced, Conflict, etc.) |
-| `toJson()` | `JsonObject` | Serializes the object for local SQLite storage. |
+| `withSyncStatus(syncStatus)` | `fun` | Returns a copy of the object with the given sync status. |
 
-### Required companion members
+### Companion constants
 
-| Member | Purpose |
-|--------|---------|
-| `fromJson(json, syncStatus)` | Deserializes from SQLite JSON blob back into your model. |
-| Field tag constants | String constants for each JSON key, used in `toJson()` and `fromJson()`. |
+The `SyncableObject` companion object provides constants for the metadata keys used in serialized JSON. These are managed by data-buoy internally:
+
+| Constant | Value |
+|----------|-------|
+| `SERVER_ID_KEY` | `"server_id"` |
+| `CLIENT_ID_KEY` | `"client_id"` |
+| `VERSION_KEY` | `"version"` |
+| `SYNC_STATUS_KEY` | `"sync_status"` |
 
 ### Template
 
@@ -42,83 +47,55 @@ Every `SyncableObject` must have:
 package com.example.yourapp.data.models
 
 import com.les.databuoy.SyncableObject
-import com.les.databuoy.SyncableObject.Companion.CLIENT_ID_TAG
-import com.les.databuoy.SyncableObject.Companion.SERVER_ID_TAG
-import com.les.databuoy.SyncableObject.Companion.VERSION_TAG
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.put
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import java.util.UUID
 
-class YourModel(
-    override val serverId: String?,
-    override val clientId: String,
-    override val version: Int,
-    override val syncStatus: SyncableObject.SyncStatus,
+@Serializable
+data class YourModel(
+    override val serverId: String? = null,
+    override val clientId: String = UUID.randomUUID().toString(),
+    override val version: Int = 0,
+    @Transient override val syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
     // Add your domain-specific fields here:
     val name: String,
     val amount: Long,
-    val status: String,
+    val status: String = "DRAFT",
 ) : SyncableObject<YourModel> {
 
-    /**
-     * Convenience constructor for creating a new local-only instance.
-     * Sets serverId=null, generates a UUID clientId, version=0, syncStatus=LocalOnly.
-     * Fields with a natural initial state get sensible defaults (e.g., status).
-     */
-    constructor(
-        name: String,
-        amount: Long,
-    ) : this(
-        serverId = null,
-        clientId = UUID.randomUUID().toString(),
-        version = 0,
-        syncStatus = SyncableObject.SyncStatus.LocalOnly,
-        name = name,
-        amount = amount,
-        status = "DRAFT", // sensible default — callers don't need to specify initial state
-    )
-
-    override fun toJson(): JsonObject = buildJsonObject {
-        put(SERVER_ID_TAG, serverId)
-        put(CLIENT_ID_TAG, clientId)
-        put(VERSION_TAG, version)
-        put(NAME_TAG, name)
-        put(AMOUNT_TAG, amount)
-        put(STATUS_TAG, status)
-    }
-
-    companion object {
-        const val NAME_TAG = "name"
-        const val AMOUNT_TAG = "amount"
-        const val STATUS_TAG = "status"
-
-        fun fromJson(json: JsonObject, syncStatus: SyncableObject.SyncStatus): YourModel = YourModel(
-            serverId = json[SERVER_ID_TAG]?.jsonPrimitive?.contentOrNull,
-            clientId = json[CLIENT_ID_TAG]!!.jsonPrimitive.content,
-            version = json[VERSION_TAG]!!.jsonPrimitive.int,
-            syncStatus = syncStatus,
-            name = json[NAME_TAG]!!.jsonPrimitive.content,
-            amount = json[AMOUNT_TAG]!!.jsonPrimitive.long,
-            status = json[STATUS_TAG]!!.jsonPrimitive.content,
-        )
-    }
+    override fun withSyncStatus(syncStatus: SyncableObject.SyncStatus): YourModel =
+        copy(syncStatus = syncStatus)
 }
 ```
 
 ### Key rules
 
-- `toJson()` must include `SERVER_ID_TAG`, `CLIENT_ID_TAG`, and `VERSION_TAG` — data-buoy reads these from the JSON blob.
-- `fromJson()` must accept a `syncStatus` parameter (data-buoy manages sync status separately from the blob).
-- The convenience constructor should set `serverId = null`, generate a random `clientId`, set `version = 0`, and set `syncStatus = SyncableObject.SyncStatus.LocalOnly`. For fields that have a natural initial state (like `status`), provide a sensible default in the convenience constructor rather than requiring the caller to pass it.
-- The tag constants you define should match whatever key names your server API uses for those fields, since `fromSyncUpResponseBody()` in the `SyncUpConfig` will map server keys to these tags.
+- The class must be annotated with `@Serializable` — data-buoy uses `kotlinx.serialization` via `SyncCodec` to serialize/deserialize objects.
+- `syncStatus` must be marked `@Transient` — data-buoy manages sync status separately from the JSON blob stored in SQLite.
+- `withSyncStatus()` must return a copy with the new status. For data classes, just delegate to `copy(syncStatus = syncStatus)`.
+- Default values for `serverId = null`, `clientId = UUID.randomUUID().toString()`, `version = 0`, and `syncStatus = LocalOnly` provide a convenient constructor for creating new local-only instances.
 
 ---
 
-## Step 2: Create the ServerProcessingConfig
+## Step 2: Create the ServiceRequestTag
+
+Define an enum implementing `ServiceRequestTag` to identify the different request types your service makes. This tag is stored with pending requests and passed to `SyncUpConfig.fromResponseBody()` so you can parse different response shapes per request type.
+
+```kotlin
+package com.example.yourapp.data.services
+
+import com.les.databuoy.ServiceRequestTag
+
+enum class YourModelRequestTag(override val value: String) : ServiceRequestTag {
+    CREATE("create"),
+    UPDATE("update"),
+    VOID("void"),
+}
+```
+
+---
+
+## Step 3: Create the ServerProcessingConfig
 
 Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch data from and push data to your server.
 
@@ -126,9 +103,9 @@ Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch dat
 
 | Member | Type | Purpose |
 |--------|------|---------|
-| `syncFetchConfig` | `SyncFetchConfig<T>` | How to periodically pull data from the server (GET or POST). |
-| `syncUpConfig` | `SyncUpConfig<T>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromSyncUpResponseBody(requestTag, responseBody)` to extract and deserialize a `T` from the server response, using `requestTag` to handle different response shapes per request type. |
-| `headers` | `List<Pair<String, String>>` | HTTP headers sent with every request (auth, content-type, etc.). |
+| `syncFetchConfig` | `SyncFetchConfig<YourModel>` | How to periodically pull data from the server (GET or POST). |
+| `syncUpConfig` | `SyncUpConfig<YourModel>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromResponseBody(requestTag, responseBody)` to extract and deserialize a `YourModel` from the server response. |
+| `globalHeaders` | `List<Pair<String, String>>` | HTTP headers sent with every request (auth, content-type, etc.). |
 
 ### SyncFetchConfig variants
 
@@ -140,7 +117,7 @@ SyncFetchConfig.GetFetchConfig(
     syncCadenceSeconds = 300, // how often to poll
     transformResponse = { response ->
         val items = response["items"]?.jsonArray ?: return@GetFetchConfig emptyList()
-        items.map { fromServerProtoJson(it.jsonObject) }
+        items.map { json.decodeFromJsonElement(YourModel.serializer(), it) }
     },
 )
 ```
@@ -156,7 +133,7 @@ SyncFetchConfig.PostFetchConfig(
     syncCadenceSeconds = 300,
     transformResponse = { response ->
         val items = response["items"]?.jsonArray ?: return@PostFetchConfig emptyList()
-        items.map { fromServerProtoJson(it.jsonObject) }
+        items.map { json.decodeFromJsonElement(YourModel.serializer(), it) }
     },
 )
 ```
@@ -165,34 +142,26 @@ SyncFetchConfig.PostFetchConfig(
 
 ```kotlin
 class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
+
+    private val json = Json { ignoreUnknownKeys = true }
+
     override val syncFetchConfig = SyncFetchConfig.GetFetchConfig(
         endpoint = "https://api.example.com/v2/items",
         syncCadenceSeconds = 300,
         transformResponse = { response ->
             val items = response["items"]?.jsonArray ?: return@GetFetchConfig emptyList()
-            items.map { fromServerProtoJson(it.jsonObject) }
+            items.map { json.decodeFromJsonElement(YourModel.serializer(), it.jsonObject) }
         },
     )
 
     override val syncUpConfig = object : SyncUpConfig<YourModel>() {
-        override fun fromSyncUpResponseBody(requestTag: String, responseBody: JsonObject): YourModel? {
+        override fun fromResponseBody(requestTag: String, responseBody: JsonObject): YourModel? {
             val item = responseBody["item"]?.jsonObject ?: return null
-            return YourModel(
-                serverId = item["id"]!!.jsonPrimitive.content,
-                clientId = item["reference_id"]?.jsonPrimitive?.contentOrNull
-                    ?: item["id"]!!.jsonPrimitive.content,
-                version = item["version"]?.jsonPrimitive?.int ?: 1,
-                syncStatus = SyncableObject.SyncStatus.Synced(
-                    lastSyncedTimestamp = item["updated_at"]!!.jsonPrimitive.content,
-                ),
-                name = item["name"]!!.jsonPrimitive.content,
-                amount = item["amount"]!!.jsonPrimitive.long,
-                status = item["status"]?.jsonPrimitive?.content ?: "DRAFT",
-            )
+            return json.decodeFromJsonElement(YourModel.serializer(), item)
         }
     }
 
-    override val headers: List<Pair<String, String>> = listOf(
+    override val globalHeaders: List<Pair<String, String>> = listOf(
         Pair("Authorization", "Bearer YOUR_TOKEN"),
         Pair("Content-Type", "application/json"),
     )
@@ -201,27 +170,45 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
 
 ### Key rules
 
-- `fromSyncUpResponseBody()` must always set `syncStatus` to `Synced` with a timestamp — this data is coming from the server, so it's by definition synced.
-- Map `clientId` to whatever field links server records back to client-created records (often `reference_id`). Fall back to the server `id` for records created server-side.
+- `fromResponseBody()` receives the raw server response body and a `requestTag` string (from your `ServiceRequestTag` enum). Use the tag to handle different response shapes per request type if needed.
 - The `transformResponse` lambda receives the full response body. You need to extract the array of items from whatever key your API nests them under.
-- Override `SyncUpConfig` only if you need custom retry logic. The default retries on 408 (timeout) and 5xx errors.
+- Override `SyncUpConfig.acceptUploadResponseAsProcessed()` only if you need custom retry logic. The default retries on 408 (timeout) and 5xx errors.
 
 ---
 
-## Step 3: Create the Service
+## Step 4: Create the Service
 
-Extend `SyncableObjectService<YourModel>` to expose your domain operations. The base class provides three protected methods — `create()`, `update()`, and `void()` — that handle the online/offline dual-path, local persistence, request queuing, and idempotency automatically. Your service wraps these into public methods with your domain-specific API logic.
+Extend `SyncableObjectService<YourModel, YourModelRequestTag>` to expose your domain operations. The base class provides protected methods — `create()`, `update()`, `void()`, `get()`, and `resolveConflict()` — that handle the online/offline dual-path, local persistence, request queuing, and idempotency automatically. Your service wraps these into public methods with your domain-specific API logic.
 
 ### Constructor
 
 ```kotlin
-class YourModelService : SyncableObjectService<YourModel>(
-    serviceName = "your_model",  // unique name, used as DB partition key
-    deserializer = object : SyncableObject.SyncableObjectDeserializer<YourModel> {
-        override fun fromJson(json: JsonObject, syncStatus: SyncableObject.SyncStatus): YourModel =
-            YourModel.fromJson(json, syncStatus)
-    },
-    serverProcessingConfig = YourModelServerProcessingConfig(),
+class YourModelService(
+    serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
+    connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
+    logger: SyncLogger = createPlatformSyncLogger(),
+    syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+    serverManager: ServerManager = ServerManager(
+        serviceBaseHeaders = serverProcessingConfig.globalHeaders,
+        logger = logger,
+    ),
+    localStoreManager: LocalStoreManager<YourModel, YourModelRequestTag> = LocalStoreManager(
+        codec = SyncCodec(YourModel.serializer()),
+        serviceName = "your_model",
+        logger = logger,
+        syncScheduleNotifier = syncScheduleNotifier,
+    ),
+    idGenerator: IdGenerator = createPlatformIdGenerator(),
+) : SyncableObjectService<YourModel, YourModelRequestTag>(
+    serializer = YourModel.serializer(),
+    serverProcessingConfig = serverProcessingConfig,
+    serviceName = "your_model",
+    connectivityChecker = connectivityChecker,
+    logger = logger,
+    syncScheduleNotifier = syncScheduleNotifier,
+    serverManager = serverManager,
+    localStoreManager = localStoreManager,
+    idGenerator = idGenerator,
 ) {
     // operations go here
 }
@@ -233,14 +220,17 @@ The `serviceName` must be unique across all services in the app — it's used as
 
 Use the protected `create()` method. You provide:
 - `data`: the new object
-- `request`: a lambda that builds the `HttpRequest` given the data, an idempotency key, and whether the device is offline
-- `unpackSyncData`: a lambda that extracts the created object from the server response
+- `request`: a `CreateRequestBuilder` that builds the `HttpRequest` given the data, an idempotency key, whether the device is offline, and any prior attempted request
+- `unpackSyncData`: a `ResponseUnpacker` that extracts the created object from the server response
+- `requestTag`: your `ServiceRequestTag` value identifying this as a create operation
+- `processingConstraints` (optional): `NoConstraints` (default), `OnlineOnly`, or `OfflineOnly`
 
 ```kotlin
 suspend fun createItem(item: YourModel): CreateItemResponse {
     val response = create(
         data = item,
-        request = { data, idempotencyKey, isOffline ->
+        requestTag = YourModelRequestTag.CREATE,
+        request = CreateRequestBuilder { data, idempotencyKey, isOffline, attemptedServerRequest ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.POST,
                 endpointUrl = "https://api.example.com/v2/items",
@@ -252,9 +242,10 @@ suspend fun createItem(item: YourModel): CreateItemResponse {
                 },
             )
         },
-        unpackSyncData = { status, response ->
-            if (response.containsKey("item")) {
-                serverProcessingConfig.fromServerProtoJson(response["item"]!!.jsonObject)
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            if (statusCode in 200..299 && responseBody.containsKey("item")) {
+                json.decodeFromJsonElement(YourModel.serializer(), responseBody["item"]!!.jsonObject)
+                    .withSyncStatus(syncStatus)
             } else null
         },
     )
@@ -263,11 +254,8 @@ suspend fun createItem(item: YourModel): CreateItemResponse {
             CreateItemResponse.Success(response.updatedData)
 
         is SyncableObjectServiceResponse.Finished.NetworkResponseReceived -> {
-            if (response.statusCode in 200..203) {
-                val item = serverProcessingConfig.fromServerProtoJson(
-                    response.responseBody["item"]!!.jsonObject
-                )
-                CreateItemResponse.Success(item)
+            if (response.statusCode in 200..299) {
+                CreateItemResponse.Success(response.updatedData!!)
             } else {
                 CreateItemResponse.Failed(
                     errors = response.responseBody["errors"]?.jsonArray ?: JsonArray(emptyList())
@@ -285,7 +273,7 @@ suspend fun createItem(item: YourModel): CreateItemResponse {
 
 ### Update operation
 
-Use the protected `update()` method. The `request` lambda receives both the last-synced version and the updated version, so you can compute a diff if your API supports partial updates.
+Use the protected `update()` method. The `UpdateRequestBuilder` receives both the last-synced version and the updated version, so you can compute a diff if your API supports partial updates.
 
 Use `HttpRequest.SERVER_ID_PLACEHOLDER` (`{serverId}`) in endpoint URLs when the server ID might not be available yet (the object was created offline). Data-buoy resolves this placeholder at sync time.
 
@@ -293,17 +281,11 @@ Use `HttpRequest.VERSION_PLACEHOLDER` (`{version}`) in request bodies for optimi
 
 ```kotlin
 suspend fun updateItem(item: YourModel, newName: String): SyncableObjectServiceResponse<YourModel> {
-    val updatedItem = YourModel(
-        serverId = item.serverId,
-        clientId = item.clientId,
-        version = item.version,
-        syncStatus = item.syncStatus,
-        name = newName,
-        amount = item.amount,
-    )
+    val updatedItem = item.copy(name = newName)
     return update(
         data = updatedItem,
-        request = { lastSyncedData, updatedData, idempotencyKey ->
+        requestTag = YourModelRequestTag.UPDATE,
+        request = UpdateRequestBuilder { lastSyncedData, updatedData, idempotencyKey, isAsync, attemptedServerRequest ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.PUT,
                 endpointUrl = "https://api.example.com/v2/items/${updatedData.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
@@ -314,19 +296,10 @@ suspend fun updateItem(item: YourModel, newName: String): SyncableObjectServiceR
                 },
             )
         },
-        unpackSyncData = { responseBody, statusCode, syncStatus ->
-            if (responseBody.containsKey("item")) {
-                val serverItem = serverProcessingConfig.fromServerProtoJson(
-                    responseBody["item"]!!.jsonObject
-                )
-                YourModel(
-                    serverId = serverItem.serverId,
-                    clientId = serverItem.clientId,
-                    version = serverItem.version,
-                    syncStatus = syncStatus,  // use the syncStatus passed in, not the one from parsing
-                    name = serverItem.name,
-                    amount = serverItem.amount,
-                )
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            if (statusCode in 200..299 && responseBody.containsKey("item")) {
+                json.decodeFromJsonElement(YourModel.serializer(), responseBody["item"]!!.jsonObject)
+                    .withSyncStatus(syncStatus)
             } else null
         },
     )
@@ -337,29 +310,72 @@ suspend fun updateItem(item: YourModel, newName: String): SyncableObjectServiceR
 
 Use the protected `void()` method. If the object was never synced to the server (serverId is null and no server attempt was made), data-buoy skips the server call and just marks it voided locally.
 
+The `VoidRequestBuilder` receives the data and a list of any pending requests that have already been attempted on the server.
+
 ```kotlin
-suspend fun deleteItem(item: YourModel) {
-    void(
+suspend fun deleteItem(item: YourModel): SyncableObjectServiceResponse<YourModel> {
+    return void(
         data = item,
-        request = { data, serverAttemptedPendingRequests ->
+        requestTag = YourModelRequestTag.VOID,
+        request = VoidRequestBuilder { data, serverAttemptedPendingRequests ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.POST,
                 endpointUrl = "https://api.example.com/v2/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/cancel",
                 requestBody = JsonObject(emptyMap()),
             )
         },
-        unpackData = { status, response ->
-            if (response.containsKey("item")) {
-                serverProcessingConfig.fromServerProtoJson(response["item"]!!.jsonObject)
+        unpackData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            if (statusCode in 200..299 && responseBody.containsKey("item")) {
+                json.decodeFromJsonElement(YourModel.serializer(), responseBody["item"]!!.jsonObject)
+                    .withSyncStatus(syncStatus)
             } else null
         },
     )
 }
 ```
 
-### Fetching local data
+### Get operation
 
-The base class provides `fetchFromDb(limit: Int = 100)` to read all locally stored items. No need to override this.
+Use the protected `get()` method to fetch a single item. If the device is online and there are no pending requests for the object, the item is fetched from the server. Otherwise it's retrieved from the local store.
+
+```kotlin
+suspend fun getItem(clientId: String, serverId: String?): GetResponse<YourModel> {
+    return get(
+        clientId = clientId,
+        serverId = serverId,
+        request = HttpRequest(
+            method = HttpRequest.HttpMethod.GET,
+            endpointUrl = "https://api.example.com/v2/items/${serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
+            requestBody = JsonObject(emptyMap()),
+        ),
+        unpackData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            if (statusCode in 200..299 && responseBody.containsKey("item")) {
+                json.decodeFromJsonElement(YourModel.serializer(), responseBody["item"]!!.jsonObject)
+                    .withSyncStatus(syncStatus)
+            } else null
+        },
+    )
+}
+```
+
+`GetResponse` is a sealed class with three variants:
+- `ReceivedServerResponse(statusCode, responseBody, data)` — server responded
+- `RetrievedFromLocalStore(data)` — returned from local SQLite
+- `NotFound()` — not in local store and device is offline
+
+### Fetching all local data
+
+The base class provides `getAllFromLocalStore(limit: Int = 100)` to read all locally stored items. No need to override this.
+
+### Processing constraints
+
+Every `create()`, `update()`, and `void()` call accepts an optional `processingConstraints` parameter:
+
+| Constraint | Behavior |
+|------------|----------|
+| `ProcessingConstraints.NoConstraints` | Default. Try online first, fall back to offline queuing on connection error. |
+| `ProcessingConstraints.OnlineOnly` | Only attempt online. Returns `NoInternetConnection` on failure. |
+| `ProcessingConstraints.OfflineOnly` | Skip the server call entirely. Always queue for background sync. |
 
 ### Custom response types (optional)
 
@@ -374,7 +390,7 @@ sealed class CreateItemResponse {
 
 ---
 
-## Step 4: Register the Service
+## Step 5: Register the Service
 
 The service must be registered so that `SyncWorker` includes it in background sync. There are three approaches, from simplest to most manual.
 
@@ -459,7 +475,7 @@ private val yourModelService by lazy { YourModelService() }
 
 // In a coroutine:
 val response = yourModelService.createItem(item)
-val allItems = yourModelService.fetchFromDb()
+val allItems = yourModelService.getAllFromLocalStore()
 yourModelService.close()  // call in onDestroy()
 ```
 
@@ -522,17 +538,61 @@ put("version", HttpRequest.VERSION_PLACEHOLDER)
 
 ---
 
+## Conflict Resolution
+
+When a sync-down detects that both the local client and server changed the same fields, the object enters `SyncStatus.Conflict`. The conflict contains `FieldConflictInfo` entries describing each conflicting field with base, local, and server values.
+
+To resolve a conflict, call the protected `resolveConflict()` method with a `SyncableObjectRebaseHandler.ConflictResolution.Resolved` containing the merged data and optionally an updated HTTP request:
+
+```kotlin
+fun resolveItemConflict(
+    resolvedItem: YourModel,
+    updatedRequest: HttpRequest? = null,
+): ResolveConflictResult<YourModel> {
+    return resolveConflict(
+        resolution = SyncableObjectRebaseHandler.ConflictResolution.Resolved(
+            resolvedData = resolvedItem,
+            updatedHttpRequest = updatedRequest,
+        ),
+    )
+}
+```
+
+`ResolveConflictResult` has three variants:
+- `Resolved(resolvedData)` — conflict cleared, sync-up can proceed
+- `RebaseConflict(conflict)` — the immediate conflict was resolved but a subsequent pending request also has a conflict
+- `Failed(exception)` — resolution failed
+
+### Custom merge policies
+
+Override the `rebaseHandler` property in your service to provide a custom `SyncableObjectRebaseHandler` with domain-specific merge logic:
+
+```kotlin
+override val rebaseHandler = object : SyncableObjectRebaseHandler<YourModel>(SyncCodec(YourModel.serializer())) {
+    override fun handleMergeConflict(
+        rebaseResult: RebaseResult<YourModel>,
+        requestTag: String?,
+    ): ConflictResolution<YourModel> {
+        // Example: auto-resolve by always taking the server's value for "status"
+        // Return ConflictResolution.Resolved(...) or ConflictResolution.Unresolved()
+        return ConflictResolution.Unresolved()
+    }
+}
+```
+
+---
+
 ## Recommended file organization in the consuming app
 
 ```
 app/src/main/java/com/example/yourapp/data/
 ├── models/
-│   └── YourModel.kt                           # SyncableObject implementation
+│   └── YourModel.kt                           # @Serializable SyncableObject implementation
 ├── services/customservices/yourmodel/
-│   └── YourModelService.kt                     # Service + ServerProcessingConfig
+│   ├── YourModelService.kt                     # Service class
+│   ├── YourModelServerProcessingConfig.kt      # ServerProcessingConfig
+│   └── YourModelRequestTag.kt                  # ServiceRequestTag enum
 └── di/
     └── SyncModule.kt                           # Hilt @Module with @IntoSet bindings
                                                 # (or AppSyncServiceRegistryProvider if not using Hilt)
 ```
-
-The `ServerProcessingConfig` class is typically defined in the same file as the service class.

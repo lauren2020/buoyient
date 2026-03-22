@@ -138,7 +138,7 @@ class MockServerFixtures {
 
 - **Echo request data back** in create/update responses so the app sees its own data reflected.
 - **Generate unique server IDs** with an `AtomicInteger` counter so each create returns a distinct ID.
-- **Include all fields** the `ServerProcessingConfig.syncUpConfig.fromResponseBody()` expects -- missing fields will cause null deserialization and the service will treat it as a failed sync.
+- **Include all fields** the `SyncUpConfig.fromResponseBody()` expects -- missing fields will cause null deserialization and the service will treat it as a failed sync.
 - **Match your real API's response shape exactly** -- the same `transformResponse` and `fromResponseBody` lambdas parse both real and mock responses.
 
 ---
@@ -350,7 +350,7 @@ router.onPost("https://api.example.com/v2/items") { _ ->
 
 ### Simulating sync conflicts
 
-Return data from the sync-down endpoint that conflicts with locally modified data. The `SyncableObjectMergeHandler` will detect the field-level conflicts and mark the row with `SyncStatus.Conflict`, letting you test your conflict resolution UI:
+Return data from the sync-down endpoint that conflicts with locally modified data. The `SyncableObjectRebaseHandler` will detect the field-level conflicts and mark the row with `SyncStatus.Conflict`, letting you test your conflict resolution UI:
 
 ```kotlin
 router.onGet("https://api.example.com/v2/items") { _ ->
