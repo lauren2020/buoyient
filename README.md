@@ -318,11 +318,12 @@ The `docs/` directory contains step-by-step guides for integrating data-buoy int
 
 | Guide | Description |
 |-------|-------------|
+| [Setup](docs/setup.md) | Adding data-buoy to your app — dependencies, initialization, and service registration |
 | [Creating a Service](docs/creating-a-service.md) | Data model, `ServerProcessingConfig`, service class, and registration |
 | [Integration Testing](docs/integration-testing.md) | Automated JVM tests with `TestServiceEnvironment` and mock server |
 | [Mock Mode](docs/mock-mode.md) | Runtime mock mode for manual testing without a real backend |
 
-**For AI agents (Claude Code, Cursor, etc.):** This repo includes a `CLAUDE.md` and `.claude/skills/` with detailed instructions for service creation, testing, and mock mode setup. These are loaded automatically by Claude Code when working in this project.
+**For AI agents (Claude Code, Cursor, etc.):** This repo includes a `CLAUDE.md` and `.claude/skills/` with detailed instructions for setup, service creation, testing, and mock mode. These are loaded automatically by Claude Code when working in this project.
 
 ## Build
 

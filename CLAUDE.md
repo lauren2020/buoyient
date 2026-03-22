@@ -6,7 +6,8 @@ Kotlin Multiplatform offline-first sync library. Handles bidirectional sync betw
 
 If you are integrating data-buoy into an application, **read the guides in `docs/`** before writing code:
 
-- **`docs/creating-a-service.md`** — Step-by-step guide to creating a `SyncableObjectService`: data model, `ServerProcessingConfig`, service class, and registration (Hilt or manual). Start here.
+- **`docs/setup.md`** — How to add data-buoy to an Android app: dependencies, automatic initialization, and service registration. Start here.
+- **`docs/creating-a-service.md`** — Step-by-step guide to creating a `SyncableObjectService`: data model, `ServerProcessingConfig`, service class, and registration (Hilt or manual).
 - **`docs/integration-testing.md`** — How to write automated JVM tests using `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module.
 - **`docs/mock-mode.md`** — How to wire mock mode into the live app for manual testing without a real backend.
 
