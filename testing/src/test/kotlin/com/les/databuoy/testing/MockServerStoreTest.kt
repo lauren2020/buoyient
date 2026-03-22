@@ -5,6 +5,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -664,6 +665,11 @@ class MockServerStoreTest {
         assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
         assertEquals(200, response.statusCode)
         // Only the "New" record should be in the response (created at t=2000, cutoff=1000)
+        val body = response.responseBody
+        val records = body["data"]?.jsonArray
+        assertNotNull(records, "Response should contain a 'data' array")
+        assertEquals(1, records.size, "Only the record created after the cutoff should be returned")
+        assertEquals("New", records[0].jsonObject["title"]?.jsonPrimitive?.content)
     }
 
     // -------------------------------------------------------------------------

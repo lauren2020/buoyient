@@ -212,4 +212,129 @@ class SyncUpCoordinatorTest {
             "Requests should be dispatched in global insertion order (alpha, beta, alpha), not per-service order (alpha, alpha, beta)",
         )
     }
+
+    /**
+     * An empty participant list should produce zero synced requests and not throw.
+     */
+    @Test
+    fun `syncUpAll with no participants returns zero`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+        val coordinator = SyncUpCoordinator(
+            participants = emptyList(),
+            database = db,
+            logger = logger,
+        )
+        val synced = coordinator.syncUpAll()
+        assertEquals(0, synced)
+    }
+
+    /**
+     * A single participant with no pending requests should return zero.
+     */
+    @Test
+    fun `syncUpAll with participant but no pending requests returns zero`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+        val requestLog = mutableListOf<String>()
+        val (participant, _) = createParticipant("alpha", db, requestLog, ArrayDeque())
+
+        val coordinator = SyncUpCoordinator(
+            participants = listOf(participant),
+            database = db,
+            logger = logger,
+        )
+        val synced = coordinator.syncUpAll()
+
+        assertEquals(0, synced)
+        assertEquals(0, requestLog.size, "No HTTP requests should have been made")
+    }
+
+    /**
+     * When a pending request belongs to a service that has no registered
+     * participant, the coordinator should skip it and continue processing
+     * other requests.
+     */
+    @Test
+    fun `syncUpAll skips requests for unregistered services`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+        val requestLog = mutableListOf<String>()
+
+        val alphaResponses = ArrayDeque(listOf(
+            wrapResponse(testItem(clientId = "a1", serverId = "server_a1")),
+        ))
+        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses)
+
+        // Also create a store for an unregistered service ("ghost") and queue a request.
+        val ghostStore = LocalStoreManager<TestItem, TestRequestTag>(
+            database = db,
+            serviceName = "ghost",
+            syncScheduleNotifier = noOpNotifier,
+            codec = SyncCodec(TestItem.serializer()),
+            logger = logger,
+        )
+
+        // 1. Queue in ghost (no participant will be registered for this)
+        ghostStore.insertLocalData(
+            data = testItem(clientId = "g1", name = "Ghost"),
+            httpRequest = makeRequest(body = buildJsonObject { put("client_id", "g1") }),
+            idempotencyKey = "idem-g1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+        // 2. Queue in alpha
+        alphaStore.insertLocalData(
+            data = testItem(clientId = "a1", name = "Alpha"),
+            httpRequest = makeRequest(body = buildJsonObject { put("client_id", "a1") }),
+            idempotencyKey = "idem-a1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        // Only register alpha — ghost has no participant.
+        val coordinator = SyncUpCoordinator(
+            participants = listOf(alphaParticipant),
+            database = db,
+            logger = logger,
+        )
+        val synced = coordinator.syncUpAll()
+
+        assertEquals(1, synced, "Only alpha's request should have been synced")
+        assertEquals(listOf("alpha"), requestLog)
+    }
+
+    /**
+     * When an unresolved conflict exists, syncUpAll should block all uploads
+     * and return zero — even for requests in other services.
+     */
+    @Test
+    fun `syncUpAll blocks all uploads when unresolved conflict exists`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+        val requestLog = mutableListOf<String>()
+
+        val alphaResponses = ArrayDeque(listOf(
+            wrapResponse(testItem(clientId = "a1", serverId = "server_a1")),
+        ))
+        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses)
+
+        // Queue a create in alpha.
+        alphaStore.insertLocalData(
+            data = testItem(clientId = "a1", name = "Alpha"),
+            httpRequest = makeRequest(body = buildJsonObject { put("client_id", "a1") }),
+            idempotencyKey = "idem-a1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        // Manually inject a conflict_info on the pending request to simulate an unresolved conflict.
+        db.syncPendingEventsQueries.saveConflictInfo(
+            conflict_info = """{"pending_request_id":1,"field_names":"name","base_data":{},"local_data":{},"server_data":{}}""",
+            pending_request_id = 1,
+        )
+
+        val coordinator = SyncUpCoordinator(
+            participants = listOf(alphaParticipant),
+            database = db,
+            logger = logger,
+        )
+        val synced = coordinator.syncUpAll()
+
+        assertEquals(0, synced, "No requests should be synced while conflicts exist")
+        assertEquals(0, requestLog.size, "No HTTP requests should have been made")
+    }
 }

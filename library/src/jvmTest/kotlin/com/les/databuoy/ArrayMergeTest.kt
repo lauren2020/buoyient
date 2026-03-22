@@ -43,41 +43,11 @@ class ArrayMergeTest {
     )
 
     /**
-     * Before the fix, both sides adding to an array was treated as a conflict.
-     * After the fix, this is now a successful merge.
-     *
-     * To verify the old behavior, revert the tryMergeArrayAdditions logic in
-     * SyncableObjectMergeHandler — this test will then return Conflict.
+     * Both sides adding to an array should produce a merged result containing
+     * the union of additions, not a conflict.
      */
     @Test
-    fun `concurrent array additions are merged, not conflicted`() {
-        val base = testItem(tags = listOf("a"))
-        val local = testItem(tags = listOf("a", "b"))
-        val server = testItem(tags = listOf("a", "c"))
-
-        val result = mergeHandler.rebaseDataForPendingRequest(
-            oldBaseData = base,
-            currentData = local,
-            newBaseData = server,
-            pendingHttpRequest = makeRequest(),
-            pendingRequestId = 1,
-            requestTag = "default",
-        )
-
-        // After the fix this is Merged (was Conflict before).
-        assertIs<SyncableObjectRebaseHandler.RebaseResult.Rebased<TestItem>>(result,
-            "Concurrent array additions should merge, not conflict")
-    }
-
-    /**
-     * After the fix, both sides adding to an array should produce a merged result
-     * containing the union of additions.
-     *
-     * This test will FAIL before the fix (because the result is Conflict)
-     * and PASS after the fix is applied.
-     */
-    @Test
-    fun `AFTER FIX - concurrent array additions are merged without conflict`() {
+    fun `concurrent array additions are merged without conflict`() {
         val base = testItem(tags = listOf("a"))
         val local = testItem(tags = listOf("a", "b"))
         val server = testItem(tags = listOf("a", "c"))
