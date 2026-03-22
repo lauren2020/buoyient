@@ -17,7 +17,7 @@ data class PendingSyncRequest<O : SyncableObject<O>>(
     val serverAttemptMade: Boolean,
     val data: O,
     val lastSyncedData: O?,
-    val conflict: SyncableObjectMergeHandler.FieldConflict<O>? = null,
+    val conflict: SyncableObjectRebaseHandler.FieldConflict<O>? = null,
     val requestTag: String,
 ) {
     enum class Type(val value: String) {

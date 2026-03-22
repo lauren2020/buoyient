@@ -18,7 +18,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * Provide a custom subclass to [SyncableObjectService] by overriding its
  * `mergeHandler` property.
  */
-open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
+open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
     private val codec: SyncCodec<O>,
 ) {
 
@@ -35,16 +35,16 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
         class Unresolved<O> : ConflictResolution<O>()
     }
 
-    sealed class MergeResult<O : SyncableObject<O>> {
+    sealed class RebaseResult<O : SyncableObject<O>> {
 
         class Conflict<O : SyncableObject<O>>(
             val conflict: FieldConflict<O>,
-        ) : MergeResult<O>()
+        ) : RebaseResult<O>()
 
-        class Merged<O : SyncableObject<O>>(
+        class Rebased<O : SyncableObject<O>>(
             val mergedData: O,
             val updatedHttpRequest: HttpRequest?,
-        ) : MergeResult<O>()
+        ) : RebaseResult<O>()
     }
 
     data class FieldConflict<O : SyncableObject<O>>(
@@ -106,7 +106,7 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
      * The default implementation returns [ConflictResolution.Unresolved].
      */
     open fun handleMergeConflict(
-        mergeResult: MergeResult<O>,
+        rebaseResult: RebaseResult<O>,
         requestTag: String? = null,
     ): ConflictResolution<O> = ConflictResolution.Unresolved()
 
@@ -124,11 +124,11 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
      * @param pendingHttpRequest - the pending sync request associated with the local changes.
      * @param pendingRequestId - the id of the pending change row in the db.
      *
-     * Returns a [MergeResult] containing:
-     * - [MergeResult.mergedJson]: starts from [local] with server-only changes applied
-     * - [MergeResult.conflicts]: fields changed by both local and server to different values
-     * - [MergeResult.serverOnlyChanges]: field names changed only on the server
-     * - [MergeResult.localOnlyChanges]: field names changed only locally
+     * Returns a [RebaseResult] containing:
+     * - [RebaseResult.mergedJson]: starts from [local] with server-only changes applied
+     * - [RebaseResult.conflicts]: fields changed by both local and server to different values
+     * - [RebaseResult.serverOnlyChanges]: field names changed only on the server
+     * - [RebaseResult.localOnlyChanges]: field names changed only locally
      */
     open fun rebaseDataForPendingRequest(
         oldBaseData: O?,
@@ -137,7 +137,7 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
         pendingHttpRequest: HttpRequest,
         pendingRequestId: Int,
         requestTag: String,
-    ): MergeResult<O> {
+    ): RebaseResult<O> {
         val base = oldBaseData?.let { codec.encode(it) } ?: JsonObject(emptyMap())
         val local = codec.encode(currentData)
         val server = codec.encode(newBaseData)
@@ -193,12 +193,12 @@ open class SyncableObjectMergeHandler<O : SyncableObject<O>>(
         }
         val merged = JsonObject(mergedMap)
         return if (conflicts.isEmpty()) {
-            MergeResult.Merged(
+            RebaseResult.Rebased(
                 mergedData = codec.decode(merged, currentData.syncStatus),
                 updatedHttpRequest = null,
             )
         } else {
-            MergeResult.Conflict(
+            RebaseResult.Conflict(
                 conflict = FieldConflict(
                     pendingRequestId = pendingRequestId,
                     fieldNames = conflicts,

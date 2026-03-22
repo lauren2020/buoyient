@@ -652,11 +652,11 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      * own public facing api for the app to interface with and this is only used by the
      * service implementation internally.
      *
-     * @param resolution - a [SyncableObjectMergeHandler.ConflictResolution.Resolved] containing the
+     * @param resolution - a [SyncableObjectRebaseHandler.ConflictResolution.Resolved] containing the
      *  consumer's resolved data and the rebuilt HTTP request to use for the pending upload.
      */
     protected fun resolveConflict(
-        resolution: SyncableObjectMergeHandler.ConflictResolution.Resolved<O>,
+        resolution: SyncableObjectRebaseHandler.ConflictResolution.Resolved<O>,
     ): ResolveConflictResult<O> {
         val clientId = resolution.resolvedData.clientId
         val conflictingRequest = localStoreManager.pendingRequestQueueManager
@@ -670,7 +670,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             val repairResult = localStoreManager.repairOrphanedConflictStatus(
                 clientId = clientId,
                 serverId = resolution.resolvedData.serverId,
-                mergeHandler = mergeHandler,
+                mergeHandler = rebaseHandler,
             )
             if (repairResult is ResolveConflictResult.Resolved) {
                 syncScheduleNotifier.scheduleSyncIfNeeded()
@@ -682,7 +682,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             resolvedData = resolution.resolvedData,
             resolvedHttpRequest = resolution.updatedHttpRequest
                 ?: conflictingRequest.request,
-            mergeHandler = mergeHandler,
+            mergeHandler = rebaseHandler,
         )
 
         when (result) {

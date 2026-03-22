@@ -10,7 +10,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val codec: SyncCodec<O>,
     private val logger: SyncLogger,
 ) {
-    private fun List<SyncableObjectMergeHandler.FieldConflict<O>>.toFieldConflictInfo():
+    private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
         fieldConflict.fieldNames.map { fieldName ->
             SyncableObject.SyncStatus.Conflict.FieldConflictInfo(
@@ -379,7 +379,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         clientId: String,
         lastSyncedTimestamp: String,
         updatedServerData: O,
-        mergeHandler: SyncableObjectMergeHandler<O>,
+        mergeHandler: SyncableObjectRebaseHandler<O>,
     ): SyncDriver.UpsertResult {
         return database.transactionWithResult {
             return@transactionWithResult rebaseData(
@@ -413,7 +413,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         updatedServerData: O,
         lastSyncedTimestamp: String,
         syncedPendingRequest: PendingSyncRequest<O>,
-        mergeHandler: SyncableObjectMergeHandler<O>,
+        mergeHandler: SyncableObjectRebaseHandler<O>,
     ) {
         transaction {
             when (
@@ -450,7 +450,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         clientId: String,
         lastSyncedTimestamp: String,
         updatedServerData: O,
-        mergeHandler: SyncableObjectMergeHandler<O>,
+        mergeHandler: SyncableObjectRebaseHandler<O>,
         handleRebasedPendingRequests: (rebasedLocalData: O) -> Unit,
     ): SyncDriver.UpsertResult {
         // Update any remaining pending requests with the updated server context.
@@ -536,7 +536,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun resolveConflictData(
         resolvedData: O,
         resolvedHttpRequest: HttpRequest,
-        mergeHandler: SyncableObjectMergeHandler<O>,
+        mergeHandler: SyncableObjectRebaseHandler<O>,
     ): ResolveConflictResult<O> {
         val clientId = resolvedData.clientId
         val entry = getData(clientId = clientId, serverId = resolvedData.serverId)
@@ -632,7 +632,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun repairOrphanedConflictStatus(
         clientId: String,
         serverId: String?,
-        mergeHandler: SyncableObjectMergeHandler<O>,
+        mergeHandler: SyncableObjectRebaseHandler<O>,
     ): ResolveConflictResult<O> {
         val entry = getData(clientId = clientId, serverId = serverId)
             ?: return ResolveConflictResult.Failed(

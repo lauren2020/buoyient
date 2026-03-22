@@ -27,11 +27,11 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     /**
      * Handles 3-way merge conflict detection and resolution during [syncDownFromServer].
-     * Override this property in a service subclass to provide a custom [SyncableObjectMergeHandler]
+     * Override this property in a service subclass to provide a custom [SyncableObjectRebaseHandler]
      * with domain-specific merge policies.
      */
-    protected open val mergeHandler: SyncableObjectMergeHandler<O> =
-        SyncableObjectMergeHandler(codec)
+    protected open val rebaseHandler: SyncableObjectRebaseHandler<O> =
+        SyncableObjectRebaseHandler(codec)
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -83,7 +83,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * Fetches all data from the server and upserts it into the local db, handling any needed
      * merges or conflicts to do so.
      *
-     * This uses [SyncableObjectMergeHandler] to determine the policy for merges and conflicts.
+     * This uses [SyncableObjectRebaseHandler] to determine the policy for merges and conflicts.
      * Override this value to inject custom merge & conflict handling.
      *
      * Default behavior is to do a simple merge of the local & server data if not fields directly
@@ -211,7 +211,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 clientId = currentLocalData.data.clientId,
                 lastSyncedTimestamp = syncedAtTimestamp,
                 updatedServerData = serverObj,
-                mergeHandler = mergeHandler,
+                mergeHandler = rebaseHandler,
             )
         }
     }
@@ -290,7 +290,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                             updatedServerData = updatedData,
                             lastSyncedTimestamp = lastSyncedTimestamp,
                             syncedPendingRequest = row,
-                            mergeHandler = mergeHandler,
+                            mergeHandler = rebaseHandler,
                         )
                         logger.d(TAG, "Synced ${row.type} for ${row.data.clientId} (server_id=${updatedData.serverId})")
                     } else {

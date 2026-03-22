@@ -343,7 +343,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         serverAttemptMade = serverAttemptMade != 0L,
         data = codec.decode(data, SyncableObject.SyncStatus.LocalOnly),
         conflict = conflictInfo?.let {
-            SyncableObjectMergeHandler.FieldConflict.fromJson(
+            SyncableObjectRebaseHandler.FieldConflict.fromJson(
                 jsonObject = Json.parseToJsonElement(it).jsonObject,
                 codec = codec,
             )
@@ -397,7 +397,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun rebaseDataForRemainingPendingRequests(
         clientId: String,
         updatedBaseData: O,
-        mergeHandler: SyncableObjectMergeHandler<O>,
+        mergeHandler: SyncableObjectRebaseHandler<O>,
     ): RebasePendingRequestsResult<O> {
         val pendingRequests = getPendingRequests(clientId = clientId)
         if (pendingRequests.isEmpty()) return RebasePendingRequestsResult.NoPendingRequestRemaining()
@@ -409,10 +409,10 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 mergeHandler = mergeHandler,
             )
             when (rebaseMergeResult) {
-                is SyncableObjectMergeHandler.MergeResult.Merged -> {
+                is SyncableObjectRebaseHandler.RebaseResult.Rebased -> {
                     nextBase = rebaseMergeResult.mergedData
                 }
-                is SyncableObjectMergeHandler.MergeResult.Conflict -> {
+                is SyncableObjectRebaseHandler.RebaseResult.Conflict -> {
                     logger.w(TAG, "PendingSyncRequest (pending_request_id: ${it.pendingRequestId}) encountered a conflict on rebase, aborting rebase of subsequent pending requests until resolved.")
                     // Exit the loop early and abort attempting any further rebases until the
                     // current conflict is resolved.
@@ -435,7 +435,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         ) : RebasePendingRequestsResult<O>()
 
         class AbortedRebaseToConflicts<O : SyncableObject<O>>(
-            val conflict: SyncableObjectMergeHandler.FieldConflict<O>,
+            val conflict: SyncableObjectRebaseHandler.FieldConflict<O>,
         ) : RebasePendingRequestsResult<O>()
     }
 
@@ -445,8 +445,8 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private fun rebasePendingSync(
         pendingSyncRequest: PendingSyncRequest<O>,
         newBaseData: O,
-        mergeHandler: SyncableObjectMergeHandler<O>,
-    ): SyncableObjectMergeHandler.MergeResult<O> {
+        mergeHandler: SyncableObjectRebaseHandler<O>,
+    ): SyncableObjectRebaseHandler.RebaseResult<O> {
         val mergeResult = mergeHandler.rebaseDataForPendingRequest(
             oldBaseData = pendingSyncRequest.lastSyncedData,
             currentData = pendingSyncRequest.data,
@@ -456,7 +456,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             requestTag = pendingSyncRequest.requestTag,
         )
         when (mergeResult) {
-            is SyncableObjectMergeHandler.MergeResult.Merged -> {
+            is SyncableObjectRebaseHandler.RebaseResult.Rebased -> {
                 storeRebasedPendingRequest(
                     rebasedData = mergeResult.mergedData,
                     newBaseData = newBaseData,
@@ -465,7 +465,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 )
             }
 
-            is SyncableObjectMergeHandler.MergeResult.Conflict -> {
+            is SyncableObjectRebaseHandler.RebaseResult.Conflict -> {
                 handlePendingRequestRebaseConflict(
                     pendingSyncRequest = pendingSyncRequest,
                     newBaseData = newBaseData,
@@ -503,12 +503,12 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private fun handlePendingRequestRebaseConflict(
         pendingSyncRequest: PendingSyncRequest<O>,
         newBaseData: O,
-        conflict: SyncableObjectMergeHandler.MergeResult.Conflict<O>,
-        mergeHandler: SyncableObjectMergeHandler<O>,
+        conflict: SyncableObjectRebaseHandler.RebaseResult.Conflict<O>,
+        mergeHandler: SyncableObjectRebaseHandler<O>,
     ) = when (
         val resolution = mergeHandler.handleMergeConflict(conflict, requestTag = pendingSyncRequest.requestTag)
     ) {
-        is SyncableObjectMergeHandler.ConflictResolution.Resolved -> {
+        is SyncableObjectRebaseHandler.ConflictResolution.Resolved -> {
             storeRebasedPendingRequest(
                 rebasedData = resolution.resolvedData,
                 newBaseData = newBaseData,
@@ -517,7 +517,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             )
         }
 
-        is SyncableObjectMergeHandler.ConflictResolution.Unresolved -> {
+        is SyncableObjectRebaseHandler.ConflictResolution.Unresolved -> {
             database.syncPendingEventsQueries.saveConflictInfo(
                 conflict_info = conflict.conflict.toJson(codec).toString(),
                 pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
@@ -562,7 +562,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun hasAnyConflictsGlobally(): Boolean =
         database.syncPendingEventsQueries.hasAnyConflicts().executeAsOne()
 
-    fun getConflicts(clientId: String): List<SyncableObjectMergeHandler.FieldConflict<O>> {
+    fun getConflicts(clientId: String): List<SyncableObjectRebaseHandler.FieldConflict<O>> {
         return getPendingRequests(clientId).mapNotNull { pendingSyncRequest ->
             pendingSyncRequest.conflict
         }
