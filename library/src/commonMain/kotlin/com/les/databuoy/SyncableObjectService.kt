@@ -640,6 +640,70 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     }
 
     /**
+     * Resolves a conflict for the given object. When an object enters
+     * [SyncableObject.SyncStatus.Conflict], the consumer must choose which values
+     * to keep and call this method with the resolved data.
+     *
+     * This clears the conflict on the pending request, applies the provided resolution,
+     * re-rebases any subsequent pending requests, and transitions the sync_data
+     * entry back to a pending state so sync-up can proceed.
+     *
+     * This function is protected because it is intended that the implementing service define its
+     * own public facing api for the app to interface with and this is only used by the
+     * service implementation internally.
+     *
+     * @param resolution - a [SyncableObjectMergeHandler.MergeResult.Merged] containing the
+     *  consumer's resolved data and the rebuilt HTTP request to use for the pending upload.
+     */
+    protected fun resolveConflict(
+        resolution: SyncableObjectMergeHandler.MergeResult.Merged<O>,
+    ): LocalStoreManager.ResolveConflictResult<O> {
+        val clientId = resolution.mergedData.clientId
+        val conflictingRequest = localStoreManager.pendingRequestQueueManager
+            .getConflictingPendingRequest(clientId)
+        if (conflictingRequest?.conflict == null) {
+            // No pending request has conflict_info. This is an inconsistent state — sync_data
+            // may be stuck in CONFLICT without a corresponding conflicting request. Self-heal
+            // by rebasing any pending requests to verify no real conflicts and restoring the
+            // correct sync_status.
+            logger.w(TAG, "No conflicting pending request found for (client_id: $clientId), repairing orphaned conflict status.")
+            val repairResult = localStoreManager.repairOrphanedConflictStatus(
+                clientId = clientId,
+                serverId = resolution.mergedData.serverId,
+                mergeHandler = mergeHandler,
+            )
+            if (repairResult is LocalStoreManager.ResolveConflictResult.Resolved) {
+                syncScheduleNotifier.scheduleSyncIfNeeded()
+            }
+            return repairResult
+        }
+
+        val result = localStoreManager.resolveConflictData(
+            resolvedData = resolution.mergedData,
+            resolvedHttpRequest = resolution.updatedHttpRequest
+                ?: conflictingRequest.request,
+            mergeHandler = mergeHandler,
+        )
+
+        when (result) {
+            is LocalStoreManager.ResolveConflictResult.Resolved -> {
+                syncScheduleNotifier.scheduleSyncIfNeeded()
+                logger.d(TAG, "Conflict resolved for (client_id: $clientId).")
+            }
+
+            is LocalStoreManager.ResolveConflictResult.RebaseConflict -> {
+                logger.w(TAG, "Conflict resolved for (client_id: $clientId) but a subsequent pending request also has a conflict.")
+            }
+
+            is LocalStoreManager.ResolveConflictResult.Failed -> {
+                logger.e(TAG, "Failed to resolve conflict for (client_id: $clientId): ${result.exception}")
+            }
+        }
+
+        return result
+    }
+
+    /**
      * Retrieve all [O] items from the db that meet the given filter criteria.
      */
     fun getAllFromLocalStore(limit: Int = 100): List<O> =

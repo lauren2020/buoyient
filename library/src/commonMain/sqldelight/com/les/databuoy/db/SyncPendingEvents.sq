@@ -126,3 +126,12 @@ saveConflictInfo:
 UPDATE sync_pending_events
 SET conflict_info = ?
 WHERE pending_request_id = ?;
+
+-- Resolve a conflict on a pending request: clear conflict_info, update data and request.
+resolveConflict:
+UPDATE sync_pending_events
+SET conflict_info = NULL,
+    data_blob = ?,
+    request = ?,
+    last_synced_data = ?
+WHERE pending_request_id = ?;

@@ -394,7 +394,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         )
     }
 
-    fun rebaseServerDataForRemainingPendingRequests(
+    fun rebaseDataForRemainingPendingRequests(
         clientId: String,
         updatedBaseData: O,
         mergeHandler: SyncableObjectMergeHandler<O>,
@@ -416,7 +416,9 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     logger.w(TAG, "PendingSyncRequest (pending_request_id: ${it.pendingRequestId}) encountered a conflict on rebase, aborting rebase of subsequent pending requests until resolved.")
                     // Exit the loop early and abort attempting any further rebases until the
                     // current conflict is resolved.
-                    return RebasePendingRequestsResult.AbortedRebaseToConflicts()
+                    return RebasePendingRequestsResult.AbortedRebaseToConflicts(
+                        conflict = rebaseMergeResult.conflict,
+                    )
                 }
             }
         }
@@ -432,7 +434,9 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             val rebasedLatestData: O,
         ) : RebasePendingRequestsResult<O>()
 
-        class AbortedRebaseToConflicts<O : SyncableObject<O>> : RebasePendingRequestsResult<O>()
+        class AbortedRebaseToConflicts<O : SyncableObject<O>>(
+            val conflict: SyncableObjectMergeHandler.FieldConflict<O>,
+        ) : RebasePendingRequestsResult<O>()
     }
 
     /**
@@ -546,6 +550,32 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         class MergedAllPendingChanges(val resolvedConflicts: Boolean) : UpsertPendingChangesResult()
 
         object PendingChangesConflict : UpsertPendingChangesResult()
+    }
+
+    /**
+     * Returns the first pending request for [clientId] that has a non-null conflict,
+     * or null if no conflicting request exists.
+     */
+    fun getConflictingPendingRequest(clientId: String): PendingSyncRequest<O>? =
+        getPendingRequests(clientId).firstOrNull { it.conflict != null }
+
+    /**
+     * Resolves a conflict on a pending request by replacing its data and request with
+     * the consumer-provided resolved values, clearing the conflict_info, and updating
+     * the last_synced_data to the new server baseline.
+     */
+    fun resolveConflictOnPendingRequest(
+        pendingRequest: PendingSyncRequest<O>,
+        resolvedData: O,
+        resolvedHttpRequest: HttpRequest,
+        newServerBaseline: O,
+    ) {
+        database.syncPendingEventsQueries.resolveConflict(
+            data_blob = codec.encodeToString(resolvedData),
+            request = resolvedHttpRequest.toJson().toString(),
+            last_synced_data = codec.encodeToString(newServerBaseline),
+            pending_request_id = pendingRequest.pendingRequestId.toLong(),
+        )
     }
 
     fun hasAnyConflictsGlobally(): Boolean =

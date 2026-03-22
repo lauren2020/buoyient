@@ -136,6 +136,13 @@ FROM sync_data
 WHERE service_name = ? AND (client_id = ? OR server_id = ?)
 LIMIT 1;
 
+-- Resolve a conflict: update sync_status and data_blob back to a pending state.
+resolveConflict:
+UPDATE sync_data
+SET sync_status = ?,
+    data_blob = ?
+WHERE service_name = ? AND client_id = ?;
+
 -- Fetch all entries for a service.
 getAllData:
 SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data

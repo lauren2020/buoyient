@@ -455,7 +455,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     ): SyncDriver.UpsertResult {
         // Update any remaining pending requests with the updated server context.
         val rebaseResult =
-            pendingRequestQueueManager.rebaseServerDataForRemainingPendingRequests(
+            pendingRequestQueueManager.rebaseDataForRemainingPendingRequests(
                 clientId = clientId,
                 updatedBaseData = updatedServerData,
                 mergeHandler = mergeHandler,
@@ -521,6 +521,215 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     )
                 }
             }
+        }
+    }
+
+    sealed class ResolveConflictResult<O : SyncableObject<O>> {
+        class Resolved<O : SyncableObject<O>>(val resolvedData: O) : ResolveConflictResult<O>()
+        class RebaseConflict<O : SyncableObject<O>>(
+            val conflict: SyncableObjectMergeHandler.FieldConflict<O>,
+        ) : ResolveConflictResult<O>()
+        class Failed<O : SyncableObject<O>>(val exception: Exception) : ResolveConflictResult<O>()
+    }
+
+    /**
+     * Resolves a conflict for the given object by:
+     * 1. Validating the sync_data entry is in CONFLICT status
+     * 2. Finding the conflicting pending request
+     * 3. Replacing the pending request with resolved data and a rebuilt HTTP request
+     * 4. Re-rebasing any subsequent pending requests
+     * 5. Updating sync_data status back to a pending state
+     */
+    fun resolveConflictData(
+        resolvedData: O,
+        resolvedHttpRequest: HttpRequest,
+        mergeHandler: SyncableObjectMergeHandler<O>,
+    ): ResolveConflictResult<O> {
+        val clientId = resolvedData.clientId
+        val entry = getData(clientId = clientId, serverId = resolvedData.serverId)
+            ?: return ResolveConflictResult.Failed(IllegalStateException("No sync_data entry found for client_id: $clientId"))
+
+        if (entry.syncStatus !is SyncableObject.SyncStatus.Conflict) {
+            logger.w(TAG, "sync_data entry for client_id: $clientId is not in CONFLICT status (current: ${entry.syncStatus})")
+        }
+
+        val conflictingRequest = pendingRequestQueueManager.getConflictingPendingRequest(clientId)
+            ?: return repairOrphanedConflictStatus(
+                clientId = clientId,
+                serverId = resolvedData.serverId,
+                mergeHandler = mergeHandler,
+            )
+
+        val newServerBaseline = conflictingRequest.conflict!!.serverValue
+
+        return try {
+            database.transactionWithResult {
+                // 1. Resolve the conflict on the pending request
+                pendingRequestQueueManager.resolveConflictOnPendingRequest(
+                    pendingRequest = conflictingRequest,
+                    resolvedData = resolvedData,
+                    resolvedHttpRequest = resolvedHttpRequest,
+                    newServerBaseline = newServerBaseline,
+                )
+
+                // 2. Re-rebase any subsequent pending requests on the resolved data.
+                //    The just-resolved request was already updated in step 1 (conflict cleared,
+                //    data/request replaced), so [rebaseDataForRemainingPendingRequests] will
+                //    see it as a clean merge (no diff against resolvedData) and pass through to
+                //    the subsequent requests.
+                val rebaseResult = pendingRequestQueueManager.rebaseDataForRemainingPendingRequests(
+                    clientId = clientId,
+                    updatedBaseData = resolvedData,
+                    mergeHandler = mergeHandler,
+                )
+
+                when (rebaseResult) {
+                    is PendingRequestQueueManager.RebasePendingRequestsResult.AbortedRebaseToConflicts -> {
+                        // A subsequent pending request conflicts after resolution.
+                        // sync_data stays in CONFLICT.
+                        return@transactionWithResult ResolveConflictResult.RebaseConflict(
+                            conflict = rebaseResult.conflict,
+                        )
+                    }
+
+                    is PendingRequestQueueManager.RebasePendingRequestsResult.NoPendingRequestRemaining,
+                    is PendingRequestQueueManager.RebasePendingRequestsResult.RebasedRemainingPendingRequests -> {
+                        val latestData = when (rebaseResult) {
+                            is PendingRequestQueueManager.RebasePendingRequestsResult.RebasedRemainingPendingRequests ->
+                                rebaseResult.rebasedLatestData
+                            else -> resolvedData
+                        }
+
+                        // 3. Update sync_data back to a pending state
+                        val updatedSyncStatus = when (conflictingRequest.type) {
+                            PendingSyncRequest.Type.CREATE -> SyncableObject.SyncStatus.PENDING_CREATE
+                            PendingSyncRequest.Type.UPDATE -> SyncableObject.SyncStatus.PENDING_UPDATE
+                            PendingSyncRequest.Type.VOID -> SyncableObject.SyncStatus.PENDING_VOID
+                        }
+                        database.syncDataQueries.resolveConflict(
+                            sync_status = updatedSyncStatus,
+                            data_blob = codec.encodeToString(latestData),
+                            service_name = serviceName,
+                            client_id = clientId,
+                        )
+
+                        ResolveConflictResult.Resolved(resolvedData = latestData)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            logger.e(TAG, "Failed to resolve conflict for client_id: $clientId", e)
+            ResolveConflictResult.Failed(e)
+        }
+    }
+
+    /**
+     * Self-heals a sync_data row that is stuck in CONFLICT status when no pending request
+     * actually has conflict_info. This is a defensive repair for an inconsistent state that
+     * should not normally occur.
+     *
+     * If pending requests exist, rebases them against each other using the first request's
+     * lastSyncedData as the base, then updates sync_data status based on the result.
+     * If no pending requests exist, transitions sync_data back to SYNCED.
+     *
+     * @return [ResolveConflictResult.Resolved] with the current latest data on success,
+     *  [ResolveConflictResult.RebaseConflict] if rebasing reveals a real conflict, or
+     *  [ResolveConflictResult.Failed] on error.
+     */
+    fun repairOrphanedConflictStatus(
+        clientId: String,
+        serverId: String?,
+        mergeHandler: SyncableObjectMergeHandler<O>,
+    ): ResolveConflictResult<O> {
+        val entry = getData(clientId = clientId, serverId = serverId)
+            ?: return ResolveConflictResult.Failed(
+                IllegalStateException("No sync_data entry found for client_id: $clientId")
+            )
+
+        // If the row is not in CONFLICT status, it's already fine — return current data.
+        if (entry.syncStatus !is SyncableObject.SyncStatus.Conflict) {
+            return ResolveConflictResult.Resolved(resolvedData = entry.data)
+        }
+
+        val pendingRequests = pendingRequestQueueManager.getPendingRequests(clientId)
+
+        return try {
+            database.transactionWithResult {
+                if (pendingRequests.isEmpty()) {
+                    // No pending requests — just restore to SYNCED.
+                    database.syncDataQueries.resolveConflict(
+                        sync_status = SyncableObject.SyncStatus.SYNCED,
+                        data_blob = codec.encodeToString(entry.data),
+                        service_name = serviceName,
+                        client_id = clientId,
+                    )
+                    return@transactionWithResult ResolveConflictResult.Resolved(resolvedData = entry.data)
+                }
+
+                // Use the first pending request's lastSyncedData as the base for rebasing.
+                val baseData = pendingRequests.first().lastSyncedData ?: entry.latestServerData
+                if (baseData == null) {
+                    // No server baseline available — use the first pending request's data as-is.
+                    val latestData = pendingRequests.last().data
+                    val updatedSyncStatus = when (pendingRequests.first().type) {
+                        PendingSyncRequest.Type.CREATE -> SyncableObject.SyncStatus.PENDING_CREATE
+                        PendingSyncRequest.Type.UPDATE -> SyncableObject.SyncStatus.PENDING_UPDATE
+                        PendingSyncRequest.Type.VOID -> SyncableObject.SyncStatus.PENDING_VOID
+                    }
+                    database.syncDataQueries.resolveConflict(
+                        sync_status = updatedSyncStatus,
+                        data_blob = codec.encodeToString(latestData),
+                        service_name = serviceName,
+                        client_id = clientId,
+                    )
+                    return@transactionWithResult ResolveConflictResult.Resolved(resolvedData = latestData)
+                }
+
+                // Rebase all pending requests on the base data to verify no real conflicts.
+                val rebaseResult = pendingRequestQueueManager.rebaseDataForRemainingPendingRequests(
+                    clientId = clientId,
+                    updatedBaseData = baseData,
+                    mergeHandler = mergeHandler,
+                )
+
+                when (rebaseResult) {
+                    is PendingRequestQueueManager.RebasePendingRequestsResult.AbortedRebaseToConflicts -> {
+                        // Rebasing revealed a real conflict — sync_data stays in CONFLICT.
+                        return@transactionWithResult ResolveConflictResult.RebaseConflict(
+                            conflict = rebaseResult.conflict,
+                        )
+                    }
+
+                    is PendingRequestQueueManager.RebasePendingRequestsResult.NoPendingRequestRemaining -> {
+                        database.syncDataQueries.resolveConflict(
+                            sync_status = SyncableObject.SyncStatus.SYNCED,
+                            data_blob = codec.encodeToString(entry.data),
+                            service_name = serviceName,
+                            client_id = clientId,
+                        )
+                        ResolveConflictResult.Resolved(resolvedData = entry.data)
+                    }
+
+                    is PendingRequestQueueManager.RebasePendingRequestsResult.RebasedRemainingPendingRequests -> {
+                        val latestData = rebaseResult.rebasedLatestData
+                        val updatedSyncStatus = when (pendingRequests.first().type) {
+                            PendingSyncRequest.Type.CREATE -> SyncableObject.SyncStatus.PENDING_CREATE
+                            PendingSyncRequest.Type.UPDATE -> SyncableObject.SyncStatus.PENDING_UPDATE
+                            PendingSyncRequest.Type.VOID -> SyncableObject.SyncStatus.PENDING_VOID
+                        }
+                        database.syncDataQueries.resolveConflict(
+                            sync_status = updatedSyncStatus,
+                            data_blob = codec.encodeToString(latestData),
+                            service_name = serviceName,
+                            client_id = clientId,
+                        )
+                        ResolveConflictResult.Resolved(resolvedData = latestData)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            logger.e(TAG, "Failed to repair orphaned conflict for client_id: $clientId", e)
+            ResolveConflictResult.Failed(e)
         }
     }
 
