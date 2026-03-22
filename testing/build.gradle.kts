@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm")
+    alias(libs.plugins.kotlin.jvm)
     id("maven-publish")
 }
 
@@ -16,15 +16,34 @@ dependencies {
             )
         }
     }
-    implementation("io.ktor:ktor-client-mock:2.3.13")
-    implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    implementation(libs.ktor.client.mock)
+    implementation(libs.sqldelight.sqlite.driver)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+            pom {
+                name.set("data-buoy-testing")
+                description.set("Test utilities for data-buoy: mock server, in-memory database, and test doubles.")
+                url.set("https://github.com/les-corp/data-buoy")
+                licenses {
+                    license {
+                        name.set("The Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/les-corp/data-buoy")
+                }
+            }
+        }
+    }
     repositories {
         mavenLocal()
     }

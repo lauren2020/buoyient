@@ -1,8 +1,8 @@
 plugins {
-    kotlin("multiplatform")
-    kotlin("plugin.serialization")
-    id("com.android.library")
-    id("app.cash.sqldelight")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.sqldelight)
     id("maven-publish")
 }
 
@@ -29,35 +29,35 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("io.ktor:ktor-client-core:2.3.13")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-                implementation("app.cash.sqldelight:runtime:2.0.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
+                implementation(libs.ktor.client.core)
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.sqldelight.runtime)
+                implementation(libs.kotlinx.datetime)
             }
         }
 
         val androidMain by getting {
             dependencies {
-                implementation("io.ktor:ktor-client-okhttp:2.3.13")
-                implementation("app.cash.sqldelight:android-driver:2.0.2")
-                implementation("androidx.work:work-runtime-ktx:2.10.0")
-                implementation("androidx.startup:startup-runtime:1.2.0")
+                implementation(libs.ktor.client.okhttp)
+                implementation(libs.sqldelight.android.driver)
+                implementation(libs.androidx.work)
+                implementation(libs.androidx.startup)
             }
         }
 
         val jvmMain by getting {
             dependencies {
-                implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
-                implementation("io.ktor:ktor-client-cio:2.3.13")
+                implementation(libs.sqldelight.sqlite.driver)
+                implementation(libs.ktor.client.cio)
             }
         }
 
         val jvmTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("io.ktor:ktor-client-mock:2.3.13")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+                implementation(libs.ktor.client.mock)
+                implementation(libs.kotlinx.coroutines.test)
                 implementation(project(":testing"))
             }
         }
@@ -72,8 +72,8 @@ kotlin {
         //     iosArm64Main.dependsOn(this)
         //     iosSimulatorArm64Main.dependsOn(this)
         //     dependencies {
-        //         implementation("io.ktor:ktor-client-darwin:2.3.13")
-        //         implementation("app.cash.sqldelight:native-driver:2.0.2")
+        //         implementation(libs.ktor.client.darwin)
+        //         implementation(libs.sqldelight.native.driver)
         //     }
         // }
     }
@@ -83,17 +83,17 @@ sqldelight {
     databases {
         create("SyncDatabase") {
             packageName.set("com.les.databuoy.db")
-            dialect("app.cash.sqldelight:sqlite-3-30-dialect:2.0.2")
+            dialect(libs.sqldelight.dialect)
         }
     }
 }
 
 android {
     namespace = "com.les.databuoy"
-    compileSdk = 34
+    compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        minSdk = 27
+        minSdk = libs.versions.minSdk.get().toInt()
     }
 
     compileOptions {
@@ -117,5 +117,21 @@ publishing {
         //             ?: System.getenv("GITHUB_TOKEN")
         //     }
         // }
+    }
+    publications.withType<MavenPublication> {
+        pom {
+            name.set("data-buoy")
+            description.set("Kotlin Multiplatform offline-first sync library with bidirectional sync, conflict resolution, and automatic retries.")
+            url.set("https://github.com/les-corp/data-buoy")
+            licenses {
+                license {
+                    name.set("The Apache License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                }
+            }
+            scm {
+                url.set("https://github.com/les-corp/data-buoy")
+            }
+        }
     }
 }

@@ -79,6 +79,9 @@ class MockEndpointRouter {
     fun onPut(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
         on(HttpRequest.HttpMethod.PUT, urlPattern, handler)
 
+    fun onPatch(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
+        on(HttpRequest.HttpMethod.PATCH, urlPattern, handler)
+
     fun onDelete(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
         on(HttpRequest.HttpMethod.DELETE, urlPattern, handler)
 
@@ -104,7 +107,8 @@ class MockEndpointRouter {
                 } else {
                     Json.parseToJsonElement(bodyBytes).jsonObject
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                System.err.println("MockEndpointRouter: failed to parse request body as JSON: ${e.message}")
                 JsonObject(emptyMap())
             }
             val headers = buildMap {

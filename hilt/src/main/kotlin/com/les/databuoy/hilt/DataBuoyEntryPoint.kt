@@ -1,6 +1,8 @@
 package com.les.databuoy.hilt
 
 import com.les.databuoy.SyncableObjectService
+import dagger.Module
+import dagger.Multibinds
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
@@ -31,4 +33,17 @@ import dagger.hilt.components.SingletonComponent
 @InstallIn(SingletonComponent::class)
 interface DataBuoyEntryPoint {
     fun syncServices(): Set<@JvmSuppressWildcards SyncableObjectService<*, *>>
+}
+
+/**
+ * Provides a default empty set binding for [SyncableObjectService] so that apps
+ * including the `:hilt` module don't crash at runtime if no services have been
+ * bound via `@IntoSet` yet. Without this, Dagger would throw a missing binding
+ * error when [DataBuoyEntryPoint.syncServices] is accessed.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DataBuoyMultibindsModule {
+    @Multibinds
+    abstract fun syncServices(): Set<@JvmSuppressWildcards SyncableObjectService<*, *>>
 }

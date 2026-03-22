@@ -19,6 +19,7 @@ class HttpRequest(
     enum class HttpMethod(val value: String) {
         DELETE("DELETE"),
         GET("GET"),
+        PATCH("PATCH"),
         POST("POST"),
         PUT("PUT");
 
