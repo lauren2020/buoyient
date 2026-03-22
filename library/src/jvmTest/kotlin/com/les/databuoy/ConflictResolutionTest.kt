@@ -79,7 +79,7 @@ class ConflictResolutionTest {
         logger = logger,
     )
 
-    private val mergeHandler = SyncableObjectMergeHandler(codec)
+    private val mergeHandler = SyncableObjectRebaseHandler(codec)
 
     // endregion
 
