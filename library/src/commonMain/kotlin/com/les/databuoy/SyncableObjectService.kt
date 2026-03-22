@@ -246,7 +246,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     data = data,
                     lastSyncedData = effectiveLastSyncedData,
                     instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                        httpRequest = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey),
+                        httpRequest = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey, true, null),
                         buildRequest = request,
                     ),
                     requestTag = requestTag,
@@ -268,7 +268,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 data = data,
                 lastSyncedData = effectiveLastSyncedData,
                 instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                    httpRequest = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey),
+                    httpRequest = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey, true, null),
                     buildRequest = request,
                 ),
                 requestTag = requestTag,
@@ -324,6 +324,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             lastSyncedData = lastSyncedData,
             updatedData = data,
             idempotencyKey = idempotencyKey,
+            isAsync = false,
+            attemptedServerRequest = null,
         )
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
@@ -337,7 +339,13 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         data = data,
                         lastSyncedData = lastSyncedData,
                         instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                            httpRequest = request,
+                            httpRequest = buildRequest.buildRequest(
+                                lastSyncedData = lastSyncedData,
+                                updatedData = data,
+                                idempotencyKey = idempotencyKey,
+                                isAsync = true,
+                                attemptedServerRequest = null,
+                            ),
                             buildRequest = buildRequest,
                         ),
                         requestTag = requestTag,
@@ -359,7 +367,13 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         data = data,
                         lastSyncedData = lastSyncedData,
                         instruction = PendingRequestQueueManager.UpdateQueueInstruction.StoreAfterServerAttempt(
-                            httpRequest = request,
+                            httpRequest = buildRequest.buildRequest(
+                                lastSyncedData = lastSyncedData,
+                                updatedData = data,
+                                idempotencyKey = idempotencyKey,
+                                isAsync = true,
+                                attemptedServerRequest = request,
+                            ),
                         ),
                         requestTag = requestTag,
                     )

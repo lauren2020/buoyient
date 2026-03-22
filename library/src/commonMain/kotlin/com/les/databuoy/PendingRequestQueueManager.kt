@@ -170,9 +170,11 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                                     )
                                 } else {
                                     val squashedUpdateRequest = instruction.buildRequest.buildRequest(
-                                        latestPendingRequest.data,
-                                        data,
-                                        idempotencyKey,
+                                        lastSyncedData = latestPendingRequest.data,
+                                        updatedData = data,
+                                        idempotencyKey = idempotencyKey,
+                                        isAsync = true,
+                                        attemptedServerRequest = null,
                                     )
                                     replaceEntry(
                                         latestPendingRequest.copy(

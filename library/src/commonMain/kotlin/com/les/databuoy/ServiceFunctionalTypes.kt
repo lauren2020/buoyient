@@ -27,12 +27,18 @@ fun interface CreateRequestBuilder<O : SyncableObject<O>> {
  * @param lastSyncedData the last known server-synced version of the object.
  * @param updatedData the current local version containing the updates.
  * @param idempotencyKey a unique key to ensure the request is idempotent.
+ * @param isAsync indicates if the request being built is going to processed online of offline.
+ *  This value be true if being processed async, and false if be processed synchronously.
+ * @param attemptedServerRequest if a prior attempt was made to the server (e.g. timed out),
+ *  this holds that request so the builder can account for idempotent retry concerns.
  */
 fun interface UpdateRequestBuilder<O : SyncableObject<O>> {
     fun buildRequest(
         lastSyncedData: O,
         updatedData: O,
         idempotencyKey: String,
+        isAsync: Boolean,
+        attemptedServerRequest: HttpRequest?,
     ): HttpRequest
 }
 

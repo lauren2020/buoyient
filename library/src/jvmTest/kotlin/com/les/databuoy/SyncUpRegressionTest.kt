@@ -318,7 +318,7 @@ class SyncUpRegressionTest {
                     endpoint = updateEndpoint,
                     body = buildJsonObject { put("name", "Updated") },
                 ),
-                buildRequest = { lastSynced, updated, idemKey ->
+                buildRequest = { lastSynced, updated, idemKey, _, _ ->
                     makeRequest(
                         method = HttpRequest.HttpMethod.PUT,
                         endpoint = updateEndpoint,
@@ -441,7 +441,7 @@ class SyncUpRegressionTest {
                     method = HttpRequest.HttpMethod.PUT,
                     endpoint = updateEndpoint,
                 ),
-                buildRequest = { _, updated, _ ->
+                buildRequest = { _, updated, _, _, _ ->
                     makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
                 },
             ),
@@ -457,7 +457,7 @@ class SyncUpRegressionTest {
                     method = HttpRequest.HttpMethod.PUT,
                     endpoint = updateEndpoint,
                 ),
-                buildRequest = { _, updated, _ ->
+                buildRequest = { _, updated, _, _, _ ->
                     makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
                 },
             ),

@@ -154,7 +154,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
             }
         }
     }
-    
+
     /**
      * Attempts to sync a single pending request by its ID.
      *
