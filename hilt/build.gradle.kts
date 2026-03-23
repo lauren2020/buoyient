@@ -2,12 +2,15 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.hilt)
     id("maven-publish")
 }
 
 group = "com.les.databuoy"
 version = "0.1.0-SNAPSHOT"
+
+ksp {
+    arg("correctErrorTypes", "true")
+}
 
 android {
     namespace = "com.les.databuoy.hilt"

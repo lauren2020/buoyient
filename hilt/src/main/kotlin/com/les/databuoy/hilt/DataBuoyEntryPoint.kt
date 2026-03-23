@@ -2,7 +2,7 @@ package com.les.databuoy.hilt
 
 import com.les.databuoy.SyncableObjectService
 import dagger.Module
-import dagger.Multibinds
+import dagger.multibindings.Multibinds
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
