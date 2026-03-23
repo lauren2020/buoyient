@@ -10,6 +10,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     internal val strategy: PendingRequestQueueStrategy,
     internal val codec: SyncCodec<O>,
     internal val logger: SyncLogger,
+    private val status: DataBuoyStatus = DataBuoyStatus(database),
 ) {
     sealed class PendingRequestQueueStrategy {
         class Squash(
@@ -259,6 +260,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             last_synced_data = pendingSyncRequest.lastSyncedData?.let { codec.encodeToString(it) },
             request_tag = pendingSyncRequest.requestTag,
         )
+        status.refresh()
         QueueResult.Stored
     } catch (e: Exception) {
         QueueResult.StoreFailed
@@ -279,6 +281,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             request_tag = pendingSyncRequest.requestTag,
             pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
         )
+        status.refresh()
         QueueResult.Stored
     } catch (e: Exception) {
         QueueResult.StoreFailed
@@ -361,6 +364,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             service_name = serviceName,
             client_id = clientId,
         )
+        status.refresh()
     }
 
     fun clearPendingRequestAfterUpload(
@@ -377,6 +381,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             PendingSyncRequest.Type.VOID -> SyncableObject.SyncStatus.PENDING_VOID
             null -> SyncableObject.SyncStatus.SYNCED
         }
+        status.refresh()
         ClearRequestResult.Cleared(updatedSyncStatus = updatedSyncStatus)
     } catch (e: Exception) {
         ClearRequestResult.FailedToRemoveEntry
@@ -422,6 +427,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 }
             }
         }
+        status.refresh()
         return RebasePendingRequestsResult.RebasedRemainingPendingRequests(
             rebasedLatestData = nextBase,
         )
@@ -498,6 +504,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 pending_request_id = pendingRequestId.toLong(),
             )
         }
+        status.refresh()
     }
 
     private fun handlePendingRequestRebaseConflict(
@@ -522,6 +529,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 conflict_info = conflict.conflict.toJson(codec).toString(),
                 pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
             )
+            status.refresh()
         }
     }
 
@@ -557,6 +565,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             last_synced_data = codec.encodeToString(newServerBaseline),
             pending_request_id = pendingRequest.pendingRequestId.toLong(),
         )
+        status.refresh()
     }
 
     fun hasAnyConflictsGlobally(): Boolean =

@@ -115,6 +115,11 @@ SELECT EXISTS(
     LIMIT 1
 );
 
+-- Count all pending requests across all services.
+getPendingRequestCount:
+SELECT COUNT(*)
+FROM sync_pending_events;
+
 -- Get all pending requests across all services, ordered by insertion order.
 getAllPendingRequestsGlobally:
 SELECT pending_request_id, service_name

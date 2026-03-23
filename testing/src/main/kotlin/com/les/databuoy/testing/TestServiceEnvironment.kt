@@ -1,6 +1,7 @@
 package com.les.databuoy.testing
 
 import com.les.databuoy.IdGenerator
+import com.les.databuoy.DataBuoyStatus
 import com.les.databuoy.LocalStoreManager
 import com.les.databuoy.ServerManager
 import com.les.databuoy.ServiceRequestTag
@@ -78,5 +79,6 @@ class TestServiceEnvironment(
         syncScheduleNotifier = syncScheduleNotifier,
         codec = codec,
         logger = logger,
+        status = DataBuoyStatus(database),
     )
 }

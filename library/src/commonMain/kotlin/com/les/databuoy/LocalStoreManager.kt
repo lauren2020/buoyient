@@ -9,6 +9,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val syncScheduleNotifier: SyncScheduleNotifier,
     private val codec: SyncCodec<O>,
     private val logger: SyncLogger,
+    private val status: DataBuoyStatus = DataBuoyStatus(database),
 ) {
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
@@ -28,6 +29,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
         codec = codec,
         logger = logger,
+        status = status,
     )
 
     /**
@@ -40,6 +42,10 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     fun hasPendingRequests(clientId: String): Boolean =
         pendingRequestQueueManager.hasPendingRequests(clientId)
+
+    internal fun refreshStatus() {
+        status.refresh()
+    }
 
     fun close() {
         // No-op: the database is application-scoped and outlives any

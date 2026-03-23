@@ -93,65 +93,69 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * The request structure used to fetch from the server is configured by [ServerProcessingConfig].
      */
     suspend fun syncDownFromServer() {
-        if (!connectivityChecker.isOnline()) {
-            // If the client is not connected, do not bother trying to sync.
-            return
-        }
-        val response = when (val fetchConfig = serverProcessingConfig.syncFetchConfig) {
-            is SyncFetchConfig.GetFetchConfig -> serverManager.sendRequest(
-                HttpRequest(
-                    method = HttpRequest.HttpMethod.GET,
-                    endpointUrl = fetchConfig.endpoint,
-                    requestBody = JsonObject(emptyMap()),
-                )
-            )
-
-            is SyncFetchConfig.PostFetchConfig -> serverManager.sendRequest(
-                HttpRequest(
-                    method = HttpRequest.HttpMethod.POST,
-                    endpointUrl = fetchConfig.endpoint,
-                    requestBody = fetchConfig.requestBody,
-                )
-            )
-        }
-
-        when (response) {
-            is ServerManager.ServerManagerResponse.ConnectionError -> {
-                logger.w(TAG, "Sync down failed due to connection error. Retrying later.")
+        try {
+            if (!connectivityChecker.isOnline()) {
+                // If the client is not connected, do not bother trying to sync.
                 return
             }
-
-            is ServerManager.ServerManagerResponse.ServerResponse -> {
-                val syncedAtTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
-                val items = serverProcessingConfig.syncFetchConfig.transformItemsListFromResponse(
-                    response = response.responseBody,
+            val response = when (val fetchConfig = serverProcessingConfig.syncFetchConfig) {
+                is SyncFetchConfig.GetFetchConfig -> serverManager.sendRequest(
+                    HttpRequest(
+                        method = HttpRequest.HttpMethod.GET,
+                        endpointUrl = fetchConfig.endpoint,
+                        requestBody = JsonObject(emptyMap()),
+                    )
                 )
 
-                var upsertedCount = 0
-                var mergedCount = 0
-                var conflictCount = 0
-                var skippedCount = 0
-
-                items.forEach { serverObj ->
-                    try {
-                        val upsertResult = withClientLock(serverObj.clientId) {
-                            upsertServerResultIntoLocal(
-                                serverObj = serverObj,
-                                syncedAtTimestamp = syncedAtTimestamp,
-                            )
-                        }
-                        when (upsertResult) {
-                            is UpsertResult.CleanUpsert -> upsertedCount++
-                            is UpsertResult.MergedUpsert -> mergedCount++
-                            is UpsertResult.ConflictFailure -> conflictCount++
-                        }
-                    } catch (e: Exception) {
-                        logger.e(TAG, "Failed to upsert item (${serverObj.serverId}): ", e)
-                        skippedCount++
-                    }
-                }
-                logger.d(TAG, "Sync down complete: ${items.size} fetched, $upsertedCount upserted, $mergedCount merged, $conflictCount conflicts, $skippedCount skipped")
+                is SyncFetchConfig.PostFetchConfig -> serverManager.sendRequest(
+                    HttpRequest(
+                        method = HttpRequest.HttpMethod.POST,
+                        endpointUrl = fetchConfig.endpoint,
+                        requestBody = fetchConfig.requestBody,
+                    )
+                )
             }
+
+            when (response) {
+                is ServerManager.ServerManagerResponse.ConnectionError -> {
+                    logger.w(TAG, "Sync down failed due to connection error. Retrying later.")
+                    return
+                }
+
+                is ServerManager.ServerManagerResponse.ServerResponse -> {
+                    val syncedAtTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
+                    val items = serverProcessingConfig.syncFetchConfig.transformItemsListFromResponse(
+                        response = response.responseBody,
+                    )
+
+                    var upsertedCount = 0
+                    var mergedCount = 0
+                    var conflictCount = 0
+                    var skippedCount = 0
+
+                    items.forEach { serverObj ->
+                        try {
+                            val upsertResult = withClientLock(serverObj.clientId) {
+                                upsertServerResultIntoLocal(
+                                    serverObj = serverObj,
+                                    syncedAtTimestamp = syncedAtTimestamp,
+                                )
+                            }
+                            when (upsertResult) {
+                                is UpsertResult.CleanUpsert -> upsertedCount++
+                                is UpsertResult.MergedUpsert -> mergedCount++
+                                is UpsertResult.ConflictFailure -> conflictCount++
+                            }
+                        } catch (e: Exception) {
+                            logger.e(TAG, "Failed to upsert item (${serverObj.serverId}): ", e)
+                            skippedCount++
+                        }
+                    }
+                    logger.d(TAG, "Sync down complete: ${items.size} fetched, $upsertedCount upserted, $mergedCount merged, $conflictCount conflicts, $skippedCount skipped")
+                }
+            }
+        } finally {
+            localStoreManager.refreshStatus()
         }
     }
 
@@ -165,14 +169,15 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * @return `true` if the request was synced successfully, `false` otherwise.
      */
     suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean {
-        // Re-fetch the entry so we always use the latest rebased state.
-        val entry = localStoreManager.pendingRequestQueueManager
-            .getPendingRequestById(pendingRequestId)
-        if (entry == null) {
-            // Entry was cleared by a previous iteration (e.g., squash); skip.
-            return false
-        }
+        var entry: PendingSyncRequest<O>? = null
         return try {
+            // Re-fetch the entry so we always use the latest rebased state.
+            entry = localStoreManager.pendingRequestQueueManager
+                .getPendingRequestById(pendingRequestId)
+            if (entry == null) {
+                // Entry was cleared by a previous iteration (e.g., squash); skip.
+                return false
+            }
             var synced = false
             withClientLock(entry.data.clientId) {
                 // Re-fetch inside the lock to ensure we have the latest state
@@ -184,8 +189,12 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
             }
             synced
         } catch (e: Exception) {
-            logger.e(TAG, "Error syncing ${entry.type} for ${entry.data.clientId}.", e)
+            val type = entry?.type ?: "unknown"
+            val clientId = entry?.data?.clientId ?: "unknown"
+            logger.e(TAG, "Error syncing $type for $clientId.", e)
             false
+        } finally {
+            localStoreManager.refreshStatus()
         }
     }
 

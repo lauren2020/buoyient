@@ -19,6 +19,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -115,6 +116,7 @@ class SyncDriverTest {
     @Test
     fun `syncDownFromServer - clean upsert inserts server items as SYNCED`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
         val serverItems = listOf(
             testItem(clientId = "c1", serverId = "s1", name = "Item 1", value = 10),
             testItem(clientId = "c2", serverId = "s2", name = "Item 2", value = 20),
@@ -138,6 +140,38 @@ class SyncDriverTest {
         val item2 = localStore.getData(clientId = "c2", serverId = "s2")
         assertNotNull(item2)
         assertTrue(item2.syncStatus is SyncableObject.SyncStatus.Synced)
+
+        assertEquals(0, status.pendingRequestCount.value)
+        assertFalse(status.hasPendingConflicts.value)
+
+        driver.close()
+    }
+
+    @Test
+    fun `syncDownFromServer refreshes conflict status after a conflicting merge`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
+        val serverItem = testItem(clientId = "c1", serverId = "s1", name = "Server", value = 1)
+        val mockEngine = MockEngine {
+            respond(
+                content = wrapListResponse(listOf(serverItem)),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val (driver, localStore) = createDriver(db, mockEngine = mockEngine)
+
+        localStore.insertLocalData(
+            data = testItem(clientId = "c1", name = "Local", value = 1),
+            httpRequest = makeRequest(),
+            idempotencyKey = "idem-c1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        driver.syncDownFromServer()
+
+        assertEquals(1, status.pendingRequestCount.value)
+        assertTrue(status.hasPendingConflicts.value)
 
         driver.close()
     }

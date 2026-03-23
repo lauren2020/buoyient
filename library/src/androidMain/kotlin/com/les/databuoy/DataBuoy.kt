@@ -14,6 +14,9 @@ import android.content.Context
  */
 object DataBuoy {
 
+    val status: DataBuoyStatus
+        get() = DataBuoyStatus.shared
+
     /**
      * Register a fixed set of already-constructed services.
      *

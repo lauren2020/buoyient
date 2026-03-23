@@ -72,12 +72,14 @@ class PendingRequestQueueManagerTest {
         serviceName: String = "test-service",
         strategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
             PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+        status: DataBuoyStatus = DataBuoyStatus(database),
     ) = PendingRequestQueueManager<TestItem, TestRequestTag>(
         database = database,
         serviceName = serviceName,
         strategy = strategy,
         codec = codec,
         logger = logger,
+        status = status,
     )
 
     // endregion
@@ -166,6 +168,40 @@ class PendingRequestQueueManagerTest {
         )
         val pending = manager.getPendingRequests("client-1")
         assertTrue(pending[0].serverAttemptMade)
+    }
+
+    @Test
+    fun `data buoy status tracks pending requests and conflicts`() {
+        val database = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(database)
+        val manager = createManager(database = database, status = status)
+        val item = testItem(name = "local")
+
+        manager.queueCreateRequest(
+            data = item,
+            httpRequest = makeRequest(),
+            idempotencyKey = "k1",
+            serverAttemptMade = false,
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        assertEquals(1, status.pendingRequestCount.value)
+        assertFalse(status.hasPendingConflicts.value)
+
+        val mergeHandler = object : SyncableObjectRebaseHandler<TestItem>(codec) {}
+        val conflictResult = manager.rebaseDataForRemainingPendingRequests(
+            clientId = item.clientId,
+            updatedBaseData = item.copy(name = "server"),
+            mergeHandler = mergeHandler,
+        )
+
+        assertIs<PendingRequestQueueManager.RebasePendingRequestsResult.AbortedRebaseToConflicts<TestItem>>(conflictResult)
+        assertEquals(1, status.pendingRequestCount.value)
+        assertTrue(status.hasPendingConflicts.value)
+
+        manager.clearAllPendingRequests(item.clientId)
+        assertEquals(0, status.pendingRequestCount.value)
+        assertFalse(status.hasPendingConflicts.value)
     }
 
     // endregion

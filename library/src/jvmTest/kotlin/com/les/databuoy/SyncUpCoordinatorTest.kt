@@ -18,6 +18,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Tests for [SyncUpCoordinator] — verifies that pending requests across
@@ -150,6 +152,7 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll dispatches requests in global insertion order`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
         val requestLog = mutableListOf<String>()
 
         // Pre-build responses for each CREATE, keyed to the expected client_id.
@@ -211,6 +214,8 @@ class SyncUpCoordinatorTest {
             requestLog,
             "Requests should be dispatched in global insertion order (alpha, beta, alpha), not per-service order (alpha, alpha, beta)",
         )
+        assertEquals(0, status.pendingRequestCount.value)
+        assertFalse(status.hasPendingConflicts.value)
     }
 
     /**
@@ -219,6 +224,7 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll with no participants returns zero`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
         val coordinator = SyncUpCoordinator(
             participants = emptyList(),
             database = db,
@@ -226,6 +232,8 @@ class SyncUpCoordinatorTest {
         )
         val synced = coordinator.syncUpAll()
         assertEquals(0, synced)
+        assertEquals(0, status.pendingRequestCount.value)
+        assertFalse(status.hasPendingConflicts.value)
     }
 
     /**
@@ -234,6 +242,7 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll with participant but no pending requests returns zero`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
         val requestLog = mutableListOf<String>()
         val (participant, _) = createParticipant("alpha", db, requestLog, ArrayDeque())
 
@@ -246,6 +255,8 @@ class SyncUpCoordinatorTest {
 
         assertEquals(0, synced)
         assertEquals(0, requestLog.size, "No HTTP requests should have been made")
+        assertEquals(0, status.pendingRequestCount.value)
+        assertFalse(status.hasPendingConflicts.value)
     }
 
     /**
@@ -256,6 +267,7 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll skips requests for unregistered services`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
         val requestLog = mutableListOf<String>()
 
         val alphaResponses = ArrayDeque(listOf(
@@ -297,6 +309,8 @@ class SyncUpCoordinatorTest {
 
         assertEquals(1, synced, "Only alpha's request should have been synced")
         assertEquals(listOf("alpha"), requestLog)
+        assertEquals(0, status.pendingRequestCount.value)
+        assertFalse(status.hasPendingConflicts.value)
     }
 
     /**
@@ -306,6 +320,7 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll blocks all uploads when unresolved conflict exists`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
         val requestLog = mutableListOf<String>()
 
         val alphaResponses = ArrayDeque(listOf(
@@ -336,5 +351,7 @@ class SyncUpCoordinatorTest {
 
         assertEquals(0, synced, "No requests should be synced while conflicts exist")
         assertEquals(0, requestLog.size, "No HTTP requests should have been made")
+        assertEquals(1, status.pendingRequestCount.value)
+        assertTrue(status.hasPendingConflicts.value)
     }
 }
