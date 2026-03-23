@@ -42,17 +42,13 @@ Replace `<version>` with the current release version.
 
 ### Transitive dependencies
 
-The `:library` module brings in these dependencies transitively — you do **not** need to add them yourself unless you need a different version:
+The `:library` module exposes `kotlinx-serialization-json` as an `api` dependency — it appears transitively and you do **not** need to add it yourself unless you need a different version:
 
 | Dependency | Version | Purpose |
 |-----------|---------|---------|
-| `io.ktor:ktor-client-okhttp` | 2.3.13 | HTTP client (Android) |
-| `app.cash.sqldelight:android-driver` | 2.0.2 | Local SQLite storage |
-| `androidx.work:work-runtime-ktx` | 2.10.0 | Background sync scheduling |
-| `androidx.startup:startup-runtime` | 1.2.0 | Automatic initialization |
-| `org.jetbrains.kotlinx:kotlinx-coroutines-core` | 1.8.1 | Coroutine support |
-| `org.jetbrains.kotlinx:kotlinx-serialization-json` | 1.6.3 | JSON serialization |
-| `org.jetbrains.kotlinx:kotlinx-datetime` | 0.6.2 | Date/time handling |
+| `org.jetbrains.kotlinx:kotlinx-serialization-json` | 1.6.3 | JSON serialization (used in data-buoy's public API) |
+
+Other internal dependencies (ktor, SQLDelight, coroutines, datetime, WorkManager, Startup) are declared as `implementation` and do **not** leak onto your classpath.
 
 ---
 

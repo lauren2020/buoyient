@@ -50,6 +50,7 @@ import com.les.databuoy.HttpRequest
 import com.les.databuoy.testing.MockEndpointRouter
 import com.les.databuoy.testing.MockResponse
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -98,11 +99,11 @@ class MockServerFixtures {
                 put("item", buildJsonObject {
                     put("id", newId)
                     put("reference_id", request.body["reference_id"]
-                        ?: kotlinx.serialization.json.JsonPrimitive(UUID.randomUUID().toString()))
+                        ?: JsonPrimitive(UUID.randomUUID().toString()))
                     put("name", request.body["name"]
-                        ?: kotlinx.serialization.json.JsonPrimitive("Untitled"))
+                        ?: JsonPrimitive("Untitled"))
                     put("amount", request.body["amount"]
-                        ?: kotlinx.serialization.json.JsonPrimitive(0))
+                        ?: JsonPrimitive(0))
                     put("status", "ACTIVE")
                     put("version", 1)
                 })

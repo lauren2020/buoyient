@@ -98,6 +98,9 @@ Every integration test follows the same pattern:
 ```kotlin
 import com.les.databuoy.testing.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -125,7 +128,7 @@ class YourModelServiceTest {
         }
         // Sync-down endpoint (required since SyncDriver init triggers periodic sync)
         env.mockRouter.onGet("https://api.example.com/v2/items") { _ ->
-            MockResponse(200, buildJsonObject { put("items", kotlinx.serialization.json.JsonArray(emptyList())) })
+            MockResponse(200, buildJsonObject { put("items", JsonArray(emptyList())) })
         }
 
         // 3. Construct service
