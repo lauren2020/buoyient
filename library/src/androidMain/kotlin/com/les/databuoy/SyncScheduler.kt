@@ -34,6 +34,10 @@ object SyncScheduler {
 
         val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(constraints)
+            // Android's ConnectivityManager reports CONNECTED before the network
+            // is fully usable (DNS/TCP may still be establishing). A short delay
+            // avoids firing requests into a half-ready connection on reconnect.
+            .setInitialDelay(5, TimeUnit.SECONDS)
             .setBackoffCriteria(
                 BackoffPolicy.EXPONENTIAL,
                 30,
