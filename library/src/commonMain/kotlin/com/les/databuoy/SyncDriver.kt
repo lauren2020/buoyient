@@ -61,6 +61,8 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val syncJobLock = Any()
     private var syncDownJob: Job? = null
 
+    private var initialized = false
+
     /**
      * Performs deferred initialization that requires the full object (including subclass
      * properties) to be constructed. Must be called exactly once from the concrete
@@ -75,6 +77,10 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         // causing it to observe uninitialized properties. Instead, the concrete subclass
         // (SyncableObjectService) calls this initialize() in its own init block, after all
         // initialization is complete.
+        synchronized(syncJobLock) {
+            check(!initialized) { "initialize() must be called exactly once" }
+            initialized = true
+        }
         syncScheduleNotifier.scheduleSyncIfNeeded()
         startPeriodicSyncDown()
     }
