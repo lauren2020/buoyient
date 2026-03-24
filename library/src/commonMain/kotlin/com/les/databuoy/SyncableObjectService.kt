@@ -1,6 +1,10 @@
 package com.les.databuoy
 
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 
 abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
@@ -726,6 +730,74 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             httpRequest = voidRequest,
             globalHeaders = serverProcessingConfig.globalHeaders,
         )
+    }
+
+    /**
+     * Non-suspend wrapper for [create] that launches the operation in [serviceScope]
+     * and returns a [StateFlow] of [SyncableObjectServiceRequestState].
+     *
+     * The flow emits [SyncableObjectServiceRequestState.Loading] immediately and then
+     * [SyncableObjectServiceRequestState.Result] once the create operation completes.
+     */
+    protected fun createWithFlow(
+        data: O,
+        processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
+        request: CreateRequestBuilder<O>,
+        unpackSyncData: ResponseUnpacker<O>,
+        requestTag: T,
+    ): StateFlow<SyncableObjectServiceRequestState<O>> {
+        return launchRequestFlow {
+            create(data, processingConstraints, request, unpackSyncData, requestTag)
+        }
+    }
+
+    /**
+     * Non-suspend wrapper for [update] that launches the operation in [serviceScope]
+     * and returns a [StateFlow] of [SyncableObjectServiceRequestState].
+     *
+     * The flow emits [SyncableObjectServiceRequestState.Loading] immediately and then
+     * [SyncableObjectServiceRequestState.Result] once the update operation completes.
+     */
+    protected fun updateWithFlow(
+        data: O,
+        processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
+        request: UpdateRequestBuilder<O>,
+        unpackSyncData: ResponseUnpacker<O>,
+        requestTag: T,
+    ): StateFlow<SyncableObjectServiceRequestState<O>> {
+        return launchRequestFlow {
+            update(data, processingConstraints, request, unpackSyncData, requestTag)
+        }
+    }
+
+    /**
+     * Non-suspend wrapper for [void] that launches the operation in [serviceScope]
+     * and returns a [StateFlow] of [SyncableObjectServiceRequestState].
+     *
+     * The flow emits [SyncableObjectServiceRequestState.Loading] immediately and then
+     * [SyncableObjectServiceRequestState.Result] once the void operation completes.
+     */
+    protected fun voidWithFlow(
+        data: O,
+        processingConstraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
+        request: VoidRequestBuilder<O>,
+        unpackData: ResponseUnpacker<O>,
+        requestTag: T,
+    ): StateFlow<SyncableObjectServiceRequestState<O>> {
+        return launchRequestFlow {
+            void(data, processingConstraints, request, unpackData, requestTag)
+        }
+    }
+
+    private fun launchRequestFlow(
+        block: suspend () -> SyncableObjectServiceResponse<O>,
+    ): StateFlow<SyncableObjectServiceRequestState<O>> {
+        val flow = MutableStateFlow<SyncableObjectServiceRequestState<O>>(SyncableObjectServiceRequestState.Loading())
+        serviceScope.launch {
+            val response = block()
+            flow.value = SyncableObjectServiceRequestState.Result(response)
+        }
+        return flow.asStateFlow()
     }
 
     override fun close() {

@@ -18,7 +18,8 @@ These guides contain complete templates, required field tables, and common patte
 | Class | Purpose |
 |-------|---------|
 | `SyncableObject<O>` | Interface for your domain model (`@Serializable` data class) |
-| `SyncableObjectService<O, T>` | Base class for services — exposes `create()`, `update()`, `void()`, `get()` |
+| `SyncableObjectService<O, T>` | Base class for services — exposes `create()`, `update()`, `void()`, `get()` and flow-based variants `createWithFlow()`, `updateWithFlow()`, `voidWithFlow()` |
+| `SyncableObjectServiceRequestState<O>` | Sealed state type for flow-based operations: `Loading` or `Result(response)` |
 | `ServiceRequestTag` | Interface for request type enums — passed to every operation |
 | `ServerProcessingConfig<O>` | Tells the sync engine how to talk to your API |
 | `SyncFetchConfig<O>` | Configures periodic sync-down (GET or POST) |

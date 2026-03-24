@@ -180,6 +180,8 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
 
 Extend `SyncableObjectService<YourModel, YourModelRequestTag>` to expose your domain operations. The base class provides protected methods — `create()`, `update()`, `void()`, `get()`, and `resolveConflict()` — that handle the online/offline dual-path, local persistence, request queuing, and idempotency automatically. Your service wraps these into public methods with your domain-specific API logic.
 
+There are also non-suspend flow-based variants — `createWithFlow()`, `updateWithFlow()`, `voidWithFlow()` — that launch the operation internally and return a `StateFlow<SyncableObjectServiceRequestState<O>>`. See [Flow-based operations](#flow-based-operations) below.
+
 ### Constructor
 
 ```kotlin
@@ -377,6 +379,58 @@ Every `create()`, `update()`, and `void()` call accepts an optional `processingC
 | `ProcessingConstraints.OnlineOnly` | Only attempt online. Returns `NoInternetConnection` on failure. |
 | `ProcessingConstraints.OfflineOnly` | Skip the server call entirely. Always queue for background sync. |
 
+### Flow-based operations
+
+The base class also provides non-suspend wrappers — `createWithFlow()`, `updateWithFlow()`, and `voidWithFlow()` — that accept the same parameters as their suspend counterparts but return a `StateFlow<SyncableObjectServiceRequestState<O>>` instead. These launch the operation in the service's internal coroutine scope and emit state changes:
+
+1. **`SyncableObjectServiceRequestState.Loading`** — emitted immediately when the flow is created
+2. **`SyncableObjectServiceRequestState.Result(response)`** — emitted when the operation completes, wrapping the same `SyncableObjectServiceResponse<O>` you'd get from the suspend version
+
+This is useful when callers don't have a coroutine scope readily available or when you want to expose a reactive API that UI layers can collect directly.
+
+```kotlin
+fun createItemFlow(item: YourModel): StateFlow<SyncableObjectServiceRequestState<YourModel>> {
+    return createWithFlow(
+        data = item,
+        requestTag = YourModelRequestTag.CREATE,
+        request = CreateRequestBuilder { data, idempotencyKey, isOffline, attemptedServerRequest ->
+            HttpRequest(
+                method = HttpRequest.HttpMethod.POST,
+                endpointUrl = "https://api.example.com/v2/items",
+                requestBody = buildJsonObject {
+                    put("idempotency_key", idempotencyKey)
+                    put("name", data.name)
+                    put("amount", data.amount)
+                    put("reference_id", data.clientId)
+                },
+            )
+        },
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            if (statusCode in 200..299 && responseBody.containsKey("item")) {
+                json.decodeFromJsonElement(YourModel.serializer(), responseBody["item"]!!.jsonObject)
+                    .withSyncStatus(syncStatus)
+            } else null
+        },
+    )
+}
+```
+
+Collecting in a ViewModel:
+
+```kotlin
+val state = yourModelService.createItemFlow(item)
+
+// In a composable or lifecycle-aware collector:
+state.collect { requestState ->
+    when (requestState) {
+        is SyncableObjectServiceRequestState.Loading -> showSpinner()
+        is SyncableObjectServiceRequestState.Result -> handleResponse(requestState.response)
+    }
+}
+```
+
+`updateWithFlow()` and `voidWithFlow()` follow the same pattern — same parameters as `update()` and `void()`, returning `StateFlow<SyncableObjectServiceRequestState<O>>`.
+
 ### Custom response types (optional)
 
 It's a common pattern to define a sealed class for each operation's response to give callers a cleaner API:
@@ -503,6 +557,17 @@ Every `create()`, `update()`, and `void()` call returns a `SyncableObjectService
 | `NoInternetConnection` | Network call failed (connection error). |
 | `InvalidRequest` | The object was in an invalid state for this operation (e.g., updating a voided item). |
 | `LocalStoreFailed(exception)` | SQLite write failed. |
+
+---
+
+## SyncableObjectServiceRequestState Reference
+
+The flow-based wrappers (`createWithFlow()`, `updateWithFlow()`, `voidWithFlow()`) return a `StateFlow<SyncableObjectServiceRequestState<O>>` with these states:
+
+| Type | Meaning |
+|------|---------|
+| `Loading` | The operation has been launched but has not completed yet. |
+| `Result(response)` | The operation completed. `response` is a `SyncableObjectServiceResponse<O>` — handle it the same way as the suspend API. |
 
 ---
 
