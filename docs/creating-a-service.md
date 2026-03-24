@@ -530,7 +530,7 @@ implementation("com.les.databuoy:library:<version>")
 implementation("com.les.databuoy:data-buoy-hilt:<version>")
 ```
 
-Then provide services via a standard Hilt module:
+Then provide services' sync participants via a standard Hilt module:
 
 ```kotlin
 @Module
@@ -538,12 +538,12 @@ Then provide services via a standard Hilt module:
 object SyncModule {
 
     @Provides @IntoSet
-    fun yourModelService(/* inject any deps */): SyncableObjectService<*, *> =
-        YourModelService()
+    fun yourModelService(/* inject any deps */): SyncDriver<*, *> =
+        YourModelService().syncDriver
 
     @Provides @IntoSet
-    fun otherService(apiClient: ApiClient): SyncableObjectService<*, *> =
-        OtherService(apiClient)
+    fun otherService(apiClient: ApiClient): SyncDriver<*, *> =
+        OtherService(apiClient).syncDriver
 }
 ```
 
@@ -555,34 +555,31 @@ For apps that don't use Hilt, the `DataBuoy` object provides a one-liner registr
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        DataBuoy.registerServices(setOf(
-            YourModelService(),
-            OtherService(),
-        ))
+        DataBuoy.registerServices(setOf(yourModelService, otherService))
     }
 }
 ```
 
-Or for lazy/factory-based creation (services are created fresh each time `SyncWorker` runs):
+Or for lazy/factory-based creation (participants are created fresh each time `SyncWorker` runs):
 
 ```kotlin
 DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
-    override fun createServices(context: Context) = listOf(
-        YourModelService(),
-        OtherService(),
+    override fun createDrivers(context: Context) = listOf(
+        YourModelService().syncDriver,
+        OtherService().syncDriver,
     )
 })
 ```
 
 ### Option C: Direct `SyncWorker.registerServiceProvider()` (lowest-level)
 
-The most explicit approach — implement `SyncServiceRegistryProvider` and register it directly:
+The most explicit approach — implement `SyncServiceRegistryProvider` and register it explicitly:
 
 ```kotlin
 class AppSyncServiceRegistryProvider : SyncServiceRegistryProvider {
-    override fun createServices(context: Context): List<SyncableObjectService<*, *>> = listOf(
-        YourModelService(),
-        OtherService(),
+    override fun createDrivers(context: Context): List<SyncDriver<*, *>> = listOf(
+        YourModelService().syncDriver,
+        OtherService().syncDriver,
     )
 }
 

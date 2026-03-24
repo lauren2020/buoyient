@@ -130,7 +130,7 @@ class ConflictResolutionTest {
             updatedServerData = serverUpdate,
             mergeHandler = mergeHandler,
         )
-        assertIs<SyncDriver.UpsertResult.ConflictFailure>(upsertResult,
+        assertIs<UpsertResult.ConflictFailure>(upsertResult,
             "Rebase should have detected a conflict")
 
         // Step 4: Verify the row is in CONFLICT status.
@@ -410,7 +410,7 @@ class ConflictResolutionTest {
             updatedServerData = serverUpdate,
             mergeHandler = mergeHandler,
         )
-        assertIs<SyncDriver.UpsertResult.ConflictFailure>(upsertResult)
+        assertIs<UpsertResult.ConflictFailure>(upsertResult)
 
         // Verify conflict exists.
         val pendingBefore = localStore.pendingRequestQueueManager.getPendingRequests("c1")

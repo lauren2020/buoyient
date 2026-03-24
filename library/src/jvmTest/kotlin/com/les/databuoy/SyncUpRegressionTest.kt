@@ -95,20 +95,13 @@ class SyncUpRegressionTest {
     }
 
     /**
-     * Wraps a [SyncDriver] as a [SyncUpParticipant] and runs a single-service
-     * [SyncUpCoordinator] sync pass — the same path production code takes.
+     * Runs a single-service [SyncUpCoordinator] sync pass — the same path production code takes.
      */
     private suspend fun syncUpViaCoordinator(
         driver: SyncDriver<TestItem, TestRequestTag>,
-        serviceName: String,
         database: SyncDatabase,
     ): Int {
-        val participant = object : SyncUpParticipant {
-            override val serviceName: String = serviceName
-            override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean =
-                driver.syncUpSinglePendingRequest(pendingRequestId)
-        }
-        return SyncUpCoordinator(listOf(participant), database).syncUpAll()
+        return SyncUpCoordinator(listOf(driver), database).syncUpAll()
     }
 
     // endregion
@@ -206,17 +199,19 @@ class SyncUpRegressionTest {
             requestTag = TestRequestTag.DEFAULT,
         )
 
-        val connectivityChecker = object : ConnectivityChecker {
-            override fun isOnline(): Boolean = false // keeps periodic sync-down inert
-        }
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         // Act
-        val synced = syncUpViaCoordinator(driver, "test", db)
+        val synced = syncUpViaCoordinator(driver, db)
 
         // Assert
         assertEquals(1, synced, "The single CREATE should have synced")
@@ -314,17 +309,19 @@ class SyncUpRegressionTest {
             requestTag = TestRequestTag.DEFAULT,
         )
 
-        val connectivityChecker = object : ConnectivityChecker {
-            override fun isOnline(): Boolean = false
-        }
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         // Act — should process CREATE *and* UPDATE in one pass.
-        val synced = syncUpViaCoordinator(driver, "test", db)
+        val synced = syncUpViaCoordinator(driver, db)
 
         // Assert
         assertEquals(2, synced,
@@ -447,17 +444,19 @@ class SyncUpRegressionTest {
             requestTag = TestRequestTag.DEFAULT,
         )
 
-        val connectivityChecker = object : ConnectivityChecker {
-            override fun isOnline(): Boolean = false
-        }
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         // Act
-        val synced = syncUpViaCoordinator(driver, "test", db)
+        val synced = syncUpViaCoordinator(driver, db)
 
         // Assert — all 4 operations should succeed in one pass.
         assertEquals(4, synced, "All 4 pending requests should have been synced")

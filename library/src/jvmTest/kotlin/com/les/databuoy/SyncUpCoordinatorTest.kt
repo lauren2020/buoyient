@@ -83,18 +83,18 @@ class SyncUpCoordinatorTest {
     }
 
     /**
-     * Creates a [SyncDriver]-based [SyncUpParticipant] for a given service name,
-     * backed by the shared [database] and recording requests to [requestLog].
+     * Creates a [SyncDriver] for a given service name, backed by the shared
+     * [database] and recording requests to [requestLog].
      *
      * @param responseQueue queue of pre-built response bodies; one is consumed per request.
      */
-    private fun createParticipant(
+    private fun createDriver(
         serviceName: String,
         database: SyncDatabase,
         requestLog: MutableList<String>,
         responseQueue: ArrayDeque<String>,
         status: DataBuoyStatus? = null,
-    ): Pair<SyncUpParticipant, LocalStoreManager<TestItem, TestRequestTag>> {
+    ): Pair<SyncDriver<TestItem, TestRequestTag>, LocalStoreManager<TestItem, TestRequestTag>> {
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = database,
             serviceName = serviceName,
@@ -118,20 +118,18 @@ class SyncUpCoordinatorTest {
             httpClient = HttpClient(mockEngine),
         )
 
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager, offlineChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = offlineChecker,
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = serviceName,
+            autoStart = false,
+        )
 
-        val participant = object : SyncUpParticipant {
-            override val serviceName: String = serviceName
-            override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean {
-                return driver.syncUpSinglePendingRequest(pendingRequestId)
-            }
-        }
-
-        return participant to localStore
+        return driver to localStore
     }
 
     // endregion
@@ -163,8 +161,8 @@ class SyncUpCoordinatorTest {
             wrapResponse(testItem(clientId = "b1", serverId = "server_b1")),
         ))
 
-        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses, status)
-        val (betaParticipant, betaStore) = createParticipant("beta", db, requestLog, betaResponses, status)
+        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses, status)
+        val (betaDriver, betaStore) = createDriver("beta", db, requestLog, betaResponses, status)
 
         // Queue requests in interleaved order across services.
         // 1. CREATE in alpha
@@ -200,7 +198,7 @@ class SyncUpCoordinatorTest {
 
         // Act — use the coordinator for globally-ordered sync.
         val coordinator = SyncUpCoordinator(
-            participants = listOf(alphaParticipant, betaParticipant),
+            drivers =listOf(alphaDriver, betaDriver),
             database = db,
             status = status,
         )
@@ -225,7 +223,7 @@ class SyncUpCoordinatorTest {
         val db = TestDatabaseFactory.createInMemory()
         val status = DataBuoyStatus(db)
         val coordinator = SyncUpCoordinator(
-            participants = emptyList(),
+            drivers =emptyList(),
             database = db,
             status = status,
         )
@@ -243,10 +241,10 @@ class SyncUpCoordinatorTest {
         val db = TestDatabaseFactory.createInMemory()
         val status = DataBuoyStatus(db)
         val requestLog = mutableListOf<String>()
-        val (participant, _) = createParticipant("alpha", db, requestLog, ArrayDeque(), status)
+        val (driver, _) = createDriver("alpha", db, requestLog, ArrayDeque(), status)
 
         val coordinator = SyncUpCoordinator(
-            participants = listOf(participant),
+            drivers = listOf(driver),
             database = db,
             status = status,
         )
@@ -272,7 +270,7 @@ class SyncUpCoordinatorTest {
         val alphaResponses = ArrayDeque(listOf(
             wrapResponse(testItem(clientId = "a1", serverId = "server_a1")),
         ))
-        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses, status)
+        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses, status)
 
         // Also create a store for an unregistered service ("ghost") and queue a request.
         val ghostStore = LocalStoreManager<TestItem, TestRequestTag>(
@@ -300,7 +298,7 @@ class SyncUpCoordinatorTest {
 
         // Only register alpha — ghost has no participant.
         val coordinator = SyncUpCoordinator(
-            participants = listOf(alphaParticipant),
+            drivers =listOf(alphaDriver),
             database = db,
             status = status,
         )
@@ -325,7 +323,7 @@ class SyncUpCoordinatorTest {
         val alphaResponses = ArrayDeque(listOf(
             wrapResponse(testItem(clientId = "a1", serverId = "server_a1")),
         ))
-        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses, status)
+        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses, status)
 
         // Queue a create in alpha.
         alphaStore.insertLocalData(
@@ -342,7 +340,7 @@ class SyncUpCoordinatorTest {
         )
 
         val coordinator = SyncUpCoordinator(
-            participants = listOf(alphaParticipant),
+            drivers =listOf(alphaDriver),
             database = db,
             status = status,
         )

@@ -9,7 +9,7 @@ import com.les.databuoy.db.SyncDatabase
  *
  * Use this in tests where you need to trigger sync-up for one service. In
  * production, [SyncUpCoordinator.syncUpAll] is called by `SyncWorker` with
- * all registered services for global ordering.
+ * all registered drivers for global ordering.
  *
  * @param database the [SyncDatabase] backing the service (typically
  *   [TestServiceEnvironment.database]).
@@ -19,7 +19,7 @@ suspend fun SyncableObjectService<*, *>.syncUpLocalChanges(
     database: SyncDatabase,
 ): Int {
     val coordinator = SyncUpCoordinator(
-        participants = listOf(this),
+        drivers = listOf(this.syncDriver),
         database = database,
     )
     return coordinator.syncUpAll()

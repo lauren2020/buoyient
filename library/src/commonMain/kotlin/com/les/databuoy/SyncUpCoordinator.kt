@@ -3,23 +3,15 @@ package com.les.databuoy
 import com.les.databuoy.db.SyncDatabase
 
 /**
- * A participant in cross-service sync-up coordination.
- *
- * Both [SyncDriver] and [SyncableObjectService] implement this interface
- * so the [SyncUpCoordinator] can dispatch pending requests to the correct
- * service without knowing the concrete type parameters.
- */
-interface SyncUpParticipant {
-    val serviceName: String
-    suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean
-}
-
-/**
  * Coordinates sync-up across multiple services, dispatching pending
  * requests in global insertion order rather than per-service order.
+ *
+ * Each [SyncDriver] handles sync-up for its own service. The coordinator
+ * queries the global pending-request queue and dispatches each entry to
+ * the correct driver by [SyncDriver.serviceName].
  */
 class SyncUpCoordinator(
-    private val participants: List<SyncUpParticipant>,
+    private val drivers: List<SyncDriver<*, *>>,
     private val database: SyncDatabase,
     private val status: DataBuoyStatus = DataBuoyStatus(database),
 ) {
@@ -31,7 +23,7 @@ class SyncUpCoordinator(
      */
     suspend fun syncUpAll(): Int {
         try {
-            SyncLog.d(TAG, "Starting global sync up across ${participants.size} services...")
+            SyncLog.d(TAG, "Starting global sync up across ${drivers.size} services...")
 
             // Block all uploads globally if any item (in any service) has unresolved
             // conflicts. Cross-item request ordering may create dependencies, so it is
@@ -48,18 +40,18 @@ class SyncUpCoordinator(
 
             SyncLog.d(TAG, "Found ${globalQueue.size} pending sync rows globally.")
 
-            // Build serviceName → participant map for dispatch.
-            val participantMap = participants.associateBy { it.serviceName }
+            // Build serviceName → driver map for dispatch.
+            val driverMap = drivers.associateBy { it.serviceName }
 
             var syncedCount = 0
             for (entry in globalQueue) {
-                val participant = participantMap[entry.service_name]
-                if (participant == null) {
+                val driver = driverMap[entry.service_name]
+                if (driver == null) {
                     SyncLog.w(TAG, "No service registered for '${entry.service_name}', skipping pending_request_id=${entry.pending_request_id}")
                     continue
                 }
                 try {
-                    if (participant.syncUpSinglePendingRequest(entry.pending_request_id.toInt())) {
+                    if (driver.syncUpSinglePendingRequest(entry.pending_request_id.toInt())) {
                         syncedCount++
                     }
                 } catch (e: SyncUpRetryLaterException) {

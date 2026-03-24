@@ -5,8 +5,8 @@ import android.content.Context
 /**
  * Main entry point for configuring data-buoy on Android.
  *
- * Consumers can register their [SyncableObjectService] instances via
- * [registerServices] (for pre-constructed instances) or
+ * Consumers register their [SyncableObjectService] instances for background sync via
+ * [registerServices] (for pre-constructed services) or
  * [registerServiceProvider] (for lazy/factory-based creation).
  *
  * If using the `data-buoy-hilt` artifact, registration is handled
@@ -18,7 +18,7 @@ object DataBuoy {
         get() = DataBuoyStatus.shared
 
     /**
-     * Register a fixed set of already-constructed services.
+     * Register a fixed set of services for background sync.
      *
      * Convenient when services are created eagerly (e.g. in `Application.onCreate()`
      * or via dependency injection).
@@ -29,24 +29,23 @@ object DataBuoy {
      * ```
      */
     fun registerServices(services: Set<SyncableObjectService<*, *>>) {
+        val drivers = services.map { it.syncDriver }
         SyncWorker.registerServiceProvider(object : SyncServiceRegistryProvider {
-            override fun createServices(context: Context) = services.toList()
+            override fun createDrivers(context: Context) = drivers
         })
     }
 
     /**
-     * Register a [SyncServiceRegistryProvider] that creates services on demand.
+     * Register a [SyncServiceRegistryProvider] that creates drivers on demand.
      *
-     * The provider's [SyncServiceRegistryProvider.createServices] is called each
-     * time [SyncWorker] runs, so it can create fresh service instances per sync
-     * pass. This is the preferred approach when services hold resources that
-     * should not outlive a single sync cycle.
+     * The provider's [SyncServiceRegistryProvider.createDrivers] is called each
+     * time [SyncWorker] runs, so it can create fresh instances per sync pass.
      *
      * ```kotlin
      * DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
-     *     override fun createServices(context: Context) = listOf(
-     *         CommentService(context),
-     *         PostService(context),
+     *     override fun createDrivers(context: Context) = listOf(
+     *         CommentService().syncDriver,
+     *         PostService().syncDriver,
      *     )
      * })
      * ```

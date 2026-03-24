@@ -19,25 +19,28 @@ import kotlinx.serialization.json.JsonObject
 internal class SyncUpRetryLaterException(message: String) : Exception(message)
 
 /**
- * This class is responsible for orchestrating syncing data between the local client and the server.
+ * Orchestrates syncing data between the local client and the server.
+ *
+ * Handles sync-down (fetching server data and upserting locally with conflict resolution),
+ * sync-up (uploading pending local changes), and periodic sync scheduling.
+ *
+ * @param autoStart When `true` (the default), periodic sync-down starts immediately on
+ *   construction. Pass `false` in tests to prevent background sync from interfering with
+ *   test assertions.
  */
-abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
+class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val serverManager: ServerManager,
     private val connectivityChecker: ConnectivityChecker,
     private val codec: SyncCodec<O>,
     private val serverProcessingConfig: ServerProcessingConfig<O>,
     private val localStoreManager: LocalStoreManager<O, T>,
     private val syncScheduleNotifier: SyncScheduleNotifier,
+    val serviceName: String,
+    val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(codec),
+    autoStart: Boolean = true,
 ) {
 
-    /**
-     * Handles 3-way merge conflict detection and resolution during [syncDownFromServer].
-     * Override this property in a service subclass to provide a custom [SyncableObjectRebaseHandler]
-     * with domain-specific merge policies.
-     */
-    protected open val rebaseHandler: SyncableObjectRebaseHandler<O> =
-        SyncableObjectRebaseHandler(codec)
-    protected val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Per-clientId Mutex map for application-level mutual exclusion.
     // Serializes all operations (CRUD, sync-down, sync-up) on the same object
@@ -60,26 +63,11 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val syncJobMutex = Mutex()
     @Volatile private var syncDownJob: Job? = null
 
-    private var initialized = false
-
-    /**
-     * Performs deferred initialization that requires the full object (including subclass
-     * properties) to be constructed. Must be called exactly once from the concrete
-     * subclass's init block — never from [SyncDriver]'s own init, since superclass init
-     * runs before subclass property initializers.
-     */
-    protected fun initialize() {
-        // NOTE: Periodic sync-down is intentionally started here and not in `init`. SyncDriver is
-        // an abstract superclass — its init block runs before subclass property initializers (e.g.,
-        // mergeHandler overrides in SyncableObjectService subclasses). Launching a coroutine
-        // here could call syncDownFromServer() before the subclass is fully constructed,
-        // causing it to observe uninitialized properties. Instead, the concrete subclass
-        // (SyncableObjectService) calls this initialize() in its own init block, after all
-        // initialization is complete.
-        check(!initialized) { "initialize() must be called exactly once" }
-        initialized = true
-        syncScheduleNotifier.scheduleSyncIfNeeded()
-        startPeriodicSyncDown()
+    init {
+        if (autoStart) {
+            syncScheduleNotifier.scheduleSyncIfNeeded()
+            startPeriodicSyncDown()
+        }
     }
 
     /**
@@ -89,7 +77,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * This prevents races between user-initiated CRUD, periodic sync-down, and
      * background sync-up when they target the same clientId.
      */
-    protected suspend fun <R> withClientLock(clientId: String, block: suspend () -> R): R {
+    suspend fun <R> withClientLock(clientId: String, block: suspend () -> R): R {
         val ref = lockMapMutex.withLock {
             clientLocks.getOrPut(clientId) { RefCountedMutex() }.also { it.refCount++ }
         }
@@ -110,9 +98,9 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * merges or conflicts to do so.
      *
      * This uses [SyncableObjectRebaseHandler] to determine the policy for merges and conflicts.
-     * Override this value to inject custom merge & conflict handling.
+     * Provide a custom [rebaseHandler] to inject domain-specific merge & conflict handling.
      *
-     * Default behavior is to do a simple merge of the local & server data if not fields directly
+     * Default behavior is to do a simple merge of the local & server data if no fields directly
      * conflict and to mark any rows with fields that do directly conflict with a
      * [SyncableObject.SyncStatus] of [SyncableObject.SyncStatus.Conflict].
      *
@@ -256,7 +244,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     // Sync Up Region
 
-    protected suspend fun syncUpPendingData(row: PendingSyncRequest<O>) {
+    private suspend fun syncUpPendingData(row: PendingSyncRequest<O>) {
         var request = row.request
         // If the request contains placeholders, updates those based on the latest server context.
         if (row.request.endpointUrl.contains(HttpRequest.SERVER_ID_PLACEHOLDER)) {
@@ -396,15 +384,8 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    open fun close() {
+    fun close() {
         serviceScope.cancel()
-    }
-
-    // Sync Down
-    sealed class UpsertResult {
-        object CleanUpsert : UpsertResult()
-        object MergedUpsert : UpsertResult()
-        object ConflictFailure : UpsertResult()
     }
 
     companion object {

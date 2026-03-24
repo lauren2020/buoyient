@@ -87,7 +87,7 @@ AppInitializer.getInstance(this)
 
 ## Step 3: Register Services
 
-Before data-buoy can sync anything, you need to register your `SyncableObjectService` implementations. Choose the approach that fits your app:
+Before data-buoy can sync anything, you need to register your services' `SyncDriver<*, *>` instances for background sync. Choose the approach that fits your app:
 
 ### Option A: Hilt multibinding (recommended for Hilt apps)
 
@@ -99,12 +99,12 @@ If you added the `data-buoy-hilt` artifact, registration is fully automatic. Jus
 object SyncModule {
 
     @Provides @IntoSet
-    fun todoService(): SyncableObjectService<*, *> =
-        TodoService()
+    fun todoService(): SyncDriver<*, *> =
+        TodoService().syncDriver
 
     @Provides @IntoSet
-    fun noteService(apiClient: ApiClient): SyncableObjectService<*, *> =
-        NoteService(apiClient)
+    fun noteService(apiClient: ApiClient): SyncDriver<*, *> =
+        NoteService(apiClient).syncDriver
 }
 ```
 
@@ -118,10 +118,7 @@ Register services directly in `Application.onCreate()`:
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        DataBuoy.registerServices(setOf(
-            TodoService(),
-            NoteService(),
-        ))
+        DataBuoy.registerServices(setOf(todoService, noteService))
     }
 }
 ```
@@ -130,9 +127,9 @@ Or use a factory for lazy/fresh-per-sync-cycle creation:
 
 ```kotlin
 DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
-    override fun createServices(context: Context) = listOf(
-        TodoService(),
-        NoteService(),
+    override fun createDrivers(context: Context) = listOf(
+        TodoService().syncDriver,
+        NoteService().syncDriver,
     )
 })
 ```
@@ -143,9 +140,9 @@ Implement `SyncServiceRegistryProvider` and register it explicitly:
 
 ```kotlin
 class AppSyncServiceRegistryProvider : SyncServiceRegistryProvider {
-    override fun createServices(context: Context): List<SyncableObjectService<*, *>> = listOf(
-        TodoService(),
-        NoteService(),
+    override fun createDrivers(context: Context): List<SyncDriver<*, *>> = listOf(
+        TodoService().syncDriver,
+        NoteService().syncDriver,
     )
 }
 

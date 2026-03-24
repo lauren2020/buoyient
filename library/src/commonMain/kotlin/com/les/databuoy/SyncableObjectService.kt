@@ -10,7 +10,7 @@ import kotlinx.serialization.KSerializer
 abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
     serializer: KSerializer<O>,
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
-    override val serviceName: String,
+    val serviceName: String,
     private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     private val syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     private val codec: SyncCodec<O> = SyncCodec(serializer),
@@ -24,18 +24,55 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     ),
     private val idGenerator: IdGenerator = createPlatformIdGenerator(),
     private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler(),
-) : Service<O>,
-    SyncUpParticipant,
-    SyncDriver<O, T>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, syncScheduleNotifier)
-{
+) : Service<O> {
+
+    /**
+     * Handles 3-way merge conflict detection and resolution during sync-down.
+     * Override this property in a service subclass to provide a custom [SyncableObjectRebaseHandler]
+     * with domain-specific merge policies.
+     */
+    protected open val rebaseHandler: SyncableObjectRebaseHandler<O> by lazy {
+        SyncableObjectRebaseHandler(codec)
+    }
+
+    /**
+     * The sync engine that handles sync-down, sync-up, conflict resolution, and periodic
+     * scheduling. Constructed lazily so that subclass property overrides (e.g., [rebaseHandler])
+     * are fully initialized before the sync engine starts.
+     *
+     * Register this with [DataBuoy.registerDrivers] or include it in your Hilt multibinding
+     * set so background sync picks up pending requests for this service.
+     */
+    val syncDriver: SyncDriver<O, T> by lazy {
+        SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = connectivityChecker,
+            codec = codec,
+            serverProcessingConfig = serverProcessingConfig,
+            localStoreManager = localStoreManager,
+            syncScheduleNotifier = syncScheduleNotifier,
+            serviceName = serviceName,
+            rebaseHandler = rebaseHandler,
+        )
+    }
 
     init {
-        // Deferred initialization — called here rather than in SyncDriver.init so that both
-        // the superclass (SyncDriver) and this class are fully constructed. This guarantees
-        // the sync coroutine can safely access all properties, including subclass overrides
-        // like mergeHandler, without observing half-initialized state.
-        initialize()
+        // Force lazy initialization of syncDriver, which starts periodic sync.
+        // By this point, subclass property initializers (including rebaseHandler overrides)
+        // are complete because Kotlin evaluates lazy properties on first access, not at
+        // declaration time.
+        syncDriver
     }
+
+    /**
+     * Stops the periodic sync-down loop.
+     */
+    fun stopPeriodicSyncDown() = syncDriver.stopPeriodicSyncDown()
+
+    /**
+     * Fetches all data from the server and upserts it into the local db.
+     */
+    suspend fun syncDownFromServer() = syncDriver.syncDownFromServer()
 
     /**
      * Creates a syncable object. If the device is online, the object is sent
@@ -66,7 +103,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         request: CreateRequestBuilder<O>,
         unpackSyncData: ResponseUnpacker<O>,
         requestTag: T,
-    ): SyncableObjectServiceResponse<O> = withClientLock(data.clientId) {
+    ): SyncableObjectServiceResponse<O> = syncDriver.withClientLock(data.clientId) {
         val idempotencyKey = idGenerator.generateId()
         if (
             processingConstraints is ProcessingConstraints.OnlineOnly ||
@@ -215,7 +252,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         request: UpdateRequestBuilder<O>,
         unpackSyncData: ResponseUnpacker<O>,
         requestTag: T,
-    ): SyncableObjectServiceResponse<O> = withClientLock(data.clientId) {
+    ): SyncableObjectServiceResponse<O> = syncDriver.withClientLock(data.clientId) {
         val idempotencyKey = idGenerator.generateId()
         val effectiveLastSyncedData = try {
             getEffectiveBaseDataForUpdate(data)
@@ -445,7 +482,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         request: VoidRequestBuilder<O>,
         unpackData: ResponseUnpacker<O>,
         requestTag: T,
-    ): SyncableObjectServiceResponse<O> = withClientLock(data.clientId) {
+    ): SyncableObjectServiceResponse<O> = syncDriver.withClientLock(data.clientId) {
         val pendingSyncRequests = localStoreManager.pendingRequestQueueManager.getPendingRequests(data.clientId)
         val serverAttemptedPendingRequests = pendingSyncRequests.filter { it.serverAttemptMade }
         // If the object has never been synced to the server & no pending sync request has been
@@ -735,7 +772,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     }
 
     /**
-     * Non-suspend wrapper for [create] that launches the operation in [serviceScope]
+     * Non-suspend wrapper for [create] that launches the operation in the sync driver's scope
      * and returns a [StateFlow] of [SyncableObjectServiceRequestState].
      *
      * The flow emits [SyncableObjectServiceRequestState.Loading] immediately and then
@@ -754,7 +791,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     }
 
     /**
-     * Non-suspend wrapper for [update] that launches the operation in [serviceScope]
+     * Non-suspend wrapper for [update] that launches the operation in the sync driver's scope
      * and returns a [StateFlow] of [SyncableObjectServiceRequestState].
      *
      * The flow emits [SyncableObjectServiceRequestState.Loading] immediately and then
@@ -773,7 +810,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     }
 
     /**
-     * Non-suspend wrapper for [void] that launches the operation in [serviceScope]
+     * Non-suspend wrapper for [void] that launches the operation in the sync driver's scope
      * and returns a [StateFlow] of [SyncableObjectServiceRequestState].
      *
      * The flow emits [SyncableObjectServiceRequestState.Loading] immediately and then
@@ -795,7 +832,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         block: suspend () -> SyncableObjectServiceResponse<O>,
     ): StateFlow<SyncableObjectServiceRequestState<O>> {
         val flow = MutableStateFlow<SyncableObjectServiceRequestState<O>>(SyncableObjectServiceRequestState.Loading())
-        serviceScope.launch {
+        syncDriver.serviceScope.launch {
             val response = try {
                 block()
             } catch (e: Exception) {
@@ -807,10 +844,10 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         return flow.asStateFlow()
     }
 
-    override fun close() {
+    fun close() {
         serverManager.close()
         localStoreManager.close()
-        super.close()
+        syncDriver.close()
     }
 
     private fun convertQueueResultToServiceResponse(

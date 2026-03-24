@@ -425,7 +425,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         lastSyncedTimestamp: String,
         updatedServerData: O,
         mergeHandler: SyncableObjectRebaseHandler<O>,
-    ): SyncDriver.UpsertResult {
+    ): UpsertResult {
         return database.transactionWithResult {
             return@transactionWithResult rebaseData(
                 clientId = clientId,
@@ -497,7 +497,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         updatedServerData: O,
         mergeHandler: SyncableObjectRebaseHandler<O>,
         handleRebasedPendingRequests: (rebasedLocalData: O) -> Unit,
-    ): SyncDriver.UpsertResult {
+    ): UpsertResult {
         // Update any remaining pending requests with the updated server context.
         val rebaseResult =
             pendingRequestQueueManager.rebaseDataForRemainingPendingRequests(
@@ -515,12 +515,12 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     syncedAtTimestamp = lastSyncedTimestamp,
                     clientId = clientId,
                 )
-                return SyncDriver.UpsertResult.CleanUpsert
+                return UpsertResult.CleanUpsert
             }
 
             is PendingRequestQueueManager.RebasePendingRequestsResult.RebasedRemainingPendingRequests -> {
                 handleRebasedPendingRequests.invoke(rebaseResult.rebasedLatestData)
-                return SyncDriver.UpsertResult.MergedUpsert
+                return UpsertResult.MergedUpsert
             }
 
             is PendingRequestQueueManager.RebasePendingRequestsResult.AbortedRebaseToConflicts -> {
@@ -531,7 +531,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     service_name = serviceName,
                     client_id = clientId,
                 )
-                return SyncDriver.UpsertResult.ConflictFailure
+                return UpsertResult.ConflictFailure
             }
         }
     }

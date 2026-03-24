@@ -103,11 +103,16 @@ class SyncDriverTest {
         val checker = connectivityChecker ?: object : ConnectivityChecker {
             override fun isOnline(): Boolean = online
         }
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager, checker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = checker,
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
         return driver to localStore
     }
 
@@ -230,11 +235,7 @@ class SyncDriverTest {
             requestTag = TestRequestTag.DEFAULT,
         )
         val coordinator = SyncUpCoordinator(
-            participants = listOf(object : SyncUpParticipant {
-                override val serviceName = "test"
-                override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int) =
-                    driver.syncUpSinglePendingRequest(pendingRequestId)
-            }),
+            drivers = listOf(driver),
             database = db,
         )
         coordinator.syncUpAll()
@@ -304,11 +305,7 @@ class SyncDriverTest {
         )
 
         val coordinator = SyncUpCoordinator(
-            participants = listOf(object : SyncUpParticipant {
-                override val serviceName = "test"
-                override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int) =
-                    driver.syncUpSinglePendingRequest(pendingRequestId)
-            }),
+            drivers = listOf(driver),
             database = db,
         )
         val synced = coordinator.syncUpAll()
@@ -337,11 +334,16 @@ class SyncDriverTest {
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(), httpClient = HttpClient(mockEngine),
         )
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager, object : ConnectivityChecker { override fun isOnline() = false },
-            SyncCodec(TestItem.serializer()), testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         val item = testItem(clientId = "c1", name = "NoServerId")
         localStore.insertLocalData(
@@ -424,13 +426,16 @@ class SyncDriverTest {
             serviceBaseHeaders = emptyList(),
             httpClient = HttpClient(mockEngine),
         )
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager,
-            object : ConnectivityChecker { override fun isOnline() = true },
-            SyncCodec(TestItem.serializer()),
-            postFetchConfig, localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = true },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = postFetchConfig,
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         driver.syncDownFromServer()
 
@@ -490,13 +495,16 @@ class SyncDriverTest {
             serviceBaseHeaders = emptyList(),
             httpClient = HttpClient(mockEngine),
         )
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager,
-            object : ConnectivityChecker { override fun isOnline() = true },
-            SyncCodec(TestItem.serializer()),
-            postFetchConfig, localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = true },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = postFetchConfig,
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         // Insert and sync-up the CREATE
         localStore.insertLocalData(
@@ -505,11 +513,7 @@ class SyncDriverTest {
             requestTag = TestRequestTag.DEFAULT,
         )
         val coordinator = SyncUpCoordinator(
-            participants = listOf(object : SyncUpParticipant {
-                override val serviceName = "test"
-                override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int) =
-                    driver.syncUpSinglePendingRequest(pendingRequestId)
-            }),
+            drivers = listOf(driver),
             database = db,
         )
         coordinator.syncUpAll()
@@ -566,13 +570,16 @@ class SyncDriverTest {
             serviceBaseHeaders = emptyList(),
             httpClient = HttpClient(mockEngine),
         )
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager,
-            object : ConnectivityChecker { override fun isOnline() = false },
-            SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         localStore.insertLocalData(
             data = item,
@@ -618,13 +625,16 @@ class SyncDriverTest {
             serviceBaseHeaders = emptyList(),
             httpClient = HttpClient(mockEngine),
         )
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager,
-            object : ConnectivityChecker { override fun isOnline() = false },
-            SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         localStore.insertLocalData(
             data = item,
@@ -666,13 +676,16 @@ class SyncDriverTest {
             serviceBaseHeaders = emptyList(),
             httpClient = HttpClient(mockEngine),
         )
-        val driver = object : SyncDriver<TestItem, TestRequestTag>(
-            serverManager,
-            object : ConnectivityChecker { override fun isOnline() = false },
-            SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, noOpNotifier,
-        ) {}
-        driver.stopPeriodicSyncDown()
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            syncScheduleNotifier = noOpNotifier,
+            serviceName = "test",
+            autoStart = false,
+        )
 
         localStore.insertLocalData(
             data = item,
@@ -730,15 +743,7 @@ class SyncDriverTest {
             requestTag = TestRequestTag.DEFAULT,
         )
         val coordinator = SyncUpCoordinator(
-            participants = listOf(object : SyncUpParticipant {
-                override val serviceName = "test"
-                override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean {
-                    operationLog.add("syncUp-start")
-                    val result = driver.syncUpSinglePendingRequest(pendingRequestId)
-                    operationLog.add("syncUp-end")
-                    return result
-                }
-            }),
+            drivers = listOf(driver),
             database = db,
         )
         coordinator.syncUpAll()

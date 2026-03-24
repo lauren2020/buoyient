@@ -170,7 +170,7 @@ implementation("com.les.databuoy:data-buoy-hilt:<version>")
 @InstallIn(SingletonComponent::class)
 object SyncModule {
     @Provides @IntoSet
-    fun todoService(): SyncableObjectService<*, *> = TodoService()
+    fun todoService(): SyncDriver<*, *> = TodoService().syncDriver
 }
 ```
 
@@ -180,9 +180,11 @@ Use the `DataBuoy` convenience API in `Application.onCreate()`:
 
 ```kotlin
 class MyApp : Application() {
+    val todoService = TodoService()
+
     override fun onCreate() {
         super.onCreate()
-        DataBuoy.registerServices(setOf(TodoService()))
+        DataBuoy.registerServices(setOf(todoService))
     }
 }
 ```
@@ -191,7 +193,7 @@ Or register a factory that creates fresh service instances per sync pass:
 
 ```kotlin
 DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
-    override fun createServices(context: Context) = listOf(TodoService())
+    override fun createDrivers(context: Context) = listOf(TodoService().syncDriver)
 })
 ```
 

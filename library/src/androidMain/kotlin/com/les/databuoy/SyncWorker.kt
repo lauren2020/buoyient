@@ -14,7 +14,7 @@ import androidx.work.WorkerParameters
  * when the device has network connectivity.
  *
  * The app module must register a [SyncServiceRegistryProvider] via
- * [registerServiceProvider] so the worker knows which services to sync.
+ * [registerServiceProvider] so the worker knows which drivers to sync.
  */
 class SyncWorker(
     appContext: Context,
@@ -30,7 +30,7 @@ class SyncWorker(
 
         /**
          * Register the app's [SyncServiceRegistryProvider] so the worker
-         * can create the correct service instances at sync time.
+         * can create the correct driver instances at sync time.
          * Call this once during app startup (e.g. in Application.onCreate).
          */
         fun registerServiceProvider(provider: SyncServiceRegistryProvider) {
@@ -47,12 +47,12 @@ class SyncWorker(
             return Result.failure()
         }
 
-        val services = provider.createServices(applicationContext)
+        val drivers = provider.createDrivers(applicationContext)
 
         return try {
             val database = createSyncDatabase()
             val coordinator = SyncUpCoordinator(
-                participants = services,
+                drivers = drivers,
                 database = database,
             )
             val totalSynced = coordinator.syncUpAll()
@@ -82,8 +82,6 @@ class SyncWorker(
             } else {
                 Result.retry()
             }
-        } finally {
-            services.forEach { it.close() }
         }
     }
 }
