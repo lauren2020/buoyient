@@ -2,7 +2,7 @@
 
 This guide walks through adding data-buoy to an Android app. After completing these steps, your app will have offline-first sync infrastructure ready for you to build services on top of.
 
-**Prerequisites:** An Android app targeting API 24+ with Kotlin and `kotlinx.serialization` already configured.
+**Prerequisites:** An Android app targeting API 27+ with Kotlin and `kotlinx.serialization` already configured.
 
 ---
 
@@ -44,9 +44,9 @@ Replace `<version>` with the current release version.
 
 The `:library` module exposes `kotlinx-serialization-json` as an `api` dependency — it appears transitively and you do **not** need to add it yourself unless you need a different version:
 
-| Dependency | Version | Purpose |
-|-----------|---------|---------|
-| `org.jetbrains.kotlinx:kotlinx-serialization-json` | 1.6.3 | JSON serialization (used in data-buoy's public API) |
+| Dependency | Purpose |
+|-----------|---------|
+| `org.jetbrains.kotlinx:kotlinx-serialization-json` | JSON serialization (used in data-buoy's public API) |
 
 Other internal dependencies (ktor, SQLDelight, coroutines, datetime, WorkManager, Startup) are declared as `implementation` and do **not** leak onto your classpath.
 
@@ -207,7 +207,7 @@ app/src/main/java/com/example/yourapp/
 Your services aren't being discovered by `SyncWorker`. Ensure you've completed Step 3 above — either Hilt `@IntoSet` bindings, `DataBuoy.registerServices()`, or `SyncWorker.registerServiceProvider()`.
 
 ### Dependency conflict with Ktor / SQLDelight
-If your app already uses Ktor or SQLDelight, ensure version compatibility. data-buoy uses Ktor 2.3.13 and SQLDelight 2.0.2. You can force-resolve versions in your `build.gradle.kts`:
+If your app already uses Ktor or SQLDelight, ensure version compatibility. Check data-buoy's `gradle/libs.versions.toml` for the exact versions used (e.g. Ktor and SQLDelight). You can force-resolve versions in your `build.gradle.kts`:
 
 ```kotlin
 configurations.all {

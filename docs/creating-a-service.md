@@ -193,7 +193,7 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
 
 - `fromResponseBody()` receives the raw server response body and a `requestTag` string (from your `ServiceRequestTag` enum). Return `SyncUpResult.Success(data)` on success, `SyncUpResult.Failed.Retry` to re-queue the request, or `SyncUpResult.Failed.RemovePendingRequest` to drop it from the queue. Use the tag to handle different response shapes per request type if needed.
 - The `transformResponse` lambda receives the full response body. You need to extract the array of items from whatever key your API nests them under.
-- Override `SyncUpConfig.acceptUploadResponseAsProcessed()` only if you need custom retry logic. The default retries on 408 (timeout) and 5xx errors.
+- Override `SyncUpConfig.acceptUploadResponseAsProcessed()` only if you need custom retry logic. The default retries on 408 (timeout), 429 (rate limit), and 5xx errors.
 
 ---
 
@@ -234,6 +234,58 @@ class YourModelService(
 ```
 
 The `serviceName` must be unique across all services in the app — it's used as a partition key in the shared SQLite database.
+
+### Pending request queue strategy
+
+When the device is offline (or a request times out), data-buoy queues pending requests in SQLite. The **queue strategy** controls how multiple pending requests for the same object are stored. You configure this via the `PendingRequestQueueManager.PendingRequestQueueStrategy` passed to `LocalStoreManager`.
+
+There are two strategies:
+
+| Strategy | Behavior |
+|----------|----------|
+| `Queue` (default) | Every create, update, and void is stored as a separate entry. Requests are replayed in order during sync-up. |
+| `Squash` | Consecutive offline edits to the same object are collapsed into a single pending request. For example, a create followed by two updates becomes one create with the final state. |
+
+**Use `Queue` when:**
+
+- Your API is order-dependent or validates incremental version numbers on each request.
+- Each request carries side effects the server must process individually (e.g., triggering notifications, audit logs, or webhooks per update).
+- You want the simplest setup — `Queue` requires no extra configuration.
+
+**Use `Squash` when:**
+
+- Your API treats each write as a full replacement (PUT semantics) and intermediate states don't matter.
+- You want to minimize network requests after a long offline session — a user who edits the same object 10 times offline will produce 1 sync-up request instead of 10.
+- Reducing server-side version churn matters (e.g., the server increments a version on every write and you don't want to inflate it with intermediate states).
+
+**Safety guard:** Squash never collapses a request that has already been attempted on the server (`serverAttemptMade = true`). If a request timed out and was re-queued, subsequent updates are stored as separate entries to avoid overwriting a request the server may have already processed.
+
+#### Configuring Squash
+
+To opt into squash, pass a `queueStrategy` to `LocalStoreManager`. You must provide a `SquashRequestMerger` — a `(createRequest, updateRequest) -> HttpRequest` function that merges an update request body into a pending create request:
+
+```kotlin
+val localStoreManager = LocalStoreManager<YourModel, YourModelRequestTag>(
+    codec = SyncCodec(YourModel.serializer()),
+    serviceName = "your_model",
+    syncScheduleNotifier = syncScheduleNotifier,
+    queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+        squashUpdateIntoCreate = SquashRequestMerger { createRequest, updateRequest ->
+            // Replace the create body with the latest update body
+            HttpRequest(
+                method = createRequest.method,
+                endpointUrl = createRequest.endpointUrl,
+                requestBody = updateRequest.requestBody,
+                additionalHeaders = createRequest.additionalHeaders,
+            )
+        },
+    ),
+)
+```
+
+For update-into-update squashing, the `UpdateRequestBuilder` you provide to `update()` is called with the previous pending data as `lastSyncedData` — the queue manager rebuilds the squashed request automatically. No extra configuration is needed beyond the `SquashRequestMerger` (which only handles the create-into-update case).
+
+> **Note:** `LocalStoreManager` defaults to `Queue`. You only need to pass `queueStrategy` when opting into `Squash`.
 
 ### Create operation
 
@@ -377,10 +429,11 @@ suspend fun getItem(clientId: String, serverId: String?): GetResponse<YourModel>
 }
 ```
 
-`GetResponse` is a sealed class with three variants:
+`GetResponse` is a sealed class with four variants:
 - `ReceivedServerResponse(statusCode, responseBody, data)` — server responded
 - `RetrievedFromLocalStore(data)` — returned from local SQLite
-- `NotFound()` — not in local store and device is offline
+- `NoInternetConnection()` — not in local store and device is offline
+- `NotFound()` — not in local store but device is online
 
 ### Fetching all local data
 

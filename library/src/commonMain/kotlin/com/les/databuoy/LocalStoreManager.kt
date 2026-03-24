@@ -9,6 +9,8 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val syncScheduleNotifier: SyncScheduleNotifier,
     private val codec: SyncCodec<O>,
     private val status: DataBuoyStatus = DataBuoyStatus.shared,
+    private val queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
+        PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
 ) {
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
@@ -25,7 +27,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     internal val pendingRequestQueueManager: PendingRequestQueueManager<O, T> = PendingRequestQueueManager(
         database = database,
         serviceName = serviceName,
-        strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+        strategy = queueStrategy,
         codec = codec,
         status = status,
     )

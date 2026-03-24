@@ -12,10 +12,10 @@ Keep data floating even when network conditions are rough.
 > feedback are welcome!
 
 ## What
-A Kotlin Multiplatform offline-first sync library that handles bidirectional data synchronization between local storage and a remote server, with built-in support for offline queuing, conflict resolution, and automatic retries.
+A Kotlin Multiplatform offline-first sync SDK that handles bidirectional data synchronization between local storage and a remote server, with built-in support for offline queuing, conflict resolution, and automatic retries.
 
-## Agent First
-This is intended to be an agent first library. There is a lot of complexity that goes into solid and reliable client server data synchronization and creating a seamless client data alteration experience regardless of network state. This library aims to encapsulate that complexity and expose a simple api that allows consuming applications to get the benefits of that without direct concern for the complexity - and it aims to do that in a way that is accessible and tailored to agentic use. The skills loaded into this library should inform not only how to use the library, but also instruct agents regarding any concerns that should be considered to ensure the use is reliable and performant.
+## Agent Optimized
+This is intended to be an agent optimized SDK. There is a lot of complexity that goes into solid and reliable client server data synchronization and creating a seamless client data alteration experience regardless of network state. This library aims to encapsulate that complexity and expose a simple api that allows consuming applications to get the benefits of that without direct concern for the complexity - and it aims to do that in a way that is accessible and tailored to agentic use. The skills loaded into this SDK should inform not only how to use the SDK, but also instruct agents regarding any concerns that should be considered to ensure the use is reliable and performant.
 
 ## Features
 
@@ -28,7 +28,7 @@ This is intended to be an agent first library. There is a lot of complexity that
 
 ## Features in progress
 
-- **LAN support** — even when internet connection is not available, devices on the same local network can still communicate with each other. This will add support for keeping data in sync across local devices on the same network even when server connection is not available.
+- **LAN support** — enable cross device communication on local networks even when internet is unavailable.
 - **StreamService** — the current SyncableObjectService focus on management of discrete data objects, StreamService will be a sibling offering that focus on data streams rather than discrete objects.
 
 ## Platform Support
