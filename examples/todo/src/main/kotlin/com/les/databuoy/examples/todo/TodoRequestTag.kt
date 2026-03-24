@@ -4,7 +4,7 @@ import com.les.databuoy.ServiceRequestTag
 
 enum class TodoRequestTag(override val value: String) : ServiceRequestTag {
     CREATE_TODO("create_todo"),
-    EDIT_TODO("edit_todo"),
+    UPDATE_TODO("update_todo"),
     COMPLETE_TODO("complete_todo"),
-    REMOVE_TODO("remove_todo"),
+    VOID_TODO("void_todo"),
 }

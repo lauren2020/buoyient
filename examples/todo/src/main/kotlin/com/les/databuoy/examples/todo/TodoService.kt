@@ -25,14 +25,26 @@ import kotlinx.serialization.json.put
 
 class TodoService(
     serverProcessingConfig: ServerProcessingConfig<Todo> = TodoServerProcessingConfig(),
+    connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.globalHeaders,
     ),
+    syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+    localStoreManager: LocalStoreManager<Todo, TodoRequestTag> = LocalStoreManager(
+        codec = SyncCodec(Todo.serializer()),
+        serviceName = SERVICE_NAME,
+        syncScheduleNotifier = syncScheduleNotifier,
+    ),
+    idGenerator: IdGenerator = createPlatformIdGenerator(),
 ) : SyncableObjectService<Todo, TodoRequestTag>(
     serializer = Todo.serializer(),
     serverProcessingConfig = serverProcessingConfig,
     serviceName = SERVICE_NAME,
+    connectivityChecker = connectivityChecker,
     serverManager = serverManager,
+    localStoreManager = localStoreManager,
+    idGenerator = idGenerator,
+    syncScheduleNotifier = syncScheduleNotifier,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -52,14 +64,15 @@ class TodoService(
                 },
             )
         },
-        unpackData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            serverProcessingConfig.unpackCreateTodoResponse(responseBody).data
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            val item = responseBody["item"]?.jsonObject ?: return@ResponseUnpacker null
+            json.decodeFromJsonElement(Todo.serializer(), item)
         },
     )
 
     suspend fun editTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = update(
         data = todo,
-        requestTag = TodoRequestTag.EDIT_TODO,
+        requestTag = TodoRequestTag.UPDATE_TODO,
         request = UpdateRequestBuilder { _, updatedData, idempotencyKey, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.PATCH,
@@ -72,8 +85,9 @@ class TodoService(
                 },
             )
         },
-        unpackData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            serverProcessingConfig.unpackEditTodoResponse(responseBody).data
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            val item = responseBody["item"]?.jsonObject ?: return@ResponseUnpacker null
+            json.decodeFromJsonElement(Todo.serializer(), item)
         },
     )
 
@@ -92,14 +106,15 @@ class TodoService(
                 },
             )
         },
-        unpackData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            serverProcessingConfig.unpackCompleteTodoResponse(responseBody).data
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            val item = responseBody["item"]?.jsonObject ?: return@ResponseUnpacker null
+            json.decodeFromJsonElement(Todo.serializer(), item)
         },
     )
 
     suspend fun removeTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = void(
         data = todo,
-        requestTag = TodoRequestTag.REMOVE_TODO,
+        requestTag = TodoRequestTag.VOID_TODO,
         request = VoidRequestBuilder { data, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.DELETE,
@@ -108,7 +123,8 @@ class TodoService(
             )
         },
         unpackData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            serverProcessingConfig.unpackRemoveTodoResponse(responseBody).data
+            val item = responseBody["item"]?.jsonObject ?: return@ResponseUnpacker null
+            json.decodeFromJsonElement(Todo.serializer(), item)
         },
     )
 

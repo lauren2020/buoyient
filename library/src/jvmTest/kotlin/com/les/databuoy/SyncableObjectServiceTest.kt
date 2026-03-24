@@ -36,7 +36,7 @@ class SyncableObjectServiceTest {
         )
         override val syncUpConfig = object : SyncUpConfig<TestItem>() {
             override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<TestItem> {
-                val data = responseBody["data"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+                val data = responseBody["data"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
                 return SyncUpResult.Success(
                     Json.decodeFromJsonElement(TestItem.serializer(), data)
                         .withSyncStatus(SyncableObject.SyncStatus.Synced(""))

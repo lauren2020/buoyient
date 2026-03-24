@@ -27,10 +27,10 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
     override val syncUpConfig = object : SyncUpConfig<YourModel>() {
         override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<YourModel> {
             return when(requestTag) {
-                YourModelRequestTag.CREATE_YOUR_MODEL -> unpackCreateResponse(responseBody)
-                YourModelRequestTag.CHANGE_THING_ONE_YOUR_MODEL -> unpackChangeThingOneResponse(responseBody)
-                YourModelRequestTag.CHANGE_THING_TWO_YOUR_MODEL -> unpackChangeThingTwoResponse(responseBody)
-                YourModelRequestTag.REMOVE_YOUR_MODEL -> unpackRemoveResponse(responseBody)
+                YourModelRequestTag.CREATE.value -> unpackCreateResponse(responseBody)
+                YourModelRequestTag.UPDATE.value -> unpackUpdateResponse(responseBody)
+                YourModelRequestTag.VOID.value -> unpackVoidResponse(responseBody)
+                else -> SyncUpResult.Failed.RemovePendingRequest()
             }
         }
     }
@@ -40,22 +40,17 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
     )
 
     fun unpackCreateResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
-        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
         return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
     }
 
-    fun unpackChangeThingOneResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
-        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+    fun unpackUpdateResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
         return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
     }
 
-    fun unpackChangeThingTwoResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
-        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
-        return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
-    }
-
-    fun unpackRemoveResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
-        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+    fun unpackVoidResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
         return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
     }
 }

@@ -47,7 +47,7 @@ class YourModelService(
 
     suspend fun createYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = create(
         data = data,
-        requestTag = YourModelRequestTag.CREATE_YOUR_MODEL,
+        requestTag = YourModelRequestTag.CREATE,
         request = CreateRequestBuilder { current, idempotencyKey, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.POST,
@@ -60,13 +60,13 @@ class YourModelService(
             )
         },
         unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            serverProcessingConfig.unpackCreateResponse(responseBody).data
+            responseBody["item"]?.jsonObject?.let { json.decodeFromJsonElement(YourModel.serializer(), it) }
         },
     )
 
     suspend fun changeThingOneOnYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = update(
         data = data,
-        requestTag = YourModelRequestTag.CHANGE_THING_ONE_YOUR_MODEL,
+        requestTag = YourModelRequestTag.UPDATE,
         request = UpdateRequestBuilder { baseData, updated, idempotencyKey, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.PATCH,
@@ -79,13 +79,13 @@ class YourModelService(
             )
         },
         unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            serverProcessingConfig.unpackChangeThingOneResponse(responseBody).data
+            responseBody["item"]?.jsonObject?.let { json.decodeFromJsonElement(YourModel.serializer(), it) }
         },
     )
 
     suspend fun changeThingTwoOnYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = update(
             data = data,
-            requestTag = YourModelRequestTag.CHANGE_THING_TWO_YOUR_MODEL,
+            requestTag = YourModelRequestTag.UPDATE,
             request = UpdateRequestBuilder { baseData, updated, idempotencyKey, _, _ ->
                 HttpRequest(
                     method = HttpRequest.HttpMethod.PATCH,
@@ -98,13 +98,13 @@ class YourModelService(
                 )
             },
             unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-                serverProcessingConfig.unpackChangeThingTwoResponse(responseBody).data
+                responseBody["item"]?.jsonObject?.let { json.decodeFromJsonElement(YourModel.serializer(), it) }
             },
         )
 
     suspend fun removeYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = void(
         data = data,
-        requestTag = YourModelRequestTag.REMOVE_YOUR_MODEL,
+        requestTag = YourModelRequestTag.VOID,
         request = VoidRequestBuilder { current, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.DELETE,
@@ -113,7 +113,7 @@ class YourModelService(
             )
         },
         unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            serverProcessingConfig.unpackRemoveResponse(responseBody).data
+            responseBody["item"]?.jsonObject?.let { json.decodeFromJsonElement(YourModel.serializer(), it) }
         },
     )
 

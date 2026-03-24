@@ -34,9 +34,9 @@ When adding a new `SyncableObjectService`, follow this sequence and keep your wo
 The expected file creation order is:
 
 1. Create the model implementing `SyncableObject<O>`.
-2. Define the `ServiceRequestTag` enum.
-3. Implement `ServerProcessingConfig<O>`.
-4. Build the `SyncableObjectService<O, T>`.
+2. Define the request tag enum implementing `ServiceRequestTag`.
+3. Implement the server config (`ServerProcessingConfig<O>`).
+4. Build the service (`SyncableObjectService<O, T>`).
 5. Register the service.
 6. Add an integration test with `TestServiceEnvironment`.
 

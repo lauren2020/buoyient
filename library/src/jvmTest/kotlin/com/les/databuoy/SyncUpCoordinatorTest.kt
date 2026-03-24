@@ -72,7 +72,7 @@ class SyncUpCoordinatorTest {
         )
         override val syncUpConfig = object : SyncUpConfig<TestItem>() {
             override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<TestItem> {
-                val data = responseBody["data"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+                val data = responseBody["data"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
                 return SyncUpResult.Success(
                     Json.decodeFromJsonElement(TestItem.serializer(), data)
                         .withSyncStatus(SyncableObject.SyncStatus.Synced(""))
@@ -93,12 +93,14 @@ class SyncUpCoordinatorTest {
         database: SyncDatabase,
         requestLog: MutableList<String>,
         responseQueue: ArrayDeque<String>,
+        status: DataBuoyStatus? = null,
     ): Pair<SyncUpParticipant, LocalStoreManager<TestItem, TestRequestTag>> {
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = database,
             serviceName = serviceName,
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
+            status = status ?: DataBuoyStatus(database),
         )
 
         // Mock engine that logs which service handled the request.
@@ -161,8 +163,8 @@ class SyncUpCoordinatorTest {
             wrapResponse(testItem(clientId = "b1", serverId = "server_b1")),
         ))
 
-        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses)
-        val (betaParticipant, betaStore) = createParticipant("beta", db, requestLog, betaResponses)
+        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses, status)
+        val (betaParticipant, betaStore) = createParticipant("beta", db, requestLog, betaResponses, status)
 
         // Queue requests in interleaved order across services.
         // 1. CREATE in alpha
@@ -200,6 +202,7 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = listOf(alphaParticipant, betaParticipant),
             database = db,
+            status = status,
         )
         val synced = coordinator.syncUpAll()
 
@@ -224,6 +227,7 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = emptyList(),
             database = db,
+            status = status,
         )
         val synced = coordinator.syncUpAll()
         assertEquals(0, synced)
@@ -239,11 +243,12 @@ class SyncUpCoordinatorTest {
         val db = TestDatabaseFactory.createInMemory()
         val status = DataBuoyStatus(db)
         val requestLog = mutableListOf<String>()
-        val (participant, _) = createParticipant("alpha", db, requestLog, ArrayDeque())
+        val (participant, _) = createParticipant("alpha", db, requestLog, ArrayDeque(), status)
 
         val coordinator = SyncUpCoordinator(
             participants = listOf(participant),
             database = db,
+            status = status,
         )
         val synced = coordinator.syncUpAll()
 
@@ -267,7 +272,7 @@ class SyncUpCoordinatorTest {
         val alphaResponses = ArrayDeque(listOf(
             wrapResponse(testItem(clientId = "a1", serverId = "server_a1")),
         ))
-        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses)
+        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses, status)
 
         // Also create a store for an unregistered service ("ghost") and queue a request.
         val ghostStore = LocalStoreManager<TestItem, TestRequestTag>(
@@ -275,6 +280,7 @@ class SyncUpCoordinatorTest {
             serviceName = "ghost",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
+            status = status,
         )
 
         // 1. Queue in ghost (no participant will be registered for this)
@@ -296,12 +302,13 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = listOf(alphaParticipant),
             database = db,
+            status = status,
         )
         val synced = coordinator.syncUpAll()
 
         assertEquals(1, synced, "Only alpha's request should have been synced")
         assertEquals(listOf("alpha"), requestLog)
-        assertEquals(0, status.pendingRequestCount.value)
+        assertEquals(1, status.pendingRequestCount.value, "Ghost's unregistered request remains pending")
         assertFalse(status.hasPendingConflicts.value)
     }
 
@@ -318,7 +325,7 @@ class SyncUpCoordinatorTest {
         val alphaResponses = ArrayDeque(listOf(
             wrapResponse(testItem(clientId = "a1", serverId = "server_a1")),
         ))
-        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses)
+        val (alphaParticipant, alphaStore) = createParticipant("alpha", db, requestLog, alphaResponses, status)
 
         // Queue a create in alpha.
         alphaStore.insertLocalData(
@@ -337,6 +344,7 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = listOf(alphaParticipant),
             database = db,
+            status = status,
         )
         val synced = coordinator.syncUpAll()
 

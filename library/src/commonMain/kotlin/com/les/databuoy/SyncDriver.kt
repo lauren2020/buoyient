@@ -37,7 +37,6 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      */
     protected open val rebaseHandler: SyncableObjectRebaseHandler<O> =
         SyncableObjectRebaseHandler(codec)
-
     protected val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Per-clientId Mutex map for application-level mutual exclusion.

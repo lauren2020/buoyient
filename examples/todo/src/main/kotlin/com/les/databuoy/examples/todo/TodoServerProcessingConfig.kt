@@ -26,10 +26,11 @@ class TodoServerProcessingConfig : ServerProcessingConfig<Todo> {
     override val syncUpConfig = object : SyncUpConfig<Todo>() {
         override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<Todo> {
             return when (requestTag) {
-                TodoRequestTag.CREATE_TODO -> unpackCreateTodoResponse(responseBody)
-                TodoRequestTag.EDIT_TODO -> unpackEditTodoResponse(responseBody)
-                TodoRequestTag.COMPLETE_TODO -> unpackCompleteTodoResponse(responseBody)
-                TodoRequestTag.REMOVE_TODO -> unpackRemoveTodoResponse(responseBody)
+                TodoRequestTag.CREATE_TODO.value -> unpackCreateTodoResponse(responseBody)
+                TodoRequestTag.UPDATE_TODO.value -> unpackEditTodoResponse(responseBody)
+                TodoRequestTag.COMPLETE_TODO.value -> unpackCompleteTodoResponse(responseBody)
+                TodoRequestTag.VOID_TODO.value -> unpackRemoveTodoResponse(responseBody)
+                else -> SyncUpResult.Failed.RemovePendingRequest()
             }
         }
     }
@@ -39,22 +40,22 @@ class TodoServerProcessingConfig : ServerProcessingConfig<Todo> {
     )
 
     fun unpackCreateTodoResponse(responseBody: JsonObject): SyncUpResult<Todo> {
-        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
         return SyncUpResult.Success(json.decodeFromJsonElement(Todo.serializer(), item))
     }
 
     fun unpackEditTodoResponse(responseBody: JsonObject): SyncUpResult<Todo> {
-        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
         return SyncUpResult.Success(json.decodeFromJsonElement(Todo.serializer(), item))
     }
 
     fun unpackCompleteTodoResponse(responseBody: JsonObject): SyncUpResult<Todo> {
-        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
         return SyncUpResult.Success(json.decodeFromJsonElement(Todo.serializer(), item))
     }
 
     fun unpackRemoveTodoResponse(responseBody: JsonObject): SyncUpResult<Todo> {
-        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
         return SyncUpResult.Success(json.decodeFromJsonElement(Todo.serializer(), item))
     }
 }

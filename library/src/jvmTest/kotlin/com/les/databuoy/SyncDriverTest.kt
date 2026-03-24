@@ -73,7 +73,7 @@ class SyncDriverTest {
         )
         override val syncUpConfig = object : SyncUpConfig<TestItem>() {
             override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<TestItem> {
-                val data = responseBody["data"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+                val data = responseBody["data"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
                 return SyncUpResult.Success(
                     Json.decodeFromJsonElement(TestItem.serializer(), data)
                         .withSyncStatus(SyncableObject.SyncStatus.Synced(""))
@@ -88,11 +88,13 @@ class SyncDriverTest {
         mockEngine: MockEngine,
         online: Boolean = true,
         connectivityChecker: ConnectivityChecker? = null,
+        status: DataBuoyStatus? = null,
     ): Pair<SyncDriver<TestItem, TestRequestTag>, LocalStoreManager<TestItem, TestRequestTag>> {
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = database, serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
+            status = status ?: DataBuoyStatus(database),
         )
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(),
@@ -128,7 +130,7 @@ class SyncDriverTest {
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
         }
-        val (driver, localStore) = createDriver(db, mockEngine = mockEngine)
+        val (driver, localStore) = createDriver(db, mockEngine = mockEngine, status = status)
 
         driver.syncDownFromServer()
 
@@ -159,7 +161,7 @@ class SyncDriverTest {
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
         }
-        val (driver, localStore) = createDriver(db, mockEngine = mockEngine)
+        val (driver, localStore) = createDriver(db, mockEngine = mockEngine, status = status)
 
         localStore.insertLocalData(
             data = testItem(clientId = "c1", name = "Local", value = 1),
