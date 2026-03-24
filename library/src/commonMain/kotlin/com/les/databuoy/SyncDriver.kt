@@ -13,6 +13,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 
 /**
+ * Thrown by [SyncDriver.syncUpPendingData] when the server returns [SyncUpResult.Failed.Retry],
+ * signalling that the sync-up loop should stop immediately and retry after a delay.
+ */
+internal class SyncUpRetryLaterException(message: String) : Exception(message)
+
+/**
  * This class is responsible for orchestrating syncing data between the local client and the server.
  */
 abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
@@ -188,6 +194,8 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 synced = true
             }
             synced
+        } catch (e: SyncUpRetryLaterException) {
+            throw e
         } catch (e: Exception) {
             val type = entry?.type ?: "unknown"
             val clientId = entry?.data?.clientId ?: "unknown"
@@ -265,8 +273,12 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
             request = request.resolveBodyVersion(version.toString()) ?: request
         }
         when (val response = serverManager.sendRequest(request)) {
-            is ServerManager.ServerManagerResponse.ConnectionError ->
+            is ServerManager.ServerManagerResponse.ConnectionError -> {
                 logger.w(TAG, "Sync up failed due to connection error. Trying again later.")
+                throw SyncUpRetryLaterException(
+                    "Connection error for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
+                )
+            }
 
             is ServerManager.ServerManagerResponse.ServerResponse -> {
                 if (
@@ -309,6 +321,9 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                                 localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                             }
                             logger.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId} — it will be retried later.")
+                            throw SyncUpRetryLaterException(
+                                "Retry requested for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
+                            )
                         }
                         is SyncUpResult.Failed.RemovePendingRequest -> {
                             localStoreManager.updateLocalDataAfterPendingRequestSync(
