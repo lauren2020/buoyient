@@ -14,6 +14,9 @@ Keep data floating even when network conditions are rough.
 ## What
 A Kotlin Multiplatform offline-first sync library that handles bidirectional data synchronization between local storage and a remote server, with built-in support for offline queuing, conflict resolution, and automatic retries.
 
+## Agent First
+This is intended to be an agent first library. There is a lot of complexity that goes into solid and reliable client server data synchronization and creating a seamless client data alteration experience regardless of network state. This library aims to encapsulate that complexity and expose a simple api that allows consuming applications to get the benefits of that without direct concern for the complexity - and it aims to do that in a way that is accessible and tailored to agentic use. The skills loaded into this library should inform not only how to use the library, but also instruct agents regarding any concerns that should be considered to ensure the use is reliable and performant.
+
 ## Features
 
 - **Offline-First** — Create, update, and void data locally when offline. Changes are automatically queued and synced when connectivity returns.
