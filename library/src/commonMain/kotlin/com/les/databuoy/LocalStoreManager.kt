@@ -40,6 +40,34 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private fun <T> transaction(block: () -> T): T =
         database.transactionWithResult { block() }
 
+    /**
+     * Internal signal used to abort the surrounding database transaction when
+     * queueing fails without throwing.
+     *
+     * The queue layer returns [PendingRequestQueueManager.QueueResult] values for
+     * expected failures like invalid requests or storage errors. LocalStoreManager
+     * needs those failures to behave transactionally so the `sync_data` write is
+     * rolled back if the matching pending queue entry was not stored.
+     */
+    private class QueueWriteException(
+        val queueResult: PendingRequestQueueManager.QueueResult,
+    ) : IllegalStateException()
+
+    /**
+     * Ensures a queue write succeeded before allowing the enclosing transaction
+     * to commit.
+     *
+     * If queueing returns anything other than [PendingRequestQueueManager.QueueResult.Stored],
+     * this throws [QueueWriteException] so the local `sync_data` mutation and its
+     * pending queue entry remain all-or-nothing.
+     */
+    private fun requireQueued(
+        queueResult: PendingRequestQueueManager.QueueResult,
+    ): PendingRequestQueueManager.QueueResult = when (queueResult) {
+        is PendingRequestQueueManager.QueueResult.Stored -> queueResult
+        else -> throw QueueWriteException(queueResult)
+    }
+
     fun hasPendingRequests(clientId: String): Boolean =
         pendingRequestQueueManager.hasPendingRequests(clientId)
 
@@ -81,13 +109,16 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     idempotencyKey = idempotencyKey,
                     serverAttemptMade = serverAttemptMade,
                     requestTag = requestTag,
-                )
+                ).let(::requireQueued)
             }
 
             val updatedData = codec.decode(jsonData, SyncableObject.SyncStatus.PendingCreate)
             logger.d(TAG, "Created data locally and queued upload (client_id: ${data.clientId}).")
             syncScheduleNotifier.scheduleSyncIfNeeded()
             return Pair(updatedData, result)
+        } catch (e: QueueWriteException) {
+            logger.e(TAG, "Failed to queue async create data for client_id: ${data.clientId}")
+            return Pair(data, e.queueResult)
         } catch (e: Exception) {
             logger.e(TAG, "Failed to insert async create data: ", e)
             return Pair(data, PendingRequestQueueManager.QueueResult.StoreFailed)
@@ -145,11 +176,14 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     lastSyncedData = lastSyncedData,
                     instruction = instruction,
                     requestTag = requestTag,
-                )
+                ).let(::requireQueued)
             }
             syncScheduleNotifier.scheduleSyncIfNeeded()
             logger.d(TAG, "Updated data locally and queued upload (client_id: ${data.clientId})")
             return Pair(data, result)
+        } catch (e: QueueWriteException) {
+            logger.e(TAG, "Failed to queue async update data for client_id: ${data.clientId}")
+            return Pair(data, e.queueResult)
         } catch (e: Exception) {
             logger.d(TAG, "Failed to update data in db: $e")
             return Pair(data, PendingRequestQueueManager.QueueResult.StoreFailed)
@@ -217,10 +251,13 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     serverAttemptMade = serverAttemptMade,
                     lastSyncedServerData = null,
                     requestTag = requestTag,
-                )
+                ).let(::requireQueued)
             }
             syncScheduleNotifier.scheduleSyncIfNeeded()
             return Pair(data, result)
+        } catch (e: QueueWriteException) {
+            logger.e(TAG, "Failed to queue void request for client_id: ${data.clientId}")
+            return Pair(data, e.queueResult)
         } catch (e: Exception) {
             logger.e(TAG, "Failed to store void request: ", e)
             return Pair(data, PendingRequestQueueManager.QueueResult.StoreFailed)

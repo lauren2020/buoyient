@@ -240,6 +240,40 @@ class LocalStoreManagerTest {
     }
 
     @Test
+    fun `updateLocalData rolls back sync data when queueing is invalid`() {
+        val db = TestDatabaseFactory.createInMemory()
+        val manager = createManager(database = db)
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "Original")
+
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.voidData(
+            data = original,
+            httpRequest = makeRequest(method = HttpRequest.HttpMethod.DELETE),
+            idempotencyKey = "void-key-1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        val updateResult = manager.updateLocalData(
+            data = original.copy(version = 2, name = "Should Not Persist"),
+            idempotencyKey = "key-2",
+            lastSyncedData = original,
+            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest(method = HttpRequest.HttpMethod.PUT) },
+            ),
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        assertIs<PendingRequestQueueManager.QueueResult.InvalidQueueRequest>(updateResult.second)
+
+        val entry = manager.getData(clientId = "c-1", serverId = "s-1")
+        assertNotNull(entry)
+        assertIs<SyncableObject.SyncStatus.PendingVoid>(entry.syncStatus)
+        assertEquals("Original", entry.data.name)
+        assertEquals(1, entry.data.version)
+    }
+
+    @Test
     fun `updateLocalData notifies sync scheduler`() {
         val notifier = object : SyncScheduleNotifier {
             var count = 0
