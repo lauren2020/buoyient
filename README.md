@@ -323,7 +323,7 @@ The `docs/` directory contains step-by-step guides for integrating data-buoy int
 | [Integration Testing](docs/integration-testing.md) | Automated JVM tests with `TestServiceEnvironment` and mock server |
 | [Mock Mode](docs/mock-mode.md) | Runtime mock mode for manual testing without a real backend |
 
-**For AI agents (Claude Code, Cursor, etc.):** This repo includes a `CLAUDE.md` and `.claude/skills/` with detailed instructions for setup, service creation, testing, and mock mode. These are loaded automatically by Claude Code when working in this project.
+**For AI agents (Claude Code, Codex, Cursor, etc.):** This repo includes `CLAUDE.md`, `CODEX.md`, `.claude/skills/`, and `codex/skills/` with detailed instructions for setup, service creation, testing, and mock mode. Claude Code and Codex agents can use these as project-local guidance when working in this repo.
 
 ## Build
 
