@@ -4,6 +4,7 @@ import com.les.databuoy.testing.MockConnectionException
 import com.les.databuoy.testing.MockResponse
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestServiceEnvironment
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -136,6 +137,58 @@ class SyncableObjectServiceTest {
             request = HttpRequest(HttpRequest.HttpMethod.GET,
                 "https://api.test.com/items/${serverId ?: "unknown"}",
                 JsonObject(emptyMap())),
+            unpackData = ResponseUnpacker { body, _, syncStatus ->
+                body["data"]?.jsonObject?.let {
+                    Json.decodeFromJsonElement(TestItem.serializer(), it).withSyncStatus(syncStatus)
+                }
+            },
+        )
+
+        fun testCreateWithFlow(item: TestItem) = createWithFlow(
+            data = item,
+            requestTag = TestRequestTag.DEFAULT,
+            request = CreateRequestBuilder { data, idempotencyKey, _, _ ->
+                HttpRequest(HttpRequest.HttpMethod.POST, "https://api.test.com/items",
+                    buildJsonObject {
+                        put("client_id", data.clientId)
+                        put("name", data.name)
+                        put("idempotency_key", idempotencyKey)
+                    })
+            },
+            unpackSyncData = ResponseUnpacker { body, _, syncStatus ->
+                body["data"]?.jsonObject?.let {
+                    Json.decodeFromJsonElement(TestItem.serializer(), it).withSyncStatus(syncStatus)
+                }
+            },
+        )
+
+        fun testUpdateWithFlow(item: TestItem) = updateWithFlow(
+            data = item,
+            requestTag = TestRequestTag.UPDATE,
+            request = UpdateRequestBuilder { _, updated, idempotencyKey, _, _ ->
+                HttpRequest(HttpRequest.HttpMethod.PUT,
+                    "https://api.test.com/items/${updated.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
+                    buildJsonObject {
+                        put("client_id", updated.clientId)
+                        put("name", updated.name)
+                        put("idempotency_key", idempotencyKey)
+                    })
+            },
+            unpackSyncData = ResponseUnpacker { body, _, syncStatus ->
+                body["data"]?.jsonObject?.let {
+                    Json.decodeFromJsonElement(TestItem.serializer(), it).withSyncStatus(syncStatus)
+                }
+            },
+        )
+
+        fun testVoidWithFlow(item: TestItem) = voidWithFlow(
+            data = item,
+            requestTag = TestRequestTag.VOID,
+            request = VoidRequestBuilder { data, _ ->
+                HttpRequest(HttpRequest.HttpMethod.DELETE,
+                    "https://api.test.com/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
+                    JsonObject(emptyMap()))
+            },
             unpackData = ResponseUnpacker { body, _, syncStatus ->
                 body["data"]?.jsonObject?.let {
                     Json.decodeFromJsonElement(TestItem.serializer(), it).withSyncStatus(syncStatus)
@@ -384,6 +437,121 @@ class SyncableObjectServiceTest {
         val allItems = service.getAllFromLocalStore()
         assertEquals(2, allItems.size)
         assertTrue(allItems.map { it.clientId }.toSet().containsAll(setOf("client-1", "client-2")))
+        service.close()
+    }
+
+    // endregion
+
+    // region createWithFlow
+
+    @Test
+    fun `createWithFlow emits Loading then Result on success`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        env.mockRouter.onPost("https://api.test.com/items") { _ ->
+            MockResponse(201, wrapResponse(serverItem))
+        }
+
+        val flow = service.testCreateWithFlow(testItem(clientId = "client-1"))
+
+        // Flow starts with Loading
+        val initial = flow.value
+        assertIs<SyncableObjectServiceRequestState.Loading<TestItem>>(initial)
+
+        // Wait for completion
+        val result = flow.first { it is SyncableObjectServiceRequestState.Result }
+        assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result.response)
+        val response = result.response as SyncableObjectServiceResponse.Finished.NetworkResponseReceived
+        assertEquals(201, response.statusCode)
+        assertEquals("server-1", response.updatedData!!.serverId)
+        service.close()
+    }
+
+    @Test
+    fun `createWithFlow emits Result with StoredLocally when offline`() = runBlocking {
+        val (service, _) = createServiceAndEnv(online = false)
+
+        val flow = service.testCreateWithFlow(testItem(clientId = "client-1"))
+
+        val result = flow.first { it is SyncableObjectServiceRequestState.Result }
+        assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<TestItem>>(result.response)
+        service.close()
+    }
+
+    // endregion
+
+    // region updateWithFlow
+
+    @Test
+    fun `updateWithFlow emits Loading then Result on success`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1,
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+        env.mockRouter.onPost("https://api.test.com/items") { _ ->
+            MockResponse(201, wrapResponse(serverItem))
+        }
+        service.testCreate(testItem(clientId = "client-1"))
+
+        val updatedServerItem = serverItem.copy(name = "Updated", version = 2)
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            MockResponse(200, wrapResponse(updatedServerItem))
+        }
+
+        val flow = service.testUpdateWithFlow(serverItem.copy(name = "Updated", version = 2))
+
+        val result = flow.first { it is SyncableObjectServiceRequestState.Result }
+        assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result.response)
+        val response = result.response as SyncableObjectServiceResponse.Finished.NetworkResponseReceived
+        assertEquals(200, response.statusCode)
+        assertEquals("Updated", response.updatedData!!.name)
+        service.close()
+    }
+
+    // endregion
+
+    // region voidWithFlow
+
+    @Test
+    fun `voidWithFlow emits Loading then Result on success`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1,
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+        env.mockRouter.onPost("https://api.test.com/items") { _ ->
+            MockResponse(201, wrapResponse(serverItem))
+        }
+        service.testCreate(testItem(clientId = "client-1"))
+
+        env.mockRouter.onDelete("https://api.test.com/items/*") { _ ->
+            MockResponse(200, wrapResponse(serverItem))
+        }
+
+        val flow = service.testVoidWithFlow(serverItem)
+
+        val result = flow.first { it is SyncableObjectServiceRequestState.Result }
+        assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result.response)
+        val response = result.response as SyncableObjectServiceResponse.Finished.NetworkResponseReceived
+        assertEquals(200, response.statusCode)
+        service.close()
+    }
+
+    @Test
+    fun `voidWithFlow local-only emits StoredLocally`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = false)
+        service.testCreate(testItem(clientId = "client-1"))
+
+        env.connectivityChecker.online = true
+        val localItem = service.getAllFromLocalStore().first()
+        val flow = service.testVoidWithFlow(localItem)
+
+        val result = flow.first { it is SyncableObjectServiceRequestState.Result }
+        assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<TestItem>>(result.response)
         service.close()
     }
 

@@ -80,7 +80,9 @@ open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
                 return FieldConflict(
                     pendingRequestId = jsonObject[PENDING_REQUEST_ID_KEY]!!.jsonPrimitive.int,
                     fieldNames = jsonObject[FIELD_NAMES_KEY]!!.jsonPrimitive.content.split(":"),
-                    baseValue = jsonObject[BASE_DATA_KEY]?.jsonObject?.let { codec.decode(it, localOnlyStatus) },
+                    baseValue = jsonObject[BASE_DATA_KEY]?.jsonObject?.takeIf { it.isNotEmpty() }?.let {
+                        codec.decode(it, localOnlyStatus)
+                    },
                     localValue = codec.decode(jsonObject[LOCAL_DATA_KEY]!!.jsonObject, localOnlyStatus),
                     serverValue = codec.decode(jsonObject[SERVER_DATA_KEY]!!.jsonObject, localOnlyStatus),
                     requestTag = jsonObject[REQUEST_TAG_KEY]?.jsonPrimitive?.content,

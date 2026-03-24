@@ -36,9 +36,9 @@ class IosSyncRunner {
                     database = database,
                 )
                 val totalSynced = coordinator.syncUpAll()
-                val status = DataBuoyStatus(database)
-                val remainingPendingCount = status.pendingRequestCount.value
-                val hasPendingConflicts = status.hasPendingConflicts.value
+                DataBuoyStatus.shared.refresh()
+                val remainingPendingCount = DataBuoyStatus.shared.pendingRequestCount.value
+                val hasPendingConflicts = DataBuoyStatus.shared.hasPendingConflicts.value
 
                 SyncLog.d(
                     TAG,

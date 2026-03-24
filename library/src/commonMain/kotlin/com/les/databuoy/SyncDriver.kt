@@ -54,10 +54,11 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     }
 
     // Guards `syncDownJob` against concurrent start/stop calls from different threads.
-    // Without this, a race between startPeriodicSyncDown() and stopPeriodicSyncDown()
-    // could lead to duplicate sync loops or missed cancellations.
-    private val syncJobLock = Any()
-    private var syncDownJob: Job? = null
+    // Uses a coroutine Mutex instead of `synchronized(Any())` because the latter has
+    // platform-dependent semantics on Kotlin/Native and is not guaranteed to provide
+    // mutual exclusion in all Kotlin/Native runtime versions.
+    private val syncJobMutex = Mutex()
+    @Volatile private var syncDownJob: Job? = null
 
     private var initialized = false
 
@@ -75,10 +76,8 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         // causing it to observe uninitialized properties. Instead, the concrete subclass
         // (SyncableObjectService) calls this initialize() in its own init block, after all
         // initialization is complete.
-        synchronized(syncJobLock) {
-            check(!initialized) { "initialize() must be called exactly once" }
-            initialized = true
-        }
+        check(!initialized) { "initialize() must be called exactly once" }
+        initialized = true
         syncScheduleNotifier.scheduleSyncIfNeeded()
         startPeriodicSyncDown()
     }
@@ -367,17 +366,19 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * If already running, this is a no-op.
      */
     private fun startPeriodicSyncDown() {
-        synchronized(syncJobLock) {
-            if (syncDownJob?.isActive == true) return
-            val cadenceMs = serverProcessingConfig.syncFetchConfig.syncCadenceSeconds * 1000L
-            syncDownJob = serviceScope.launch {
-                while (isActive) {
-                    try {
-                        syncDownFromServer()
-                    } catch (e: Exception) {
-                        SyncLog.e(TAG, "Periodic sync-down failed: ", e)
+        serviceScope.launch {
+            syncJobMutex.withLock {
+                if (syncDownJob?.isActive == true) return@launch
+                val cadenceMs = serverProcessingConfig.syncFetchConfig.syncCadenceSeconds * 1000L
+                syncDownJob = serviceScope.launch {
+                    while (isActive) {
+                        try {
+                            syncDownFromServer()
+                        } catch (e: Exception) {
+                            SyncLog.e(TAG, "Periodic sync-down failed: ", e)
+                        }
+                        delay(cadenceMs)
                     }
-                    delay(cadenceMs)
                 }
             }
         }
@@ -387,9 +388,11 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * Stops the periodic sync-down loop. Can be restarted by calling [startPeriodicSyncDown].
      */
     fun stopPeriodicSyncDown() {
-        synchronized(syncJobLock) {
-            syncDownJob?.cancel()
-            syncDownJob = null
+        serviceScope.launch {
+            syncJobMutex.withLock {
+                syncDownJob?.cancel()
+                syncDownJob = null
+            }
         }
     }
 

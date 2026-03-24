@@ -8,7 +8,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val serviceName: String,
     private val syncScheduleNotifier: SyncScheduleNotifier,
     private val codec: SyncCodec<O>,
-    private val status: DataBuoyStatus = DataBuoyStatus(database),
+    private val status: DataBuoyStatus = DataBuoyStatus.shared,
 ) {
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
