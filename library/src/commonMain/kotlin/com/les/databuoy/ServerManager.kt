@@ -1,6 +1,7 @@
 package com.les.databuoy
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.headers
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
@@ -15,7 +16,13 @@ import kotlinx.serialization.json.jsonObject
 class ServerManager(
     private val serviceBaseHeaders: List<Pair<String, String>>,
     private val logger: SyncLogger,
-    private val httpClient: HttpClient = HttpClient(),
+    private val httpClient: HttpClient = HttpClient {
+        install(HttpTimeout) {
+            connectTimeoutMillis = 15_000
+            requestTimeoutMillis = 30_000
+            socketTimeoutMillis = 30_000
+        }
+    },
 ) {
     fun close() {
         httpClient.close()
