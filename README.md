@@ -200,7 +200,7 @@ DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
 | `SyncableObjectRebaseHandler` | `rebaseDataForPendingRequest()` | Custom 3-way merge logic |
 | `SyncableObjectRebaseHandler` | `handleMergeConflict()` | Custom conflict resolution |
 | `SyncUpConfig` | `acceptUploadResponseAsProcessed()` | Custom success criteria |
-| `SyncUpConfig` | `fromResponseBody()` | Response deserialization for sync-up |
+| `SyncUpConfig` | `fromResponseBody()` | Response deserialization for sync-up (returns `SyncUpResult`) |
 
 ## Testing
 

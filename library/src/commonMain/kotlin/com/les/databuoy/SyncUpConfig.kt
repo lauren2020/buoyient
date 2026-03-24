@@ -2,6 +2,16 @@ package com.les.databuoy
 
 import kotlinx.serialization.json.JsonObject
 
+sealed class SyncUpResult<out O> {
+    class Success<O>(val data: O) : SyncUpResult<O>()
+    sealed class Failed : SyncUpResult<Nothing>() {
+        /** The pending request should be retried on the next sync cycle. */
+        data object Retry : Failed()
+        /** The pending request should be removed from the queue (e.g., permanently rejected by the server). */
+        data object RemovePendingRequest : Failed()
+    }
+}
+
 abstract class SyncUpConfig<O : SyncableObject<O>> {
     open fun acceptUploadResponseAsProcessed(
         statusCode: Int,
@@ -26,7 +36,9 @@ abstract class SyncUpConfig<O : SyncableObject<O>> {
      *
      * @param requestTag the tag associated with the request, identifying the request type.
      * @param responseBody the raw JSON response body from the server.
-     * @return the deserialized [O], or null if the response does not contain valid data.
+     * @return [SyncUpResult.Success] containing the deserialized [O],
+     *         [SyncUpResult.Failed.Retry] to leave the pending request in the queue for a future attempt, or
+     *         [SyncUpResult.Failed.RemovePendingRequest] to remove it from the queue (e.g., permanently rejected).
      */
-    abstract fun fromResponseBody(requestTag: String, responseBody: JsonObject): O?
+    abstract fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<O>
 }

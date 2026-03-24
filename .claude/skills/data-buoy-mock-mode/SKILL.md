@@ -11,5 +11,5 @@ Key points to remember:
 - Use `MockServerStore` for stateful mock mode with realistic CRUD behavior.
 - `TestConnectivityChecker` should be set to `online = true` in mock mode.
 - Conflict simulation uses `SyncableObjectRebaseHandler` (not `SyncableObjectMergeHandler`).
-- Include all fields that `SyncUpConfig.fromResponseBody()` expects in mock responses.
+- Include all fields that `SyncUpConfig.fromResponseBody()` expects in mock responses — missing fields will cause it to return `SyncUpResult.Failed.RemovePendingRequest`.
 - Scope the `:testing` dependency to debug builds with `debugImplementation`.

@@ -9,7 +9,7 @@ Key points to remember:
 - Data models must be `@Serializable` data classes implementing `SyncableObject<O>` with `withSyncStatus()` and `@Transient syncStatus`.
 - Services extend `SyncableObjectService<O, T>` where `T : ServiceRequestTag`. The constructor takes a `KSerializer<O>` (not a manual deserializer).
 - Every operation (`create`, `update`, `void`) requires a `ServiceRequestTag` and uses functional interfaces: `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`.
-- `SyncUpConfig.fromResponseBody(requestTag, responseBody)` parses sync-up server responses.
+- `SyncUpConfig.fromResponseBody(requestTag, responseBody)` returns `SyncUpResult<O>`: `Success(data)`, `Failed.Retry` (re-queue), or `Failed.RemovePendingRequest` (drop from queue).
 - `ServerProcessingConfig.globalHeaders` (not `headers`) provides HTTP headers for every request.
 - `getAllFromLocalStore(limit)` retrieves all items from the local database.
 - `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.

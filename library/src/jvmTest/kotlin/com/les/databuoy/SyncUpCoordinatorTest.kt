@@ -74,10 +74,12 @@ class SyncUpCoordinatorTest {
             transformResponse = { emptyList() },
         )
         override val syncUpConfig = object : SyncUpConfig<TestItem>() {
-            override fun fromResponseBody(requestTag: String, responseBody: JsonObject): TestItem? {
-                val data = responseBody["data"]?.jsonObject ?: return null
-                return Json.decodeFromJsonElement(TestItem.serializer(), data)
-                    .withSyncStatus(SyncableObject.SyncStatus.Synced(""))
+            override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<TestItem> {
+                val data = responseBody["data"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+                return SyncUpResult.Success(
+                    Json.decodeFromJsonElement(TestItem.serializer(), data)
+                        .withSyncStatus(SyncableObject.SyncStatus.Synced(""))
+                )
             }
         }
         override val globalHeaders: List<Pair<String, String>> = emptyList()

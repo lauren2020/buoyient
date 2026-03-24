@@ -104,7 +104,7 @@ Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch dat
 | Member | Type | Purpose |
 |--------|------|---------|
 | `syncFetchConfig` | `SyncFetchConfig<YourModel>` | How to periodically pull data from the server (GET or POST). |
-| `syncUpConfig` | `SyncUpConfig<YourModel>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromResponseBody(requestTag, responseBody)` to extract and deserialize a `YourModel` from the server response. |
+| `syncUpConfig` | `SyncUpConfig<YourModel>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromResponseBody(requestTag, responseBody)` returning `SyncUpResult<YourModel>` — `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest`. |
 | `globalHeaders` | `List<Pair<String, String>>` | HTTP headers sent with every request (auth, content-type, etc.). |
 
 ### SyncFetchConfig variants
@@ -155,9 +155,9 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
     )
 
     override val syncUpConfig = object : SyncUpConfig<YourModel>() {
-        override fun fromResponseBody(requestTag: String, responseBody: JsonObject): YourModel? {
-            val item = responseBody["item"]?.jsonObject ?: return null
-            return json.decodeFromJsonElement(YourModel.serializer(), item)
+        override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<YourModel> {
+            val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+            return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
         }
     }
 
@@ -170,7 +170,7 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
 
 ### Key rules
 
-- `fromResponseBody()` receives the raw server response body and a `requestTag` string (from your `ServiceRequestTag` enum). Use the tag to handle different response shapes per request type if needed.
+- `fromResponseBody()` receives the raw server response body and a `requestTag` string (from your `ServiceRequestTag` enum). Return `SyncUpResult.Success(data)` on success, `SyncUpResult.Failed.Retry` to re-queue the request, or `SyncUpResult.Failed.RemovePendingRequest` to drop it from the queue. Use the tag to handle different response shapes per request type if needed.
 - The `transformResponse` lambda receives the full response body. You need to extract the array of items from whatever key your API nests them under.
 - Override `SyncUpConfig.acceptUploadResponseAsProcessed()` only if you need custom retry logic. The default retries on 408 (timeout) and 5xx errors.
 

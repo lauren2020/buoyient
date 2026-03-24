@@ -23,6 +23,7 @@ These guides contain complete templates, required field tables, and common patte
 | `ServerProcessingConfig<O>` | Tells the sync engine how to talk to your API |
 | `SyncFetchConfig<O>` | Configures periodic sync-down (GET or POST) |
 | `SyncUpConfig<O>` | Controls sync-up retry logic and response parsing via `fromResponseBody()` |
+| `SyncUpResult<O>` | Sealed return type for `fromResponseBody()`: `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest` |
 | `SyncCodec<O>` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
 | `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
 | `DataBuoy` | Convenience API for service registration |
@@ -46,6 +47,6 @@ These guides contain complete templates, required field tables, and common patte
 - The service constructor takes a `KSerializer<O>` (from `kotlinx.serialization`) — not a manual deserializer.
 - `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.
 - Every operation (`create`, `update`, `void`) requires a `ServiceRequestTag` and uses functional interfaces: `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`.
-- `SyncUpConfig.fromResponseBody(requestTag, responseBody)` is the method for parsing sync-up server responses.
+- `SyncUpConfig.fromResponseBody(requestTag, responseBody)` returns `SyncUpResult<O>`: `Success(data)`, `Failed.Retry` (re-queue), or `Failed.RemovePendingRequest` (drop from queue).
 - `getAllFromLocalStore(limit)` retrieves all items from the local database.
 - Registration for background sync: use Hilt `@IntoSet` multibinding with `:hilt`, or `DataBuoy.registerServices()` / `DataBuoy.registerServiceProvider()` without Hilt.

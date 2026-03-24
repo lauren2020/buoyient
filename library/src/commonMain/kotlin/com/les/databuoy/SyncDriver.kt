@@ -285,7 +285,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     logger.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
                 } else {
                     // 3. Parse the response and mark as synced
-                    val updatedData = serverProcessingConfig.syncUpConfig.fromResponseBody(
+                    val result = serverProcessingConfig.syncUpConfig.fromResponseBody(
                         requestTag = row.requestTag,
                         responseBody = response.responseBody,
                     )
@@ -294,21 +294,30 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     // Clear the queue entry, update the main table, and
                     // propagate server context atomically so concurrent
                     // local writes do not see an inconsistent state.
-                    if (updatedData != null) {
-                        localStoreManager.upsertPendingRequestSyncResponseData(
-                            updatedServerData = updatedData,
-                            lastSyncedTimestamp = lastSyncedTimestamp,
-                            syncedPendingRequest = row,
-                            mergeHandler = rebaseHandler,
-                        )
-                        logger.d(TAG, "Synced ${row.type} for ${row.data.clientId} (server_id=${updatedData.serverId})")
-                    } else {
-                        localStoreManager.updateLocalDataAfterPendingRequestSync(
-                            processedLocalData = row.data,
-                            lastSyncedTimestamp = lastSyncedTimestamp,
-                            syncedPendingRequest = row,
-                        )
-                        logger.w(TAG, "Synced ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId}, but failed to resolve latest server data.")
+                    when (result) {
+                        is SyncUpResult.Success -> {
+                            localStoreManager.upsertPendingRequestSyncResponseData(
+                                updatedServerData = result.data,
+                                lastSyncedTimestamp = lastSyncedTimestamp,
+                                syncedPendingRequest = row,
+                                mergeHandler = rebaseHandler,
+                            )
+                            logger.d(TAG, "Synced ${row.type} for ${row.data.clientId} (server_id=${result.data.serverId})")
+                        }
+                        is SyncUpResult.Failed.Retry -> {
+                            if (!row.serverAttemptMade) {
+                                localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
+                            }
+                            logger.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId} — it will be retried later.")
+                        }
+                        is SyncUpResult.Failed.RemovePendingRequest -> {
+                            localStoreManager.updateLocalDataAfterPendingRequestSync(
+                                processedLocalData = row.data,
+                                lastSyncedTimestamp = lastSyncedTimestamp,
+                                syncedPendingRequest = row,
+                            )
+                            logger.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId}, pending request is being removed.")
+                        }
                     }
                 }
             }
