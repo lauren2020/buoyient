@@ -11,6 +11,37 @@ If you are integrating data-buoy into an application, start with the guides in `
 - `docs/integration-testing.md` - How to write automated JVM tests using `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module.
 - `docs/mock-mode.md` - How to wire mock mode into the live app for manual testing without a real backend.
 
+## Golden Path
+
+When adding a new `SyncableObjectService`, follow this sequence and keep your work close to the canonical assets in this repo:
+
+1. Copy the starter files in `templates/`:
+   - `templates/YourModel.kt.template`
+   - `templates/YourModelRequestTag.kt.template`
+   - `templates/YourModelServerProcessingConfig.kt.template`
+   - `templates/YourModelService.kt.template`
+   - `templates/YourModelServiceTest.kt.template`
+2. Replace placeholders with your domain names, endpoints, headers, request tags, and response paths.
+3. Use `examples/todo/` as the minimal end-to-end reference for how the pieces fit together.
+4. Register the service using the patterns in `docs/creating-a-service.md`:
+   - Hilt `@IntoSet` multibinding when using `:hilt`
+   - `DataBuoy.registerServices(...)` or `DataBuoy.registerServiceProvider(...)` otherwise
+5. Write or adapt the integration test so it proves:
+   - online create returns server data
+   - offline create stores locally
+   - queued work syncs once connectivity returns
+
+The expected file creation order is:
+
+1. Create the model implementing `SyncableObject<O>`.
+2. Define the `ServiceRequestTag` enum.
+3. Implement `ServerProcessingConfig<O>`.
+4. Build the `SyncableObjectService<O, T>`.
+5. Register the service.
+6. Add an integration test with `TestServiceEnvironment`.
+
+If you are unsure about naming or wiring, prefer copying from `templates/` and `examples/todo/` instead of inventing a new structure.
+
 ## Key classes
 
 | Class | Purpose |

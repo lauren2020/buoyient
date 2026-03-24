@@ -1,0 +1,61 @@
+package com.example.yourapp.data.services
+
+import com.example.yourapp.data.models.YourModel
+import com.les.databuoy.ServerProcessingConfig
+import com.les.databuoy.SyncFetchConfig
+import com.les.databuoy.SyncUpConfig
+import com.les.databuoy.SyncUpResult
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+
+class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    override val syncFetchConfig = SyncFetchConfig.GetFetchConfig(
+        endpoint = "https://api.example.com/v2/items",
+        syncCadenceSeconds = 300,
+        transformResponse = { response ->
+            val items = response["items"]?.jsonArray ?: return@GetFetchConfig emptyList()
+            items.map { json.decodeFromJsonElement(YourModel.serializer(), it.jsonObject) }
+        },
+    )
+
+    override val syncUpConfig = object : SyncUpConfig<YourModel>() {
+        override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<YourModel> {
+            return when(requestTag) {
+                YourModelRequestTag.CREATE_YOUR_MODEL -> unpackCreateResponse(responseBody)
+                YourModelRequestTag.CHANGE_THING_ONE_YOUR_MODEL -> unpackChangeThingOneResponse(responseBody)
+                YourModelRequestTag.CHANGE_THING_TWO_YOUR_MODEL -> unpackChangeThingTwoResponse(responseBody)
+                YourModelRequestTag.REMOVE_YOUR_MODEL -> unpackRemoveResponse(responseBody)
+            }
+        }
+    }
+
+    override val globalHeaders: List<Pair<String, String>> = listOf(
+        "Content-Type" to "application/json",
+    )
+
+    fun unpackCreateResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
+    }
+
+    fun unpackChangeThingOneResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
+    }
+
+    fun unpackChangeThingTwoResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
+    }
+
+    fun unpackRemoveResponse(responseBody: JsonObject): SyncUpResult<YourModel> {
+        val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+        return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
+    }
+}

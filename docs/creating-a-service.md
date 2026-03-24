@@ -10,7 +10,28 @@ This guide walks through creating a complete offline-first syncable service usin
 
 The library handles online/offline dual-path execution, local SQLite persistence, pending request queuing, idempotent retries, background sync via WorkManager, and 3-way merge conflict resolution automatically. Your job is just to define the shape of your data and how to talk to your API.
 
+Before writing code, start from the canonical assets in this repo:
+
+- `templates/` contains copy-ready starter files for the model, request tag, server config, service, and integration test.
+- `examples/todo/` shows the same workflow as a minimal working integration.
+- `CODEX.md` summarizes the golden-path file order for agents.
+
 **Important: use the user's API, not the examples.** The existing services in this codebase (PaymentService, OrderService) talk to a specific Square sandbox API. When creating a new service, use the endpoints, auth headers, field names, and base URLs that the consuming app specifies — do not copy Square-specific values like `connect.squareupsandbox.com`, the Square Bearer token, `location_id: "LD0K6CFYP3DP7"`, or Square-Version headers into a new service. The existing services are useful as structural references for *how* to use data-buoy's APIs, but the concrete URLs, credentials, and field mappings must come from the consumer's requirements.
+
+---
+
+## Golden Path Checklist
+
+Use this order when creating a new service:
+
+1. Create the model.
+2. Define the request tag enum.
+3. Implement the server config.
+4. Build the service.
+5. Register the service.
+6. Add an integration test.
+
+If you can, copy from `templates/` first and only then customize the API-specific details.
 
 ---
 

@@ -1,0 +1,19 @@
+package com.example.yourapp.data.models
+
+import com.les.databuoy.SyncableObject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import java.util.UUID
+
+@Serializable
+data class YourModel(
+    override val serverId: String? = null,
+    override val clientId: String = UUID.randomUUID().toString(),
+    override val version: Int = 0,
+    @Transient override val syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
+    val name: String,
+) : SyncableObject<YourModel> {
+
+    override fun withSyncStatus(syncStatus: SyncableObject.SyncStatus): YourModel =
+        copy(syncStatus = syncStatus)
+}

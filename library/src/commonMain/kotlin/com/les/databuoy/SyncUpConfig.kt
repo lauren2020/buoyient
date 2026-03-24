@@ -2,13 +2,17 @@ package com.les.databuoy
 
 import kotlinx.serialization.json.JsonObject
 
-sealed class SyncUpResult<out O> {
-    class Success<O>(val data: O) : SyncUpResult<O>()
-    sealed class Failed : SyncUpResult<Nothing>() {
+sealed class SyncUpResult<O : SyncableObject<O>> {
+    abstract val data: O?
+
+    class Success<O : SyncableObject<O>>(override val data: O) : SyncUpResult<O>()
+    sealed class Failed<O : SyncableObject<O>> : SyncUpResult<O>() {
+        override val data: O? = null
+
         /** The pending request should be retried on the next sync cycle. */
-        data object Retry : Failed()
+        class Retry<O : SyncableObject<O>> : Failed<O>()
         /** The pending request should be removed from the queue (e.g., permanently rejected by the server). */
-        data object RemovePendingRequest : Failed()
+        class RemovePendingRequest<O : SyncableObject<O>> : Failed<O>()
     }
 }
 

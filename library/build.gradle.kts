@@ -55,6 +55,8 @@ kotlin {
         }
 
         val jvmTest by getting {
+            kotlin.srcDir("../examples/todo/src/main/kotlin")
+            kotlin.srcDir("../examples/todo/src/test/kotlin")
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.ktor.client.mock)

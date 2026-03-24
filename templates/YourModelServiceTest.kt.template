@@ -1,0 +1,62 @@
+package com.example.yourapp.data.services
+
+import com.example.yourapp.data.models.YourModel
+import com.les.databuoy.SyncCodec
+import com.les.databuoy.SyncableObjectServiceResponse
+import com.les.databuoy.testing.MockResponse
+import com.les.databuoy.testing.TestServiceEnvironment
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+
+class YourModelServiceTest {
+
+    @Test
+    fun `create item online returns server data`() = runBlocking {
+        val env = TestServiceEnvironment()
+        env.mockRouter.onGet("https://api.example.com/v2/items") {
+            MockResponse(200, buildJsonObject { put("items", JsonArray(emptyList())) })
+        }
+        env.mockRouter.onPost("https://api.example.com/v2/items") { request ->
+            MockResponse(
+                statusCode = 201,
+                body = buildJsonObject {
+                    put("item", buildJsonObject {
+                        put("server_id", "srv-1")
+                        put("client_id", request.body["client_id"]!!)
+                        put("version", 1)
+                        put("name", request.body["name"]!!)
+                    })
+                },
+            )
+        }
+
+        val service = YourModelService(
+            serverProcessingConfig = YourModelServerProcessingConfig(),
+            connectivityChecker = env.connectivityChecker,
+            serverManager = env.serverManager,
+            localStoreManager = env.createLocalStoreManager(
+                codec = SyncCodec(YourModel.serializer()),
+                serviceName = "your_model",
+            ),
+            idGenerator = env.idGenerator,
+            logger = env.logger,
+            syncScheduleNotifier = env.syncScheduleNotifier,
+        ).also {
+            it.stopPeriodicSyncDown()
+            env.mockRouter.clearRequestLog()
+        }
+
+        val result = service.createYourModel(YourModel(name = "Test item"))
+
+        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<YourModel>>(result)
+        assertEquals("srv-1", result.updatedData?.serverId)
+        assertEquals(1, env.mockRouter.requestLog.size)
+
+        service.close()
+    }
+}

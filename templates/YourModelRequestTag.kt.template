@@ -1,0 +1,10 @@
+package com.example.yourapp.data.services
+
+import com.les.databuoy.ServiceRequestTag
+
+enum class YourModelRequestTag(override val value: String) : ServiceRequestTag {
+    CREATE_YOUR_MODEL("create_your_model"),
+    CHANGE_THING_ONE_YOUR_MODEL("change_thing_one_your_model"),
+    CHANGE_THING_TWO_YOUR_MODEL("change_thing_two_your_model"),
+    REMOVE_YOUR_MODEL("remove_your_model"),
+}

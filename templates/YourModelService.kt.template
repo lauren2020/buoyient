@@ -1,0 +1,124 @@
+package com.example.yourapp.data.services
+
+import com.example.yourapp.data.models.YourModel
+import com.les.databuoy.ConnectivityChecker
+import com.les.databuoy.CreateRequestBuilder
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.IdGenerator
+import com.les.databuoy.LocalStoreManager
+import com.les.databuoy.ResponseUnpacker
+import com.les.databuoy.ServerManager
+import com.les.databuoy.ServerProcessingConfig
+import com.les.databuoy.SyncCodec
+import com.les.databuoy.SyncLogger
+import com.les.databuoy.SyncScheduleNotifier
+import com.les.databuoy.SyncableObjectService
+import com.les.databuoy.SyncableObjectServiceResponse
+import com.les.databuoy.UpdateRequestBuilder
+import com.les.databuoy.VoidRequestBuilder
+import com.les.databuoy.createPlatformConnectivityChecker
+import com.les.databuoy.createPlatformIdGenerator
+import com.les.databuoy.createPlatformSyncLogger
+import com.les.databuoy.createPlatformSyncScheduleNotifier
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
+
+class YourModelService(
+    serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
+    logger: SyncLogger = createPlatformSyncLogger(),
+    syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+    serverManager: ServerManager = ServerManager(
+        serviceBaseHeaders = serverProcessingConfig.globalHeaders,
+        logger = logger,
+    ),
+) : SyncableObjectService<YourModel, YourModelRequestTag>(
+    serializer = YourModel.serializer(),
+    serverProcessingConfig = serverProcessingConfig,
+    serviceName = SERVICE_NAME,
+    logger = logger,
+    syncScheduleNotifier = syncScheduleNotifier,
+    serverManager = serverManager,
+) {
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    suspend fun createYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = create(
+        data = data,
+        requestTag = YourModelRequestTag.CREATE_YOUR_MODEL,
+        request = CreateRequestBuilder { current, idempotencyKey, _, _ ->
+            HttpRequest(
+                method = HttpRequest.HttpMethod.POST,
+                endpointUrl = BASE_ENDPOINT,
+                requestBody = buildJsonObject {
+                    put("client_id", current.clientId)
+                    put("name", current.name)
+                    put("idempotency_key", idempotencyKey)
+                },
+            )
+        },
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            serverProcessingConfig.unpackCreateResponse(responseBody).data
+        },
+    )
+
+    suspend fun changeThingOneOnYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = update(
+        data = data,
+        requestTag = YourModelRequestTag.CHANGE_THING_ONE_YOUR_MODEL,
+        request = UpdateRequestBuilder { baseData, updated, idempotencyKey, _, _ ->
+            HttpRequest(
+                method = HttpRequest.HttpMethod.PATCH,
+                endpointUrl = "$BASE_ENDPOINT/${updated.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/thing_one",
+                requestBody = buildJsonObject {
+                    put("name", updated.name)
+                    put("version", updated.version)
+                    put("idempotency_key", idempotencyKey)
+                },
+            )
+        },
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            serverProcessingConfig.unpackChangeThingOneResponse(responseBody).data
+        },
+    )
+
+    suspend fun changeThingTwoOnYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = update(
+            data = data,
+            requestTag = YourModelRequestTag.CHANGE_THING_TWO_YOUR_MODEL,
+            request = UpdateRequestBuilder { baseData, updated, idempotencyKey, _, _ ->
+                HttpRequest(
+                    method = HttpRequest.HttpMethod.PATCH,
+                    endpointUrl = "$BASE_ENDPOINT/${updated.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/thing_two",
+                    requestBody = buildJsonObject {
+                        put("name", updated.name)
+                        put("version", updated.version)
+                        put("idempotency_key", idempotencyKey)
+                    },
+                )
+            },
+            unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+                serverProcessingConfig.unpackChangeThingTwoResponse(responseBody).data
+            },
+        )
+
+    suspend fun removeYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = void(
+        data = data,
+        requestTag = YourModelRequestTag.REMOVE_YOUR_MODEL,
+        request = VoidRequestBuilder { current, _ ->
+            HttpRequest(
+                method = HttpRequest.HttpMethod.DELETE,
+                endpointUrl = "$BASE_ENDPOINT/${current.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
+                requestBody = buildJsonObject { },
+            )
+        },
+        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
+            serverProcessingConfig.unpackRemoveResponse(responseBody).data
+        },
+    )
+
+    private companion object {
+        const val SERVICE_NAME = "your_model"
+        const val BASE_ENDPOINT = "https://api.example.com/v2/items"
+    }
+}
