@@ -49,20 +49,29 @@ class SyncWorker(
         val services = provider.createServices(applicationContext)
 
         return try {
+            val database = createSyncDatabase()
             val coordinator = SyncUpCoordinator(
                 participants = services,
-                database = createSyncDatabase(),
+                database = database,
                 logger = createPlatformSyncLogger(),
             )
             val totalSynced = coordinator.syncUpAll()
+            val status = DataBuoyStatus(database)
+            val remainingPendingCount = status.pendingRequestCount.value
+            val hasPendingConflicts = status.hasPendingConflicts.value
 
-            Log.d(TAG, "SyncWorker finished: synced $totalSynced items")
+            Log.d(
+                TAG,
+                "SyncWorker finished: synced $totalSynced items, " +
+                    "remainingPending=$remainingPendingCount, hasConflicts=$hasPendingConflicts"
+            )
 
-            // If all pending items were synced (or there were none),
-            // report success. Otherwise retry with exponential backoff.
-            if (totalSynced >= 0) {
+            // Report success only when the queue is drained, or when the remaining work
+            // is blocked on a manual conflict resolution that retrying cannot fix.
+            if (remainingPendingCount == 0 || hasPendingConflicts) {
                 Result.success()
             } else {
+                Log.w(TAG, "Pending requests remain after sync, scheduling retry")
                 Result.retry()
             }
         } catch (e: Exception) {

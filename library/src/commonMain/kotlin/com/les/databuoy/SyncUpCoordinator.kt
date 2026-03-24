@@ -1,7 +1,6 @@
 package com.les.databuoy
 
 import com.les.databuoy.db.SyncDatabase
-import kotlinx.coroutines.delay
 
 /**
  * A participant in cross-service sync-up coordination.
@@ -65,9 +64,12 @@ class SyncUpCoordinator(
                         syncedCount++
                     }
                 } catch (e: SyncUpRetryLaterException) {
-                    logger.w(TAG, "Sync-up retry requested — pausing for ${RETRY_DELAY_MS / 1000}s before retrying. ($syncedCount synced so far)")
-                    delay(RETRY_DELAY_MS)
-                    return syncedCount + syncUpAll()
+                    logger.w(
+                        TAG,
+                        "Sync-up retry requested — stopping this pass so the caller can retry later. " +
+                            "($syncedCount synced so far)"
+                    )
+                    return syncedCount
                 }
             }
 
@@ -80,6 +82,5 @@ class SyncUpCoordinator(
 
     companion object {
         private const val TAG = "SyncUpCoordinator"
-        private const val RETRY_DELAY_MS = 30_000L
     }
 }
