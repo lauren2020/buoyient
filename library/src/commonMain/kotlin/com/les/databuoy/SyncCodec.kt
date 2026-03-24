@@ -14,7 +14,10 @@ import kotlinx.serialization.json.jsonObject
 class SyncCodec<O : SyncableObject<O>>(
     val serializer: KSerializer<O>,
 ) {
-    val json = Json { ignoreUnknownKeys = true }
+    val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     fun encode(obj: O): JsonObject =
         json.encodeToJsonElement(serializer, obj).jsonObject

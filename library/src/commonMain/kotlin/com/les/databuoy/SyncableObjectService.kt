@@ -631,10 +631,15 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         }
     }
 
-    private fun getFromLocalStore(clientId: String, serverId: String?): GetResponse<O> {
+    private fun getFromLocalStore(
+        clientId: String,
+        serverId: String?,
+    ): GetResponse<O> {
         val entry = localStoreManager.getData(clientId = clientId, serverId = serverId)
         return if (entry != null) {
             GetResponse.RetrievedFromLocalStore(data = entry.data)
+        } else if (!connectivityChecker.isOnline()) {
+            GetResponse.NoInternetConnection()
         } else {
             GetResponse.NotFound()
         }
@@ -791,7 +796,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     ): StateFlow<SyncableObjectServiceRequestState<O>> {
         val flow = MutableStateFlow<SyncableObjectServiceRequestState<O>>(SyncableObjectServiceRequestState.Loading())
         serviceScope.launch {
-            val response = block()
+            val response = try {
+                block()
+            } catch (e: Exception) {
+                SyncLog.e(TAG, "Request flow failed: ${e.message}")
+                SyncableObjectServiceResponse.LocalStoreFailed(e)
+            }
             flow.value = SyncableObjectServiceRequestState.Result(response)
         }
         return flow.asStateFlow()

@@ -23,6 +23,7 @@ abstract class SyncUpConfig<O : SyncableObject<O>> {
         requestTag: String,
     ): Boolean {
         return statusCode != 408 // request timeout
+                && statusCode != 429 // too many requests (rate limited)
                 // Since this is the generic implementation and applicable to many server types,
                 // use a broad definition for "server error" encompassing anything in the 500's
                 // range.

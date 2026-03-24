@@ -339,12 +339,26 @@ class SyncableObjectServiceTest {
     }
 
     @Test
-    fun `get not found - returns NotFound`() = runBlocking {
+    fun `get not found offline - returns NoInternetConnection`() = runBlocking {
         val (service, _) = createServiceAndEnv(online = false)
 
         val result = service.testGet(clientId = "nonexistent", serverId = null)
 
-        assertIs<GetResponse.NotFound<TestItem>>(result)
+        assertIs<GetResponse.NoInternetConnection<TestItem>>(result)
+        service.close()
+    }
+
+    @Test
+    fun `get not found online - returns ReceivedServerResponse`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        env.mockRouter.onGet("https://api.test.com/items/null") { _ ->
+            MockResponse(statusCode = 404, body = JsonObject(emptyMap()))
+        }
+
+        val result = service.testGet(clientId = "nonexistent", serverId = null)
+
+        assertIs<GetResponse.ReceivedServerResponse<TestItem>>(result)
+        assertEquals(404, result.statusCode)
         service.close()
     }
 

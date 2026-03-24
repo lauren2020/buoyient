@@ -19,5 +19,6 @@ class AndroidConnectivityChecker(private val context: Context) : ConnectivityChe
         val capabilities =
             connectivityManager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 }

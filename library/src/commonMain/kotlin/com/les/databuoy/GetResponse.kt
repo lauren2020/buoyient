@@ -12,4 +12,6 @@ sealed class GetResponse<O> {
     class RetrievedFromLocalStore<O>(val data: O) : GetResponse<O>()
 
     class NotFound<O> : GetResponse<O>()
+
+    class NoInternetConnection<O> : GetResponse<O>()
 }
