@@ -22,9 +22,10 @@ class SyncWorker(
 ) : CoroutineWorker(appContext, params) {
 
     companion object {
-        const val TAG = "TEST_THIS_SyncWorker"
+        const val TAG = "SyncWorker"
         const val UNIQUE_WORK_NAME = "offline_sync_work"
 
+        @Volatile
         private var serviceProvider: SyncServiceRegistryProvider? = null
 
         /**
@@ -55,9 +56,9 @@ class SyncWorker(
                 database = database,
             )
             val totalSynced = coordinator.syncUpAll()
-            val status = DataBuoyStatus(database)
-            val remainingPendingCount = status.pendingRequestCount.value
-            val hasPendingConflicts = status.hasPendingConflicts.value
+            DataBuoyStatus.shared.refresh()
+            val remainingPendingCount = DataBuoyStatus.shared.pendingRequestCount.value
+            val hasPendingConflicts = DataBuoyStatus.shared.hasPendingConflicts.value
 
             Log.d(
                 TAG,

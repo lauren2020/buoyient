@@ -140,13 +140,11 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                                         latestPendingRequest.request,
                                         httpRequest,
                                     )
-                                    storeEntry(
-                                        pendingSyncRequest = PendingSyncRequest(
-                                            pendingRequestId = -1,
+                                    replaceEntry(
+                                        latestPendingRequest.copy(
                                             type = PendingSyncRequest.Type.CREATE,
-                                            idempotencyKey = idempotencyKey,
+                                            idempotencyKey = latestPendingRequest.idempotencyKey,
                                             request = squashedCreateRequest,
-                                            serverAttemptMade = false,
                                             data = data,
                                             lastSyncedData = lastSyncedData,
                                             requestTag = requestTag.value,
@@ -271,7 +269,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         database.syncPendingEventsQueries.replaceEntry(
             client_id = pendingSyncRequest.data.clientId,
             data_blob = codec.encodeToString(pendingSyncRequest.data),
-            type = PendingSyncRequest.Type.UPDATE.value,
+            type = pendingSyncRequest.type.value,
             request = pendingSyncRequest.request.toJson().toString(),
             idempotency_key = pendingSyncRequest.idempotencyKey,
             server_attempt_made = if (pendingSyncRequest.serverAttemptMade) 1L else 0L,
