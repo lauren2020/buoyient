@@ -44,8 +44,16 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     // Per-clientId Mutex map for application-level mutual exclusion.
     // Serializes all operations (CRUD, sync-down, sync-up) on the same object
     // while allowing full concurrency across different objects.
+    //
+    // Entries are reference-counted so they are removed when no coroutine is
+    // using or waiting on the lock, preventing unbounded map growth.
     private val lockMapMutex = Mutex()
-    private val clientLocks = mutableMapOf<String, Mutex>()
+    private val clientLocks = mutableMapOf<String, RefCountedMutex>()
+
+    private class RefCountedMutex {
+        val mutex = Mutex()
+        var refCount = 0
+    }
 
     // Guards `syncDownJob` against concurrent start/stop calls from different threads.
     // Without this, a race between startPeriodicSyncDown() and stopPeriodicSyncDown()
@@ -79,10 +87,19 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * background sync-up when they target the same clientId.
      */
     protected suspend fun <R> withClientLock(clientId: String, block: suspend () -> R): R {
-        val mutex = lockMapMutex.withLock {
-            clientLocks.getOrPut(clientId) { Mutex() }
+        val ref = lockMapMutex.withLock {
+            clientLocks.getOrPut(clientId) { RefCountedMutex() }.also { it.refCount++ }
         }
-        return mutex.withLock { block() }
+        try {
+            return ref.mutex.withLock { block() }
+        } finally {
+            lockMapMutex.withLock {
+                ref.refCount--
+                if (ref.refCount == 0) {
+                    clientLocks.remove(clientId)
+                }
+            }
+        }
     }
 
     /**
