@@ -1,18 +1,20 @@
 package com.les.databuoy
 
+import platform.Foundation.NSLog
+
 actual fun createPlatformSyncLogger(): SyncLogger = IosSyncLogger()
 
 class IosSyncLogger : SyncLogger {
     override fun d(tag: String, message: String) {
-        println("D/$tag: $message")
+        NSLog("D/%s: %s", tag, message)
     }
 
     override fun w(tag: String, message: String) {
-        println("W/$tag: $message")
+        NSLog("W/%s: %s", tag, message)
     }
 
     override fun e(tag: String, message: String, throwable: Throwable?) {
-        println("E/$tag: $message")
-        throwable?.let { println(it.stackTraceToString()) }
+        NSLog("E/%s: %s", tag, message)
+        throwable?.let { NSLog("%s", it.stackTraceToString()) }
     }
 }

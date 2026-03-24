@@ -21,7 +21,8 @@ kotlin {
 
     jvm()
 
-    // iOS targets disabled until Xcode is installed. Uncomment to re-enable:
+    // iOS targets — requires full Xcode installation (not just Command Line Tools).
+    // Uncomment when Xcode with iOS SDK is installed:
     // iosX64()
     // iosArm64()
     // iosSimulatorArm64()
@@ -62,7 +63,7 @@ kotlin {
             }
         }
 
-        // iOS source sets disabled until Xcode is installed. Uncomment to re-enable:
+        // iOS source sets — uncomment together with iOS targets above:
         // val iosX64Main by getting
         // val iosArm64Main by getting
         // val iosSimulatorArm64Main by getting
