@@ -134,6 +134,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 database.syncDataQueries.updateLocalData(
                     version = data.version.toLong(),
                     data_blob = codec.encode(data).toString(),
+                    sync_status = SyncableObject.SyncStatus.PENDING_UPDATE,
                     service_name = serviceName,
                     client_id = data.clientId,
                 )
@@ -204,6 +205,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         try {
             val result = transaction {
                 database.syncDataQueries.markVoided(
+                    sync_status = SyncableObject.SyncStatus.PENDING_VOID,
                     service_name = serviceName,
                     client_id = data.clientId,
                 )

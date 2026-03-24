@@ -32,7 +32,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 -- Update a local row's data and version (pending update).
 updateLocalData:
 UPDATE sync_data
-SET version = ?, data_blob = ?
+SET version = ?, data_blob = ?, sync_status = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Update a row from a server update response.
@@ -76,7 +76,8 @@ WHERE service_name = ? AND client_id = ?;
 -- Mark a row as voided (pending void upload).
 markVoided:
 UPDATE sync_data
-SET voided = 1
+SET voided = 1,
+    sync_status = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Update a row from a server void response.

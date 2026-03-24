@@ -215,6 +215,31 @@ class LocalStoreManagerTest {
     }
 
     @Test
+    fun `updateLocalData persists PENDING_UPDATE status in sync data`() {
+        val db = TestDatabaseFactory.createInMemory()
+        val manager = createManager(database = db)
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "Original")
+
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+
+        manager.updateLocalData(
+            data = original.copy(version = 2, name = "Updated"),
+            idempotencyKey = "key-2",
+            lastSyncedData = original,
+            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest(method = HttpRequest.HttpMethod.PUT) },
+            ),
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        val entry = manager.getData(clientId = "c-1", serverId = "s-1")
+        assertNotNull(entry)
+        assertIs<SyncableObject.SyncStatus.PendingUpdate>(entry.syncStatus)
+        assertEquals("Updated", entry.data.name)
+    }
+
+    @Test
     fun `updateLocalData notifies sync scheduler`() {
         val notifier = object : SyncScheduleNotifier {
             var count = 0
@@ -280,6 +305,26 @@ class LocalStoreManagerTest {
 
         assertIs<PendingRequestQueueManager.QueueResult.Stored>(result)
         assertTrue(manager.hasPendingRequests("c-1"))
+    }
+
+    @Test
+    fun `voidData persists PENDING_VOID status in sync data`() {
+        val db = TestDatabaseFactory.createInMemory()
+        val manager = createManager(database = db)
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1)
+
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+
+        manager.voidData(
+            data = item,
+            httpRequest = makeRequest(method = HttpRequest.HttpMethod.DELETE),
+            idempotencyKey = "void-key-1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        val entry = manager.getData(clientId = "c-1", serverId = "s-1")
+        assertNotNull(entry)
+        assertIs<SyncableObject.SyncStatus.PendingVoid>(entry.syncStatus)
     }
 
     @Test
