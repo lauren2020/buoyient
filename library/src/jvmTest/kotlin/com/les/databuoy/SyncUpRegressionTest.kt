@@ -1,7 +1,6 @@
 package com.les.databuoy
 
 import com.les.databuoy.db.SyncDatabase
-import com.les.databuoy.testing.NoOpSyncLogger
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import io.ktor.client.HttpClient
@@ -40,8 +39,6 @@ class SyncUpRegressionTest {
     private enum class TestRequestTag(override val value: String) : ServiceRequestTag {
         DEFAULT("default"),
     }
-
-    private val logger: SyncLogger = NoOpSyncLogger
 
     private val noOpNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier
 
@@ -111,7 +108,7 @@ class SyncUpRegressionTest {
             override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean =
                 driver.syncUpSinglePendingRequest(pendingRequestId)
         }
-        return SyncUpCoordinator(listOf(participant), database, logger).syncUpAll()
+        return SyncUpCoordinator(listOf(participant), database).syncUpAll()
     }
 
     // endregion
@@ -191,7 +188,6 @@ class SyncUpRegressionTest {
         }
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(),
-            logger = logger,
             httpClient = HttpClient(mockEngine),
         )
 
@@ -200,7 +196,6 @@ class SyncUpRegressionTest {
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            logger = logger,
         )
 
         // Simulate offline create: insert into sync_data + queue a pending CREATE.
@@ -216,7 +211,7 @@ class SyncUpRegressionTest {
         }
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, logger, noOpNotifier,
+            testServerConfig(), localStore, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
 
@@ -277,7 +272,6 @@ class SyncUpRegressionTest {
         }
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(),
-            logger = logger,
             httpClient = HttpClient(mockEngine),
         )
 
@@ -286,7 +280,6 @@ class SyncUpRegressionTest {
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            logger = logger,
         )
 
         // Step 1: Offline CREATE item 1.
@@ -326,7 +319,7 @@ class SyncUpRegressionTest {
         }
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, logger, noOpNotifier,
+            testServerConfig(), localStore, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
 
@@ -395,7 +388,6 @@ class SyncUpRegressionTest {
         }
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(),
-            logger = logger,
             httpClient = HttpClient(mockEngine),
         )
 
@@ -404,7 +396,6 @@ class SyncUpRegressionTest {
             serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            logger = logger,
         )
 
         val updateEndpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"
@@ -461,7 +452,7 @@ class SyncUpRegressionTest {
         }
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, connectivityChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, logger, noOpNotifier,
+            testServerConfig(), localStore, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
 

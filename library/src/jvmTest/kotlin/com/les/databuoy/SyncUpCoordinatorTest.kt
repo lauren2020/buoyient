@@ -1,7 +1,6 @@
 package com.les.databuoy
 
 import com.les.databuoy.db.SyncDatabase
-import com.les.databuoy.testing.NoOpSyncLogger
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import io.ktor.client.HttpClient
@@ -33,8 +32,6 @@ class SyncUpCoordinatorTest {
     private enum class TestRequestTag(override val value: String) : ServiceRequestTag {
         DEFAULT("default"),
     }
-
-    private val logger: SyncLogger = NoOpSyncLogger
 
     private val noOpNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier
 
@@ -102,7 +99,6 @@ class SyncUpCoordinatorTest {
             serviceName = serviceName,
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            logger = logger,
         )
 
         // Mock engine that logs which service handled the request.
@@ -117,13 +113,12 @@ class SyncUpCoordinatorTest {
 
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(),
-            logger = logger,
             httpClient = HttpClient(mockEngine),
         )
 
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, offlineChecker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, logger, noOpNotifier,
+            testServerConfig(), localStore, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
 
@@ -205,7 +200,6 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = listOf(alphaParticipant, betaParticipant),
             database = db,
-            logger = logger,
         )
         val synced = coordinator.syncUpAll()
 
@@ -230,7 +224,6 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = emptyList(),
             database = db,
-            logger = logger,
         )
         val synced = coordinator.syncUpAll()
         assertEquals(0, synced)
@@ -251,7 +244,6 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = listOf(participant),
             database = db,
-            logger = logger,
         )
         val synced = coordinator.syncUpAll()
 
@@ -283,7 +275,6 @@ class SyncUpCoordinatorTest {
             serviceName = "ghost",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            logger = logger,
         )
 
         // 1. Queue in ghost (no participant will be registered for this)
@@ -305,7 +296,6 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = listOf(alphaParticipant),
             database = db,
-            logger = logger,
         )
         val synced = coordinator.syncUpAll()
 
@@ -347,7 +337,6 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             participants = listOf(alphaParticipant),
             database = db,
-            logger = logger,
         )
         val synced = coordinator.syncUpAll()
 

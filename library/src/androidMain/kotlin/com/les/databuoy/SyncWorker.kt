@@ -53,7 +53,6 @@ class SyncWorker(
             val coordinator = SyncUpCoordinator(
                 participants = services,
                 database = database,
-                logger = createPlatformSyncLogger(),
             )
             val totalSynced = coordinator.syncUpAll()
             val status = DataBuoyStatus(database)

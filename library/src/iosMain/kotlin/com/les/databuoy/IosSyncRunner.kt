@@ -14,8 +14,6 @@ import platform.Foundation.NSLog
  */
 class IosSyncRunner {
 
-    private val logger = createPlatformSyncLogger()
-
     /**
      * Performs a full sync-up pass across all registered services.
      *
@@ -36,14 +34,13 @@ class IosSyncRunner {
                 val coordinator = SyncUpCoordinator(
                     participants = services.toList(),
                     database = database,
-                    logger = logger,
                 )
                 val totalSynced = coordinator.syncUpAll()
                 val status = DataBuoyStatus(database)
                 val remainingPendingCount = status.pendingRequestCount.value
                 val hasPendingConflicts = status.hasPendingConflicts.value
 
-                logger.d(
+                SyncLog.d(
                     TAG,
                     "Sync finished: synced $totalSynced items, " +
                         "remainingPending=$remainingPendingCount, hasConflicts=$hasPendingConflicts"
@@ -52,7 +49,7 @@ class IosSyncRunner {
                 val success = remainingPendingCount == 0 || hasPendingConflicts
                 completion(success)
             } catch (e: Exception) {
-                logger.e(TAG, "Sync failed", e)
+                SyncLog.e(TAG, "Sync failed", e)
                 completion(false)
             }
         }

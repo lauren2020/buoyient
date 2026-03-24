@@ -2,7 +2,6 @@ package com.les.databuoy.testing
 
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.ServerManager
-import com.les.databuoy.SyncLogger
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -150,10 +149,8 @@ class MockEndpointRouter {
      */
     fun buildServerManager(
         serviceBaseHeaders: List<Pair<String, String>> = emptyList(),
-        logger: SyncLogger = NoOpSyncLogger,
     ): ServerManager = ServerManager(
         serviceBaseHeaders = serviceBaseHeaders,
-        logger = logger,
         httpClient = buildHttpClient(),
     )
 

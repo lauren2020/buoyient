@@ -2,7 +2,6 @@ package com.les.databuoy
 
 import com.les.databuoy.testing.MockConnectionException
 import com.les.databuoy.testing.MockResponse
-import com.les.databuoy.testing.NoOpSyncLogger
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestServiceEnvironment
 import kotlinx.coroutines.runBlocking
@@ -66,14 +65,12 @@ class SyncableObjectServiceTest {
         serverManager: ServerManager,
         localStoreManager: LocalStoreManager<TestItem, TestRequestTag>,
         idGenerator: IdGenerator,
-        logger: SyncLogger = NoOpSyncLogger,
         syncScheduleNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier,
     ) : SyncableObjectService<TestItem, TestRequestTag>(
         serializer = TestItem.serializer(),
         serverProcessingConfig = serverProcessingConfig,
         serviceName = "test-items",
         connectivityChecker = connectivityChecker,
-        logger = logger,
         syncScheduleNotifier = syncScheduleNotifier,
         serverManager = serverManager,
         localStoreManager = localStoreManager,
@@ -164,7 +161,6 @@ class SyncableObjectServiceTest {
             serverManager = env.serverManager,
             localStoreManager = localStoreManager,
             idGenerator = env.idGenerator,
-            logger = env.logger,
             syncScheduleNotifier = env.syncScheduleNotifier,
         )
         return service to env

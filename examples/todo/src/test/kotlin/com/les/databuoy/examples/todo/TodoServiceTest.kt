@@ -96,7 +96,6 @@ class TodoServiceTest {
             serverManager = env.serverManager,
             localStoreManager = localStoreManager,
             idGenerator = env.idGenerator,
-            logger = env.logger,
             syncScheduleNotifier = env.syncScheduleNotifier,
         ).also {
             it.stopPeriodicSyncDown()

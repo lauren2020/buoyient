@@ -8,7 +8,6 @@ import com.les.databuoy.ResponseUnpacker
 import com.les.databuoy.ServerManager
 import com.les.databuoy.ServerProcessingConfig
 import com.les.databuoy.SyncCodec
-import com.les.databuoy.SyncLogger
 import com.les.databuoy.SyncScheduleNotifier
 import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.SyncableObjectServiceResponse
@@ -17,7 +16,6 @@ import com.les.databuoy.VoidRequestBuilder
 import com.les.databuoy.CreateRequestBuilder
 import com.les.databuoy.createPlatformConnectivityChecker
 import com.les.databuoy.createPlatformIdGenerator
-import com.les.databuoy.createPlatformSyncLogger
 import com.les.databuoy.createPlatformSyncScheduleNotifier
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -27,16 +25,13 @@ import kotlinx.serialization.json.put
 
 class TodoService(
     serverProcessingConfig: ServerProcessingConfig<Todo> = TodoServerProcessingConfig(),
-    logger: SyncLogger = createPlatformSyncLogger(),
     serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.globalHeaders,
-        logger = logger,
     ),
 ) : SyncableObjectService<Todo, TodoRequestTag>(
     serializer = Todo.serializer(),
     serverProcessingConfig = serverProcessingConfig,
     serviceName = SERVICE_NAME,
-    logger = logger,
     serverManager = serverManager,
 ) {
 

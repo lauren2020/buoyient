@@ -14,7 +14,6 @@ actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestSchedule
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
                 val serverManager = ServerManager(
                     serviceBaseHeaders = globalHeaders,
-                    logger = createPlatformSyncLogger(),
                 )
                 try {
                     serverManager.sendRequest(httpRequest)

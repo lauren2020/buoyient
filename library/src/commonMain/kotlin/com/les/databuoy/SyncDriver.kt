@@ -27,7 +27,6 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val codec: SyncCodec<O>,
     private val serverProcessingConfig: ServerProcessingConfig<O>,
     private val localStoreManager: LocalStoreManager<O, T>,
-    private val logger: SyncLogger,
     private val syncScheduleNotifier: SyncScheduleNotifier,
 ) {
 
@@ -147,7 +146,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
 
             when (response) {
                 is ServerManager.ServerManagerResponse.ConnectionError -> {
-                    logger.w(TAG, "Sync down failed due to connection error. Retrying later.")
+                    SyncLog.w(TAG, "Sync down failed due to connection error. Retrying later.")
                     return
                 }
 
@@ -176,11 +175,11 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                                 is UpsertResult.ConflictFailure -> conflictCount++
                             }
                         } catch (e: Exception) {
-                            logger.e(TAG, "Failed to upsert item (${serverObj.serverId}): ", e)
+                            SyncLog.e(TAG, "Failed to upsert item (${serverObj.serverId}): ", e)
                             skippedCount++
                         }
                     }
-                    logger.d(TAG, "Sync down complete: ${items.size} fetched, $upsertedCount upserted, $mergedCount merged, $conflictCount conflicts, $skippedCount skipped")
+                    SyncLog.d(TAG, "Sync down complete: ${items.size} fetched, $upsertedCount upserted, $mergedCount merged, $conflictCount conflicts, $skippedCount skipped")
                 }
             }
         } finally {
@@ -222,7 +221,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         } catch (e: Exception) {
             val type = entry?.type ?: "unknown"
             val clientId = entry?.data?.clientId ?: "unknown"
-            logger.e(TAG, "Error syncing $type for $clientId.", e)
+            SyncLog.e(TAG, "Error syncing $type for $clientId.", e)
             false
         } finally {
             localStoreManager.refreshStatus()
@@ -269,7 +268,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 // skip this entry.
                 // This can happen if the preceding CREATE hasn't synced yet (e.g., it failed).
                 // The entry stays in the queue and will be retried on the next sync cycle.
-                logger.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
+                SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
                 return
             } else {
                 request = request.resolveEndpoint(serverId) ?: request
@@ -284,7 +283,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 // skip this entry.
                 // This can happen if the preceding CREATE hasn't synced yet (e.g., it failed).
                 // The entry stays in the queue and will be retried on the next sync cycle.
-                logger.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
+                SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
                 return
             } else {
                 request = request.resolveBodyServerId(serverId) ?: request
@@ -297,7 +296,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
         when (val response = serverManager.sendRequest(request)) {
             is ServerManager.ServerManagerResponse.ConnectionError -> {
-                logger.w(TAG, "Sync up failed due to connection error. Trying again later.")
+                SyncLog.w(TAG, "Sync up failed due to connection error. Trying again later.")
                 throw SyncUpRetryLaterException(
                     "Connection error for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
                 )
@@ -317,7 +316,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     if (!row.serverAttemptMade) {
                         localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                     }
-                    logger.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
+                    SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
                 } else {
                     // 3. Parse the response and mark as synced
                     val result = serverProcessingConfig.syncUpConfig.fromResponseBody(
@@ -337,13 +336,13 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                                 syncedPendingRequest = row,
                                 mergeHandler = rebaseHandler,
                             )
-                            logger.d(TAG, "Synced ${row.type} for ${row.data.clientId} (server_id=${result.data.serverId})")
+                            SyncLog.d(TAG, "Synced ${row.type} for ${row.data.clientId} (server_id=${result.data.serverId})")
                         }
                         is SyncUpResult.Failed.Retry -> {
                             if (!row.serverAttemptMade) {
                                 localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                             }
-                            logger.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId} — it will be retried later.")
+                            SyncLog.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId} — it will be retried later.")
                             throw SyncUpRetryLaterException(
                                 "Retry requested for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
                             )
@@ -354,7 +353,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                                 lastSyncedTimestamp = lastSyncedTimestamp,
                                 syncedPendingRequest = row,
                             )
-                            logger.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId}, pending request is being removed.")
+                            SyncLog.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId}, pending request is being removed.")
                         }
                     }
                 }
@@ -377,7 +376,7 @@ abstract class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     try {
                         syncDownFromServer()
                     } catch (e: Exception) {
-                        logger.e(TAG, "Periodic sync-down failed: ", e)
+                        SyncLog.e(TAG, "Periodic sync-down failed: ", e)
                     }
                     delay(cadenceMs)
                 }

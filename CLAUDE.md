@@ -27,6 +27,7 @@ These guides contain complete templates, required field tables, and common patte
 | `SyncUpResult<O>` | Sealed return type for `fromResponseBody()`: `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest` |
 | `SyncCodec<O>` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
 | `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
+| `SyncLog` | Process-wide logger singleton — set `SyncLog.logger` to swap the backing `SyncLogger` |
 | `DataBuoy` | Convenience API for service registration |
 | `TestServiceEnvironment` | All-in-one test harness (`:testing` module) |
 | `MockEndpointRouter` | Mock HTTP server for tests and mock mode (`:testing` module) |

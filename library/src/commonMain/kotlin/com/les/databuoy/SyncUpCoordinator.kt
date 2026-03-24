@@ -21,7 +21,6 @@ interface SyncUpParticipant {
 class SyncUpCoordinator(
     private val participants: List<SyncUpParticipant>,
     private val database: SyncDatabase,
-    private val logger: SyncLogger,
     private val status: DataBuoyStatus = DataBuoyStatus(database),
 ) {
     /**
@@ -32,13 +31,13 @@ class SyncUpCoordinator(
      */
     suspend fun syncUpAll(): Int {
         try {
-            logger.d(TAG, "Starting global sync up across ${participants.size} services...")
+            SyncLog.d(TAG, "Starting global sync up across ${participants.size} services...")
 
             // Block all uploads globally if any item (in any service) has unresolved
             // conflicts. Cross-item request ordering may create dependencies, so it is
             // unsafe to upload anything until every conflict is resolved.
             if (database.syncPendingEventsQueries.hasAnyConflicts().executeAsOne()) {
-                logger.w(TAG, "Skipping sync-up: unresolved conflicts exist. Resolve all conflicts before uploads can resume.")
+                SyncLog.w(TAG, "Skipping sync-up: unresolved conflicts exist. Resolve all conflicts before uploads can resume.")
                 return 0
             }
 
@@ -47,7 +46,7 @@ class SyncUpCoordinator(
                 .getAllPendingRequestsGlobally()
                 .executeAsList()
 
-            logger.d(TAG, "Found ${globalQueue.size} pending sync rows globally.")
+            SyncLog.d(TAG, "Found ${globalQueue.size} pending sync rows globally.")
 
             // Build serviceName → participant map for dispatch.
             val participantMap = participants.associateBy { it.serviceName }
@@ -56,7 +55,7 @@ class SyncUpCoordinator(
             for (entry in globalQueue) {
                 val participant = participantMap[entry.service_name]
                 if (participant == null) {
-                    logger.w(TAG, "No service registered for '${entry.service_name}', skipping pending_request_id=${entry.pending_request_id}")
+                    SyncLog.w(TAG, "No service registered for '${entry.service_name}', skipping pending_request_id=${entry.pending_request_id}")
                     continue
                 }
                 try {
@@ -64,7 +63,7 @@ class SyncUpCoordinator(
                         syncedCount++
                     }
                 } catch (e: SyncUpRetryLaterException) {
-                    logger.w(
+                    SyncLog.w(
                         TAG,
                         "Sync-up retry requested — stopping this pass so the caller can retry later. " +
                             "($syncedCount synced so far)"
@@ -73,7 +72,7 @@ class SyncUpCoordinator(
                 }
             }
 
-            logger.d(TAG, "Global sync complete: $syncedCount/${globalQueue.size} succeeded")
+            SyncLog.d(TAG, "Global sync complete: $syncedCount/${globalQueue.size} succeeded")
             return syncedCount
         } finally {
             status.refresh()

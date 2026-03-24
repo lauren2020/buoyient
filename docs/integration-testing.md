@@ -28,7 +28,7 @@ The `:testing` module transitively provides everything from `:library`, plus `kt
 |----------|------|---------|---------|
 | `mockRouter` | `MockEndpointRouter` | empty router | Register mock endpoint handlers |
 | `connectivityChecker` | `TestConnectivityChecker` | `online = true` | Control online/offline state |
-| `logger` | `SyncLogger` | `NoOpSyncLogger` (silent) | Swap to `PrintSyncLogger` for debugging |
+| `logger` | `SyncLogger` | `NoOpSyncLogger` (silent) | Installed into `SyncLog.logger`. Swap to `PrintSyncLogger` for debugging |
 | `syncScheduleNotifier` | `SyncScheduleNotifier` | `NoOpSyncScheduleNotifier` | No-op (no WorkManager in tests) |
 | `idGenerator` | `IdGenerator` | `IncrementingIdGenerator` | Deterministic IDs: `test-id-1`, `test-id-2`, ... |
 | `database` | `SyncDatabase` | in-memory SQLite | Isolated per `TestServiceEnvironment` instance |
@@ -141,7 +141,6 @@ class YourModelServiceTest {
                 serviceName = "your_model",
             ),
             idGenerator = env.idGenerator,
-            logger = env.logger,
             syncScheduleNotifier = env.syncScheduleNotifier,
         )
 
@@ -373,7 +372,7 @@ Call `(env.idGenerator as IncrementingIdGenerator).reset()` between test phases 
 
 ## Debugging Failing Tests
 
-Swap `NoOpSyncLogger` for `PrintSyncLogger` to see all internal sync engine logs:
+Pass `PrintSyncLogger` to `TestServiceEnvironment` to see all internal sync engine logs (it sets `SyncLog.logger` automatically):
 
 ```kotlin
 val env = TestServiceEnvironment(logger = PrintSyncLogger)
@@ -398,7 +397,6 @@ private fun buildService(env: TestServiceEnvironment): YourModelService {
             serviceName = "your_model",
         ),
         idGenerator = env.idGenerator,
-        logger = env.logger,
         syncScheduleNotifier = env.syncScheduleNotifier,
     )
 }

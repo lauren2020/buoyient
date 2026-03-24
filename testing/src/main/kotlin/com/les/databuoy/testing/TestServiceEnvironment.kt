@@ -6,6 +6,7 @@ import com.les.databuoy.LocalStoreManager
 import com.les.databuoy.ServerManager
 import com.les.databuoy.ServiceRequestTag
 import com.les.databuoy.SyncCodec
+import com.les.databuoy.SyncLog
 import com.les.databuoy.SyncLogger
 import com.les.databuoy.SyncScheduleNotifier
 import com.les.databuoy.SyncableObject
@@ -29,14 +30,15 @@ import com.les.databuoy.db.SyncDatabase
  *     serverManager = env.serverManager,
  *     localStoreManager = env.createLocalStoreManager(codec, "my-items"),
  *     idGenerator = env.idGenerator,
- *     logger = env.logger,
  *     syncScheduleNotifier = env.syncScheduleNotifier,
  * )
  * ```
  *
  * @property mockRouter the mock endpoint router — register handlers here before exercising the service.
  * @property connectivityChecker mutable connectivity state. Defaults to online.
- * @property logger the logger used by all components. Defaults to silent.
+ * @property logger the logger to install into [SyncLog] for the duration of this environment.
+ *   Defaults to silent ([NoOpSyncLogger]). Pass [PrintSyncLogger] to see sync engine
+ *   activity during debugging.
  * @property syncScheduleNotifier no-op notifier by default.
  * @property idGenerator deterministic ID generator for predictable assertions.
  * @property database in-memory SQLite database. Each [TestServiceEnvironment] instance
@@ -55,13 +57,17 @@ class TestServiceEnvironment(
     val database: SyncDatabase = TestDatabaseFactory.createInMemory(),
     val mockServerStore: MockServerStore = MockServerStore(),
 ) {
+    init {
+        SyncLog.logger = logger
+    }
+
     /**
      * A [ServerManager] backed by [mockRouter]. Lazily created so that handlers
      * registered after construction are still picked up (handlers are evaluated
      * at request time, not at build time).
      */
     val serverManager: ServerManager by lazy {
-        mockRouter.buildServerManager(logger = logger)
+        mockRouter.buildServerManager()
     }
 
     /**
@@ -78,7 +84,6 @@ class TestServiceEnvironment(
         serviceName = serviceName,
         syncScheduleNotifier = syncScheduleNotifier,
         codec = codec,
-        logger = logger,
         status = DataBuoyStatus(database),
     )
 }

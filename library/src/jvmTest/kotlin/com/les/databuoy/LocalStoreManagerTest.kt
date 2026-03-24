@@ -1,6 +1,5 @@
 package com.les.databuoy
 
-import com.les.databuoy.testing.NoOpSyncLogger
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.db.SyncDatabase
 import kotlinx.serialization.json.JsonObject
@@ -22,8 +21,6 @@ class LocalStoreManagerTest {
         DEFAULT("default"),
         ALTERNATE("alternate"),
     }
-
-    private val logger: SyncLogger = NoOpSyncLogger
 
     private val codec = SyncCodec(TestItem.serializer())
 
@@ -54,7 +51,6 @@ class LocalStoreManagerTest {
             serviceName = serviceName,
             syncScheduleNotifier = syncScheduleNotifier,
             codec = codec,
-            logger = logger,
         )
     }
 

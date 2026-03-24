@@ -26,7 +26,6 @@ actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestSchedule
 class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
 
     private val scope = CoroutineScope(Dispatchers.Default)
-    private val logger = createPlatformSyncLogger()
 
     override fun scheduleRequest(
         httpRequest: HttpRequest,
@@ -35,19 +34,18 @@ class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
         scope.launch {
             val serverManager = ServerManager(
                 serviceBaseHeaders = globalHeaders,
-                logger = logger,
             )
             try {
                 when (val response = serverManager.sendRequest(httpRequest)) {
                     is ServerManager.ServerManagerResponse.ServerResponse -> {
-                        logger.d(TAG, "Background request completed (${response.statusCode})")
+                        SyncLog.d(TAG, "Background request completed (${response.statusCode})")
                     }
                     is ServerManager.ServerManagerResponse.ConnectionError -> {
-                        logger.w(TAG, "Background request failed due to connection error — will retry on next sync-up")
+                        SyncLog.w(TAG, "Background request failed due to connection error — will retry on next sync-up")
                     }
                 }
             } catch (e: Exception) {
-                logger.e(TAG, "Background request failed unexpectedly", e)
+                SyncLog.e(TAG, "Background request failed unexpectedly", e)
             } finally {
                 serverManager.close()
             }

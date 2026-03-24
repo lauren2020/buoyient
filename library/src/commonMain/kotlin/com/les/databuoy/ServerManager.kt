@@ -15,7 +15,6 @@ import kotlinx.serialization.json.jsonObject
 
 class ServerManager(
     private val serviceBaseHeaders: List<Pair<String, String>>,
-    private val logger: SyncLogger,
     private val httpClient: HttpClient = HttpClient {
         install(HttpTimeout) {
             connectTimeoutMillis = 15_000
@@ -52,14 +51,14 @@ class ServerManager(
             } catch (e: Exception) {
                 JsonObject(emptyMap())
             }
-            logger.d(TAG, "[${httpRequest.method.value}] response received (${httpResponse.status.value}): $responseBody")
+            SyncLog.d(TAG, "[${httpRequest.method.value}] response received (${httpResponse.status.value}): $responseBody")
             ServerManagerResponse.ServerResponse(
                 statusCode = httpResponse.status.value,
                 responseBody = responseBody,
                 responseEpochTimestamp = httpResponse.responseTime.timestamp,
             )
         } catch (e: Exception) {
-            logger.w(TAG, "[${httpRequest.method.value}] not sent due to connection error: $e")
+            SyncLog.w(TAG, "[${httpRequest.method.value}] not sent due to connection error: $e")
             ServerManagerResponse.ConnectionError
         }
     }

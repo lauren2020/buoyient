@@ -12,24 +12,21 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
     override val serviceName: String,
     private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    private val logger: SyncLogger = createPlatformSyncLogger(),
     private val syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     private val codec: SyncCodec<O> = SyncCodec(serializer),
     private val serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.globalHeaders,
-        logger = logger,
     ),
     private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
         codec = codec,
         serviceName = serviceName,
-        logger = logger,
         syncScheduleNotifier = syncScheduleNotifier,
     ),
     private val idGenerator: IdGenerator = createPlatformIdGenerator(),
     private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler(),
 ) : Service<O>,
     SyncUpParticipant,
-    SyncDriver<O, T>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, logger, syncScheduleNotifier)
+    SyncDriver<O, T>(serverManager, connectivityChecker, codec, serverProcessingConfig, localStoreManager, syncScheduleNotifier)
 {
 
     init {
@@ -224,7 +221,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             getEffectiveBaseDataForUpdate(data)
         } catch (e: Exception) {
             // The data was not in a valid state to be updated, return an error.
-            logger.e(TAG, "Failed to execute update due to being in an invalid state: $e")
+            SyncLog.e(TAG, "Failed to execute update due to being in an invalid state: $e")
             return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
         }
 
@@ -242,7 +239,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 if (processingConstraints is ProcessingConstraints.OnlineOnly) {
                     // Caller explicitly requires online-only processing, but we can't safely
                     // send online while prior requests are still queued.
-                    logger.e(TAG, "Cannot process OnlineOnly update for (client_id: ${data.clientId}) " +
+                    SyncLog.e(TAG, "Cannot process OnlineOnly update for (client_id: ${data.clientId}) " +
                             "while pending async requests exist.")
                     return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
                 }
@@ -383,7 +380,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         requestTag = requestTag,
                     )
                 }
-                logger.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
+                SyncLog.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {
@@ -460,7 +457,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 val updatedData = localStoreManager.voidLocalOnlyData(data = data)
                 SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = updatedData)
             } catch (e: Exception) {
-                logger.e(TAG, "Failed to void local-only object (client_id: ${data.clientId}): ", e)
+                SyncLog.e(TAG, "Failed to void local-only object (client_id: ${data.clientId}): ", e)
                 SyncableObjectServiceResponse.LocalStoreFailed(exception = e)
             }
         }
@@ -670,7 +667,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             // may be stuck in CONFLICT without a corresponding conflicting request. Self-heal
             // by rebasing any pending requests to verify no real conflicts and restoring the
             // correct sync_status.
-            logger.w(TAG, "No conflicting pending request found for (client_id: $clientId), repairing orphaned conflict status.")
+            SyncLog.w(TAG, "No conflicting pending request found for (client_id: $clientId), repairing orphaned conflict status.")
             val repairResult = localStoreManager.repairOrphanedConflictStatus(
                 clientId = clientId,
                 serverId = resolution.resolvedData.serverId,
@@ -692,15 +689,15 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         when (result) {
             is ResolveConflictResult.Resolved -> {
                 syncScheduleNotifier.scheduleSyncIfNeeded()
-                logger.d(TAG, "Conflict resolved for (client_id: $clientId).")
+                SyncLog.d(TAG, "Conflict resolved for (client_id: $clientId).")
             }
 
             is ResolveConflictResult.RebaseConflict -> {
-                logger.w(TAG, "Conflict resolved for (client_id: $clientId) but a subsequent pending request also has a conflict.")
+                SyncLog.w(TAG, "Conflict resolved for (client_id: $clientId) but a subsequent pending request also has a conflict.")
             }
 
             is ResolveConflictResult.Failed -> {
-                logger.e(TAG, "Failed to resolve conflict for (client_id: $clientId): ${result.exception}")
+                SyncLog.e(TAG, "Failed to resolve conflict for (client_id: $clientId): ${result.exception}")
             }
         }
 
@@ -812,17 +809,17 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     ): SyncableObjectServiceResponse<O> = when (queueResult) {
         is PendingRequestQueueManager.QueueResult.Stored -> {
             syncScheduleNotifier.scheduleSyncIfNeeded()
-            logger.d(TAG, "Queue for (client_id: ${data.clientId}) succeeded.")
+            SyncLog.d(TAG, "Queue for (client_id: ${data.clientId}) succeeded.")
             SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = data)
         }
         is PendingRequestQueueManager.QueueResult.StoreFailed -> {
-            logger.e(TAG, "Queue for (client_id: ${data.clientId}) failed.")
+            SyncLog.e(TAG, "Queue for (client_id: ${data.clientId}) failed.")
             SyncableObjectServiceResponse.LocalStoreFailed(
                 exception = IllegalStateException("Failed to persist data locally for client_id: ${data.clientId}")
             )
         }
         is PendingRequestQueueManager.QueueResult.InvalidQueueRequest -> {
-            logger.e(TAG, "Queue for (client_id: ${data.clientId}) was invalid: ${queueResult.errorMessage}")
+            SyncLog.e(TAG, "Queue for (client_id: ${data.clientId}) was invalid: ${queueResult.errorMessage}")
             SyncableObjectServiceResponse.LocalStoreFailed(
                 exception = IllegalStateException(queueResult.errorMessage)
             )

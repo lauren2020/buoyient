@@ -1,7 +1,6 @@
 package com.les.databuoy
 
 import com.les.databuoy.db.SyncDatabase
-import com.les.databuoy.testing.NoOpSyncLogger
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import kotlinx.coroutines.runBlocking
@@ -32,8 +31,6 @@ class ConflictResolutionTest {
     private enum class TestRequestTag(override val value: String) : ServiceRequestTag {
         DEFAULT("default"),
     }
-
-    private val logger: SyncLogger = NoOpSyncLogger
 
     private val noOpNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier
 
@@ -66,7 +63,6 @@ class ConflictResolutionTest {
         serviceName = serviceName,
         syncScheduleNotifier = noOpNotifier,
         codec = codec,
-        logger = logger,
     )
 
     private val mergeHandler = SyncableObjectRebaseHandler(codec)

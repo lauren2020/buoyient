@@ -1,6 +1,5 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.SyncLogger
 import com.les.databuoy.SyncUpCoordinator
 import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.db.SyncDatabase
@@ -14,18 +13,14 @@ import com.les.databuoy.db.SyncDatabase
  *
  * @param database the [SyncDatabase] backing the service (typically
  *   [TestServiceEnvironment.database]).
- * @param logger the [SyncLogger] for the coordinator. Defaults to [NoOpSyncLogger].
- *   Pass a `PrintSyncLogger` to see sync-up activity during debugging.
  * @return the number of pending requests that were successfully synced.
  */
 suspend fun SyncableObjectService<*, *>.syncUpLocalChanges(
     database: SyncDatabase,
-    logger: SyncLogger = NoOpSyncLogger,
 ): Int {
     val coordinator = SyncUpCoordinator(
         participants = listOf(this),
         database = database,
-        logger = logger,
     )
     return coordinator.syncUpAll()
 }

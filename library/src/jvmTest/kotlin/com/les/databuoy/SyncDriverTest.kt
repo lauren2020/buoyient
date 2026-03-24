@@ -1,7 +1,6 @@
 package com.les.databuoy
 
 import com.les.databuoy.db.SyncDatabase
-import com.les.databuoy.testing.NoOpSyncLogger
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import io.ktor.client.HttpClient
@@ -31,7 +30,6 @@ class SyncDriverTest {
         DEFAULT("default"),
     }
 
-    private val logger: SyncLogger = NoOpSyncLogger
     private val noOpNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier
 
     private fun testItem(
@@ -94,10 +92,10 @@ class SyncDriverTest {
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = database, serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
-            codec = SyncCodec(TestItem.serializer()), logger = logger,
+            codec = SyncCodec(TestItem.serializer()),
         )
         val serverManager = ServerManager(
-            serviceBaseHeaders = emptyList(), logger = logger,
+            serviceBaseHeaders = emptyList(),
             httpClient = HttpClient(mockEngine),
         )
         val checker = connectivityChecker ?: object : ConnectivityChecker {
@@ -105,7 +103,7 @@ class SyncDriverTest {
         }
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, checker, SyncCodec(TestItem.serializer()),
-            testServerConfig(), localStore, logger, noOpNotifier,
+            testServerConfig(), localStore, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
         return driver to localStore
@@ -235,7 +233,7 @@ class SyncDriverTest {
                 override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int) =
                     driver.syncUpSinglePendingRequest(pendingRequestId)
             }),
-            database = db, logger = logger,
+            database = db,
         )
         coordinator.syncUpAll()
 
@@ -309,7 +307,7 @@ class SyncDriverTest {
                 override suspend fun syncUpSinglePendingRequest(pendingRequestId: Int) =
                     driver.syncUpSinglePendingRequest(pendingRequestId)
             }),
-            database = db, logger = logger,
+            database = db,
         )
         val synced = coordinator.syncUpAll()
 
@@ -332,14 +330,14 @@ class SyncDriverTest {
         }
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = db, serviceName = "test", syncScheduleNotifier = noOpNotifier,
-            codec = SyncCodec(TestItem.serializer()), logger = logger,
+            codec = SyncCodec(TestItem.serializer()),
         )
         val serverManager = ServerManager(
-            serviceBaseHeaders = emptyList(), logger = logger, httpClient = HttpClient(mockEngine),
+            serviceBaseHeaders = emptyList(), httpClient = HttpClient(mockEngine),
         )
         val driver = object : SyncDriver<TestItem, TestRequestTag>(
             serverManager, object : ConnectivityChecker { override fun isOnline() = false },
-            SyncCodec(TestItem.serializer()), testServerConfig(), localStore, logger, noOpNotifier,
+            SyncCodec(TestItem.serializer()), testServerConfig(), localStore, noOpNotifier,
         ) {}
         driver.stopPeriodicSyncDown()
 

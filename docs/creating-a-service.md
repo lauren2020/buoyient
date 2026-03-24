@@ -209,16 +209,13 @@ There are also non-suspend flow-based variants — `createWithFlow()`, `updateWi
 class YourModelService(
     serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
     connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    logger: SyncLogger = createPlatformSyncLogger(),
     syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.globalHeaders,
-        logger = logger,
     ),
     localStoreManager: LocalStoreManager<YourModel, YourModelRequestTag> = LocalStoreManager(
         codec = SyncCodec(YourModel.serializer()),
         serviceName = "your_model",
-        logger = logger,
         syncScheduleNotifier = syncScheduleNotifier,
     ),
     idGenerator: IdGenerator = createPlatformIdGenerator(),
@@ -227,7 +224,6 @@ class YourModelService(
     serverProcessingConfig = serverProcessingConfig,
     serviceName = "your_model",
     connectivityChecker = connectivityChecker,
-    logger = logger,
     syncScheduleNotifier = syncScheduleNotifier,
     serverManager = serverManager,
     localStoreManager = localStoreManager,

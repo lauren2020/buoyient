@@ -47,7 +47,6 @@ class VoidByIdempotencyKeyWorker(
 
         val serverManager = ServerManager(
             serviceBaseHeaders = globalHeaders,
-            logger = createPlatformSyncLogger(),
         )
 
         return try {

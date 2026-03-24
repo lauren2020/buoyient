@@ -1,6 +1,5 @@
 package com.les.databuoy
 
-import com.les.databuoy.testing.NoOpSyncLogger
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -28,7 +27,6 @@ class ServerManagerTest {
         val client = HttpClient(engine)
         return ServerManager(
             serviceBaseHeaders = serviceBaseHeaders,
-            logger = NoOpSyncLogger,
             httpClient = client,
         )
     }

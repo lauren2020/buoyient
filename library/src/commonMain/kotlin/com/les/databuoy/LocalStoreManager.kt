@@ -8,7 +8,6 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val serviceName: String,
     private val syncScheduleNotifier: SyncScheduleNotifier,
     private val codec: SyncCodec<O>,
-    private val logger: SyncLogger,
     private val status: DataBuoyStatus = DataBuoyStatus(database),
 ) {
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
@@ -28,7 +27,6 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         serviceName = serviceName,
         strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
         codec = codec,
-        logger = logger,
         status = status,
     )
 
@@ -113,14 +111,14 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             }
 
             val updatedData = codec.decode(jsonData, SyncableObject.SyncStatus.PendingCreate)
-            logger.d(TAG, "Created data locally and queued upload (client_id: ${data.clientId}).")
+            SyncLog.d(TAG, "Created data locally and queued upload (client_id: ${data.clientId}).")
             syncScheduleNotifier.scheduleSyncIfNeeded()
             return Pair(updatedData, result)
         } catch (e: QueueWriteException) {
-            logger.e(TAG, "Failed to queue async create data for client_id: ${data.clientId}")
+            SyncLog.e(TAG, "Failed to queue async create data for client_id: ${data.clientId}")
             return Pair(data, e.queueResult)
         } catch (e: Exception) {
-            logger.e(TAG, "Failed to insert async create data: ", e)
+            SyncLog.e(TAG, "Failed to insert async create data: ", e)
             return Pair(data, PendingRequestQueueManager.QueueResult.StoreFailed)
         }
     }
@@ -146,7 +144,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 last_synced_server_data = serverDataJson,
             )
         } catch (e: Exception) {
-            logger.e(TAG, "Failed to insert data from [create] response (server_id: ${serverData.serverId}): ", e)
+            SyncLog.e(TAG, "Failed to insert data from [create] response (server_id: ${serverData.serverId}): ", e)
         }
     }
 
@@ -179,13 +177,13 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 ).let(::requireQueued)
             }
             syncScheduleNotifier.scheduleSyncIfNeeded()
-            logger.d(TAG, "Updated data locally and queued upload (client_id: ${data.clientId})")
+            SyncLog.d(TAG, "Updated data locally and queued upload (client_id: ${data.clientId})")
             return Pair(data, result)
         } catch (e: QueueWriteException) {
-            logger.e(TAG, "Failed to queue async update data for client_id: ${data.clientId}")
+            SyncLog.e(TAG, "Failed to queue async update data for client_id: ${data.clientId}")
             return Pair(data, e.queueResult)
         } catch (e: Exception) {
-            logger.d(TAG, "Failed to update data in db: $e")
+            SyncLog.d(TAG, "Failed to update data in db: $e")
             return Pair(data, PendingRequestQueueManager.QueueResult.StoreFailed)
         }
     }
@@ -207,7 +205,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 client_id = serverData.clientId,
             )
         } catch (e: Exception) {
-            logger.e(TAG, "Failed to upsert data from [update] response (server_id: ${serverData.serverId}): $e")
+            SyncLog.e(TAG, "Failed to upsert data from [update] response (server_id: ${serverData.serverId}): $e")
         }
     }
 
@@ -256,10 +254,10 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             syncScheduleNotifier.scheduleSyncIfNeeded()
             return Pair(data, result)
         } catch (e: QueueWriteException) {
-            logger.e(TAG, "Failed to queue void request for client_id: ${data.clientId}")
+            SyncLog.e(TAG, "Failed to queue void request for client_id: ${data.clientId}")
             return Pair(data, e.queueResult)
         } catch (e: Exception) {
-            logger.e(TAG, "Failed to store void request: ", e)
+            SyncLog.e(TAG, "Failed to store void request: ", e)
             return Pair(data, PendingRequestQueueManager.QueueResult.StoreFailed)
         }
     }
@@ -277,7 +275,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 client_id = serverData.clientId,
             )
         } catch (e: Exception) {
-            logger.e(TAG, "Failed to upsert data from [void] response (server_id: ${serverData.serverId}): $e")
+            SyncLog.e(TAG, "Failed to upsert data from [void] response (server_id: ${serverData.serverId}): $e")
         }
     }
 
@@ -294,7 +292,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             pendingRequestQueueManager.clearAllPendingRequests(data.clientId)
         }
 
-        logger.d(TAG, "Voided local-only object (client_id: ${data.clientId})")
+        SyncLog.d(TAG, "Voided local-only object (client_id: ${data.clientId})")
         return data.withSyncStatus(SyncableObject.SyncStatus.LocalOnly)
     }
 
@@ -550,7 +548,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             ) {
                 is PendingRequestQueueManager.ClearRequestResult.FailedToRemoveEntry -> {
                     val errorMessage = "Failed to remove pending sync entry, try again after it is idempotently retried."
-                    logger.e(TAG, errorMessage)
+                    SyncLog.e(TAG, errorMessage)
                     throw IllegalStateException(errorMessage)
                 }
 
@@ -588,7 +586,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             ?: return ResolveConflictResult.Failed(IllegalStateException("No sync_data entry found for client_id: $clientId"))
 
         if (entry.syncStatus !is SyncableObject.SyncStatus.Conflict) {
-            logger.w(TAG, "sync_data entry for client_id: $clientId is not in CONFLICT status (current: ${entry.syncStatus})")
+            SyncLog.w(TAG, "sync_data entry for client_id: $clientId is not in CONFLICT status (current: ${entry.syncStatus})")
         }
 
         val conflictingRequest = pendingRequestQueueManager.getConflictingPendingRequest(clientId)
@@ -656,7 +654,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 }
             }
         } catch (e: Exception) {
-            logger.e(TAG, "Failed to resolve conflict for client_id: $clientId", e)
+            SyncLog.e(TAG, "Failed to resolve conflict for client_id: $clientId", e)
             ResolveConflictResult.Failed(e)
         }
     }
@@ -766,7 +764,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 }
             }
         } catch (e: Exception) {
-            logger.e(TAG, "Failed to repair orphaned conflict for client_id: $clientId", e)
+            SyncLog.e(TAG, "Failed to repair orphaned conflict for client_id: $clientId", e)
             ResolveConflictResult.Failed(e)
         }
     }

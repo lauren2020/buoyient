@@ -1,7 +1,6 @@
 package com.les.databuoy
 
 import com.les.databuoy.db.SyncDatabase
-import com.les.databuoy.testing.NoOpSyncLogger
 import com.les.databuoy.testing.TestDatabaseFactory
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -22,8 +21,6 @@ class PendingRequestQueueManagerTest {
         DEFAULT("default"),
         ALTERNATE("alternate"),
     }
-
-    private val logger: SyncLogger = NoOpSyncLogger
 
     private val codec = SyncCodec(TestItem.serializer())
 
@@ -78,7 +75,6 @@ class PendingRequestQueueManagerTest {
         serviceName = serviceName,
         strategy = strategy,
         codec = codec,
-        logger = logger,
         status = status,
     )
 

@@ -9,7 +9,6 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     internal val serviceName: String,
     internal val strategy: PendingRequestQueueStrategy,
     internal val codec: SyncCodec<O>,
-    internal val logger: SyncLogger,
     private val status: DataBuoyStatus = DataBuoyStatus(database),
 ) {
     sealed class PendingRequestQueueStrategy {
@@ -418,7 +417,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     nextBase = rebaseMergeResult.mergedData
                 }
                 is SyncableObjectRebaseHandler.RebaseResult.Conflict -> {
-                    logger.w(TAG, "PendingSyncRequest (pending_request_id: ${it.pendingRequestId}) encountered a conflict on rebase, aborting rebase of subsequent pending requests until resolved.")
+                    SyncLog.w(TAG, "PendingSyncRequest (pending_request_id: ${it.pendingRequestId}) encountered a conflict on rebase, aborting rebase of subsequent pending requests until resolved.")
                     // Exit the loop early and abort attempting any further rebases until the
                     // current conflict is resolved.
                     return RebasePendingRequestsResult.AbortedRebaseToConflicts(

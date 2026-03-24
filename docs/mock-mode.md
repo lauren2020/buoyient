@@ -155,7 +155,7 @@ package com.example.yourapp.di
 
 import com.les.databuoy.ConnectivityChecker
 import com.les.databuoy.ServerManager
-import com.les.databuoy.SyncLogger
+import com.les.databuoy.SyncLog
 import com.les.databuoy.testing.MockEndpointRouter
 import com.les.databuoy.testing.PrintSyncLogger
 import com.les.databuoy.testing.TestConnectivityChecker
@@ -180,6 +180,10 @@ object MockModeModule {
     @Provides
     @Singleton
     fun provideMockFixtures(flag: MockModeFlag): MockServerFixtures? {
+        if (flag.enabled) {
+            // Enable verbose logging so mock traffic is visible in Logcat
+            SyncLog.logger = PrintSyncLogger
+        }
         return if (flag.enabled) MockServerFixtures() else null
     }
 
@@ -188,17 +192,15 @@ object MockModeModule {
     fun provideServerManagerForItems(
         flag: MockModeFlag,
         fixtures: MockServerFixtures?,
-        logger: SyncLogger,
     ): ItemServiceServerManager {
         return if (flag.enabled && fixtures != null) {
             ItemServiceServerManager(
-                fixtures.router.buildServerManager(logger = logger)
+                fixtures.router.buildServerManager()
             )
         } else {
             ItemServiceServerManager(
                 ServerManager(
                     serviceBaseHeaders = RealApiConfig.headers,
-                    logger = logger,
                 )
             )
         }
@@ -213,12 +215,6 @@ object MockModeModule {
         } else {
             createPlatformConnectivityChecker()
         }
-    }
-
-    @Provides
-    @Singleton
-    fun provideLogger(flag: MockModeFlag): SyncLogger {
-        return if (flag.enabled) PrintSyncLogger else createPlatformSyncLogger()
     }
 }
 
@@ -236,12 +232,10 @@ Then inject into your service:
 fun provideItemService(
     sm: ItemServiceServerManager,
     connectivity: ConnectivityChecker,
-    logger: SyncLogger,
 ): SyncableObjectService<*, *> = YourModelService(
     serverProcessingConfig = YourModelServerProcessingConfig(),
     serverManager = sm.serverManager,
     connectivityChecker = connectivity,
-    logger = logger,
 )
 ```
 
@@ -257,14 +251,13 @@ object ServiceFactory {
     fun createItemService(): YourModelService {
         val config = YourModelServerProcessingConfig()
         return if (mockModeEnabled) {
+            SyncLog.logger = PrintSyncLogger  // verbose logging for mock mode
             YourModelService(
                 serverProcessingConfig = config,
                 serverManager = mockFixtures.router.buildServerManager(
                     serviceBaseHeaders = config.globalHeaders,
-                    logger = PrintSyncLogger,
                 ),
                 connectivityChecker = TestConnectivityChecker(online = true),
-                logger = PrintSyncLogger,
             )
         } else {
             YourModelService(serverProcessingConfig = config)
@@ -472,7 +465,7 @@ Text("Server records: ${items.count()}")
 - **`TestConnectivityChecker` should be set to `online = true`** in mock mode so requests actually flow through the mock server. Setting it to `false` queues requests for background sync, which is fine for testing offline behavior but means you won't see immediate mock responses.
 - **The `SyncScheduleNotifier` should remain the real platform implementation** in mock mode (not the no-op). This way, background sync (WorkManager) still fires and processes the pending queue through the mock server, giving a realistic experience.
 - **Mock handlers are evaluated at request time**, not registration time. You can update handlers dynamically during a session.
-- **`PrintSyncLogger` is recommended** in mock mode so developers can see sync engine activity in Logcat, making it easier to understand what's happening.
+- **`SyncLog.logger = PrintSyncLogger` is recommended** in mock mode so developers can see sync engine activity in Logcat. Set this once at startup before creating any services.
 - **`MockEndpointRouter` is thread-safe.** The request log uses `CopyOnWriteArrayList` and the route list is only written during setup.
 
 ---
