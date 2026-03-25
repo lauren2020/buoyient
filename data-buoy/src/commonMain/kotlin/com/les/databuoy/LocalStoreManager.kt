@@ -1,6 +1,11 @@
 package com.les.databuoy
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import com.les.databuoy.db.SyncDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlin.jvm.Throws
 
 class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
@@ -561,6 +566,42 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 lastSyncedTimestamp = lastSyncedTimestamp,
                 syncStatus = latestSyncStatus,
             )
+        }
+    }
+
+    /**
+     * Returns a [Flow] that emits the current list of all [LocalStoreEntry] items for this
+     * service whenever the underlying database table changes. Backed by SQLDelight's
+     * query-observation mechanism.
+     */
+    fun getAllDataAsFlow(limit: Int): Flow<List<LocalStoreEntry<O>>> {
+        return database.syncDataQueries.getAllData(
+            service_name = serviceName,
+            limit = limit.toLong(),
+        ).asFlow().mapToList(Dispatchers.IO).map { rows ->
+            rows.map { row ->
+                val statusValue = row.sync_status
+                val lastSyncedTimestamp = row.last_synced_timestamp
+                val latestSyncStatus = SyncableObject.SyncStatus.buildFromDbContext(
+                    status = statusValue,
+                    lastSyncedTimestamp = lastSyncedTimestamp,
+                    conflictInfo = if (statusValue == SyncableObject.SyncStatus.CONFLICT) {
+                        pendingRequestQueueManager.getConflicts(clientId = row.client_id).toFieldConflictInfo()
+                    } else {
+                        emptyList()
+                    },
+                )
+                val data = codec.decode(storageCodec.decodeFromStorage(row.data_blob), latestSyncStatus)
+                val latestServerData = row.last_synced_server_data?.let {
+                    codec.decode(storageCodec.decodeFromStorage(it), SyncableObject.SyncStatus.Synced(lastSyncedTimestamp!!))
+                }
+                LocalStoreEntry(
+                    data = data,
+                    latestServerData = latestServerData,
+                    lastSyncedTimestamp = lastSyncedTimestamp,
+                    syncStatus = latestSyncStatus,
+                )
+            }
         }
     }
 

@@ -1,6 +1,9 @@
 package com.les.databuoy
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 
 /**
  * Builds the HTTP request for a create operation.
@@ -68,6 +71,46 @@ fun interface VoidRequestBuilder<O : SyncableObject<O>> {
  */
 fun interface ResponseUnpacker<O : SyncableObject<O>> {
     fun unpack(responseBody: JsonObject, statusCode: Int, syncStatus: SyncableObject.SyncStatus): O?
+
+    companion object {
+        private val json = Json { ignoreUnknownKeys = true }
+
+        /**
+         * Creates a [ResponseUnpacker] that extracts data from a single JSON key.
+         * Handles the common REST pattern where responses look like `{ "item": { ... } }`.
+         *
+         * @param key the top-level JSON key containing the object (e.g., "order", "item").
+         * @param serializer the [KSerializer] for deserializing the object.
+         */
+        fun <O : SyncableObject<O>> fromKey(
+            key: String,
+            serializer: KSerializer<O>,
+        ): ResponseUnpacker<O> = ResponseUnpacker { responseBody, _, _ ->
+            val element = responseBody[key]?.jsonObject ?: return@ResponseUnpacker null
+            json.decodeFromJsonElement(serializer, element)
+        }
+
+        /**
+         * Creates a [ResponseUnpacker] that selects the JSON key based on the response structure.
+         * Useful when different operations return data under different keys, but you want a
+         * single unpacker that handles all of them.
+         *
+         * Tries each key in order and returns the first successful parse.
+         *
+         * @param keys the top-level JSON keys to try, in order (e.g., "order", "payment").
+         * @param serializer the [KSerializer] for deserializing the object.
+         */
+        fun <O : SyncableObject<O>> fromKeys(
+            keys: List<String>,
+            serializer: KSerializer<O>,
+        ): ResponseUnpacker<O> = ResponseUnpacker { responseBody, _, _ ->
+            for (key in keys) {
+                val element = responseBody[key]?.jsonObject ?: continue
+                return@ResponseUnpacker json.decodeFromJsonElement(serializer, element)
+            }
+            null
+        }
+    }
 }
 
 /**

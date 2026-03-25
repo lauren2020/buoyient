@@ -3,7 +3,6 @@ package com.les.databuoy.examples.todo
 import com.les.databuoy.ConnectivityChecker
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.LocalStoreManager
-import com.les.databuoy.ResponseUnpacker
 import com.les.databuoy.ServerManager
 import com.les.databuoy.ServerProcessingConfig
 import com.les.databuoy.SyncCodec
@@ -14,14 +13,11 @@ import com.les.databuoy.VoidRequestBuilder
 import com.les.databuoy.CreateRequestBuilder
 import com.les.databuoy.createPlatformConnectivityChecker
 import com.les.databuoy.createPlatformSyncScheduleNotifier
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
 class TodoService(
-    serverProcessingConfig: ServerProcessingConfig<Todo> = TodoServerProcessingConfig(),
+    serverProcessingConfig: ServerProcessingConfig<Todo> = createTodoServerProcessingConfig(),
     connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
@@ -40,8 +36,6 @@ class TodoService(
     localStoreManager = localStoreManager,
 ) {
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     suspend fun createTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = create(
         data = todo,
         requestTag = TodoRequestTag.CREATE_TODO,
@@ -57,10 +51,7 @@ class TodoService(
                 },
             )
         },
-        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            val item = responseBody["item"]?.jsonObject ?: return@ResponseUnpacker null
-            json.decodeFromJsonElement(Todo.serializer(), item)
-        },
+        unpackSyncData = todoResponseUnpacker,
     )
 
     suspend fun editTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = update(
@@ -78,10 +69,7 @@ class TodoService(
                 },
             )
         },
-        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            val item = responseBody["item"]?.jsonObject ?: return@ResponseUnpacker null
-            json.decodeFromJsonElement(Todo.serializer(), item)
-        },
+        unpackSyncData = todoResponseUnpacker,
     )
 
     suspend fun completeTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = update(
@@ -99,10 +87,7 @@ class TodoService(
                 },
             )
         },
-        unpackSyncData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            val item = responseBody["item"]?.jsonObject ?: return@ResponseUnpacker null
-            json.decodeFromJsonElement(Todo.serializer(), item)
-        },
+        unpackSyncData = todoResponseUnpacker,
     )
 
     suspend fun removeTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = void(
@@ -115,10 +100,7 @@ class TodoService(
                 requestBody = buildJsonObject { },
             )
         },
-        unpackData = ResponseUnpacker { responseBody, statusCode, syncStatus ->
-            val item = responseBody["item"]?.jsonObject ?: return@ResponseUnpacker null
-            json.decodeFromJsonElement(Todo.serializer(), item)
-        },
+        unpackData = todoResponseUnpacker,
     )
 
     private companion object {

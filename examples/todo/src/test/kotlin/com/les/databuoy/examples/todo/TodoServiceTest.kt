@@ -91,7 +91,7 @@ class TodoServiceTest {
             serviceName = "todo_example",
         )
         return TodoService(
-            serverProcessingConfig = TodoServerProcessingConfig(),
+            serverProcessingConfig = createTodoServerProcessingConfig(),
             connectivityChecker = env.connectivityChecker,
             serverManager = env.serverManager,
             localStoreManager = localStoreManager,

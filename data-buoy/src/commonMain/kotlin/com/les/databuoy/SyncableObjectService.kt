@@ -1,8 +1,10 @@
 package com.les.databuoy
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 
@@ -73,9 +75,10 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     suspend fun syncDownFromServer() = syncDriver.syncDownFromServer()
 
     /**
-     * Creates a syncable object. If the device is online, the object is sent
+     * Creates a new syncable object. If the device is online, the object is sent
      * to the remote API via [serverProcessingConfig]. If offline, the object
-     * is stored locally for later sync.
+     * is stored locally for later sync. This should be used to facilitate and request that
+     * instantiates a new object that does not exist yet.
      *
      * This function is protected because it is intended that the implementing service define its
      * own public facing api options for the app to interface with and this is only used by the
@@ -234,12 +237,9 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     }
 
     /**
-     * Given an updated object [O], sync updates to the server if online
-     * or store the updates locally for future sync if offline.
-     *
-     * The sparse diff (only the changed fields) is computed automatically by comparing [data]
-     * against the base stored in the DB ([last_synced_server_data] for synced rows, or the
-     * [data] column for pending-create rows).
+     * Given a modified object [O], sync changes to the server if online
+     * or store the changes locally for future sync if offline. This should be used to facilitate
+     * any request that makes a change to an existing object.
      *
      * This function is protected because it is intended that the implementing service define its
      * own public facing api options for the app to interface with and this is only used by the
@@ -763,6 +763,16 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      */
     fun getAllFromLocalStore(limit: Int = 100): List<O> =
         localStoreManager.getAllData(limit = limit).map { it.data }
+
+    /**
+     * Returns a [Flow] that emits the current list of all [O] items from the local store
+     * whenever the underlying data changes (after sync-down, create, update, void, etc.).
+     *
+     * Ideal for Compose or other reactive UIs that need to stay in sync with local state
+     * without manual refresh calls.
+     */
+    fun getAllFromLocalStoreAsFlow(limit: Int = 100): Flow<List<O>> =
+        localStoreManager.getAllDataAsFlow(limit = limit).map { entries -> entries.map { it.data } }
 
     /**
      * Fires a background HTTP request to void a previous server request by its idempotency key.

@@ -46,4 +46,35 @@ abstract class SyncUpConfig<O : SyncableObject<O>> {
      *         [SyncUpResult.Failed.RemovePendingRequest] to remove it from the queue (e.g., permanently rejected).
      */
     abstract fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<O>
+
+    companion object {
+        /**
+         * Creates a [SyncUpConfig] that delegates response parsing to a [ResponseUnpacker].
+         * The unpacker's result is wrapped in [SyncUpResult.Success] if non-null, or
+         * [SyncUpResult.Failed.RemovePendingRequest] if null (indicating the response
+         * couldn't be parsed — the request is dropped rather than retried indefinitely).
+         *
+         * This is useful when your synchronous [ResponseUnpacker] and async sync-up
+         * parsing logic are identical, allowing you to define the parsing once.
+         */
+        fun <O : SyncableObject<O>> fromUnpacker(
+            unpacker: ResponseUnpacker<O>,
+        ): SyncUpConfig<O> = object : SyncUpConfig<O>() {
+            override fun fromResponseBody(
+                requestTag: String,
+                responseBody: JsonObject,
+            ): SyncUpResult<O> {
+                val data = unpacker.unpack(
+                    responseBody,
+                    statusCode = 200,
+                    syncStatus = SyncableObject.SyncStatus.LocalOnly,
+                )
+                return if (data != null) {
+                    SyncUpResult.Success(data)
+                } else {
+                    SyncUpResult.Failed.RemovePendingRequest()
+                }
+            }
+        }
+    }
 }

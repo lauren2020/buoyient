@@ -188,6 +188,30 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
 }
 ```
 
+### Builder API (recommended)
+
+For most services, the builder API is the simplest way to create a config. It combines fetch, sync-up, and headers in one fluent call:
+
+```kotlin
+val unpacker = ResponseUnpacker.fromKey<YourModel>("item", YourModel.serializer())
+
+val config = ServerProcessingConfig.builder<YourModel>()
+    .fetchWithGet(
+        endpoint = "https://api.example.com/v2/items",
+        syncCadenceSeconds = 300,
+    ) { response ->
+        val items = response["items"]?.jsonArray ?: return@fetchWithGet emptyList()
+        items.map { json.decodeFromJsonElement(YourModel.serializer(), it.jsonObject) }
+    }
+    .syncUpFromUnpacker(unpacker)  // reuses the same ResponseUnpacker
+    .serviceHeaders("Content-Type" to "application/json")
+    .build()
+```
+
+The `ResponseUnpacker.fromKey("item", serializer)` factory handles the common pattern where your API wraps responses in `{ "item": { ... } }`. You can reuse this same unpacker for both the config's sync-up and the service's synchronous operations (see Step 4).
+
+If different request types need different parsing, use `syncUp { requestTag, responseBody -> ... }` instead of `syncUpFromUnpacker()`.
+
 ### Key rules
 
 - `fromResponseBody()` receives the raw server response body and a `requestTag` string (from your `ServiceRequestTag` enum). Return `SyncUpResult.Success(data)` on success, `SyncUpResult.Failed.Retry` to re-queue the request, or `SyncUpResult.Failed.RemovePendingRequest` to drop it from the queue. Use the tag to handle different response shapes per request type if needed.
@@ -431,9 +455,40 @@ suspend fun getItem(clientId: String, serverId: String?): GetResponse<YourModel>
 - `NoInternetConnection()` — not in local store and device is offline
 - `NotFound()` — not in local store but device is online
 
+### ResponseUnpacker convenience factories
+
+Most REST APIs return data under a single key like `{ "item": { ... } }`. Instead of writing the same unpacker lambda for every operation, use the built-in factories:
+
+```kotlin
+// Single key — handles { "item": { ... } }
+val unpacker = ResponseUnpacker.fromKey<YourModel>("item", YourModel.serializer())
+
+// Multiple keys — tries each in order, useful when different operations
+// return data under different keys
+val unpacker = ResponseUnpacker.fromKeys<YourModel>(
+    listOf("item", "order"),
+    YourModel.serializer(),
+)
+```
+
+These can be passed directly to `create()`, `update()`, `void()`, and `get()` as the `unpackSyncData`/`unpackData` parameter, and to `ServerProcessingConfig.Builder.syncUpFromUnpacker()` for sync-up.
+
 ### Fetching all local data
 
 The base class provides `getAllFromLocalStore(limit: Int = 100)` to read all locally stored items. No need to override this.
+
+### Reactive local data with Flow
+
+For Compose or other reactive UIs, use `getAllFromLocalStoreAsFlow(limit: Int = 100)` instead. It returns a `Flow<List<O>>` that automatically emits whenever the underlying SQLite data changes (after sync-down, create, update, void, etc.):
+
+```kotlin
+// In a ViewModel:
+val items: StateFlow<List<YourModel>> = yourModelService
+    .getAllFromLocalStoreAsFlow()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+```
+
+This eliminates the need for manual refresh calls after every operation.
 
 ### Processing constraints
 
