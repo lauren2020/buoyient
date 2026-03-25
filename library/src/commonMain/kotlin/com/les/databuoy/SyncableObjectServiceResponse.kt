@@ -26,7 +26,7 @@ sealed class SyncableObjectServiceResponse<O> {
 
     class InvalidRequest<O> : SyncableObjectServiceResponse<O>()
 
-    class RequestTimedOut<O> : SyncableObjectServiceResponse<O>()
+    class RequestTimedOut<O>(val idempotencyKey: String) : SyncableObjectServiceResponse<O>()
 
-    class ServerError<O>(val statusCode: Int, val responseBody: JsonObject?) : SyncableObjectServiceResponse<O>()
+    class ServerError<O>(val statusCode: Int, val responseBody: JsonObject?, val idempotencyKey: String) : SyncableObjectServiceResponse<O>()
 }

@@ -156,7 +156,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
 
             is ServerManager.ServerManagerResponse.RequestTimedOut ->
                 return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
-                    SyncableObjectServiceResponse.RequestTimedOut()
+                    SyncableObjectServiceResponse.RequestTimedOut(idempotencyKey)
                 } else {
                     // Timeout means the request was attempted and may or may not have reached the
                     // server. Queue for async retry with serverAttemptMade=true so that idempotent
@@ -174,6 +174,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 return SyncableObjectServiceResponse.ServerError(
                     statusCode = response.statusCode,
                     responseBody = response.responseBody,
+                    idempotencyKey = idempotencyKey,
                 )
 
             is ServerManager.ServerManagerResponse.Failed ->
@@ -401,7 +402,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
 
             is ServerManager.ServerManagerResponse.RequestTimedOut ->
                 return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
-                    SyncableObjectServiceResponse.RequestTimedOut()
+                    SyncableObjectServiceResponse.RequestTimedOut(idempotencyKey)
                 } else {
                     // Timeout means the request was attempted and may or may not have reached the
                     // server. Use StoreAfterServerAttempt to prevent squashing with other pending
@@ -427,6 +428,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 return SyncableObjectServiceResponse.ServerError(
                     statusCode = response.statusCode,
                     responseBody = response.responseBody,
+                    idempotencyKey = idempotencyKey,
                 )
 
             is ServerManager.ServerManagerResponse.Failed ->
@@ -578,7 +580,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
 
             is ServerManager.ServerManagerResponse.RequestTimedOut ->
                 return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
-                    SyncableObjectServiceResponse.RequestTimedOut()
+                    SyncableObjectServiceResponse.RequestTimedOut(idempotencyKey)
                 } else {
                     // Timeout means the request was attempted and may or may not have reached the
                     // server. Mark serverAttemptMade=true to prevent squashing with other pending
@@ -596,6 +598,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 return SyncableObjectServiceResponse.ServerError(
                     statusCode = response.statusCode,
                     responseBody = response.responseBody,
+                    idempotencyKey = idempotencyKey,
                 )
 
             is ServerManager.ServerManagerResponse.Failed ->
