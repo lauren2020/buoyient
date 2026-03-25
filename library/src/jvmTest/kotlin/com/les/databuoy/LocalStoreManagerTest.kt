@@ -532,6 +532,95 @@ class LocalStoreManagerTest {
 
     // endregion
 
+    // region getEffectiveBaseDataForUpdate
+
+    @Test
+    fun `getEffectiveBaseDataForUpdate returns latestServerData for synced entry`() {
+        val db = TestDatabaseFactory.createInMemory()
+        val manager = createManager(database = db)
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "ServerV1")
+
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+
+        val base = manager.getEffectiveBaseDataForUpdate(item)
+        assertEquals("ServerV1", base.name)
+        assertEquals(1, base.version)
+    }
+
+    @Test
+    fun `getEffectiveBaseDataForUpdate returns latest pending request data for PendingCreate`() {
+        val db = TestDatabaseFactory.createInMemory()
+        val manager = createManager(database = db)
+        val item = testItem(clientId = "c-1", name = "Created")
+
+        manager.insertLocalData(
+            data = item, httpRequest = makeRequest(),
+            idempotencyKey = "key-1", requestTag = TestRequestTag.DEFAULT,
+        )
+
+        val base = manager.getEffectiveBaseDataForUpdate(item)
+        assertEquals("Created", base.name)
+    }
+
+    @Test
+    fun `getEffectiveBaseDataForUpdate returns latest pending request data for PendingUpdate`() {
+        val db = TestDatabaseFactory.createInMemory()
+        val manager = createManager(database = db)
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "Original")
+
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+
+        val updated = original.copy(version = 2, name = "Updated")
+        manager.updateLocalData(
+            data = updated, idempotencyKey = "key-2", lastSyncedData = original,
+            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
+                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest(method = HttpRequest.HttpMethod.PUT) },
+            ),
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        val base = manager.getEffectiveBaseDataForUpdate(updated)
+        assertEquals("Updated", base.name)
+    }
+
+    @Test
+    fun `getEffectiveBaseDataForUpdate throws for PendingVoid entry`() {
+        val db = TestDatabaseFactory.createInMemory()
+        val manager = createManager(database = db)
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1)
+
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.voidData(
+            data = item, httpRequest = makeRequest(method = HttpRequest.HttpMethod.DELETE),
+            idempotencyKey = "void-key-1", requestTag = TestRequestTag.DEFAULT,
+        )
+
+        val exception = try {
+            manager.getEffectiveBaseDataForUpdate(item)
+            null
+        } catch (e: Exception) { e }
+
+        assertNotNull(exception)
+        assertTrue(exception.message!!.contains("voided"))
+    }
+
+    @Test
+    fun `getEffectiveBaseDataForUpdate throws for nonexistent entry`() {
+        val manager = createManager()
+        val item = testItem(clientId = "nonexistent", serverId = null)
+
+        val exception = try {
+            manager.getEffectiveBaseDataForUpdate(item)
+            null
+        } catch (e: Exception) { e }
+
+        assertNotNull(exception)
+        assertTrue(exception.message!!.contains("Failed to find"))
+    }
+
+    // endregion
+
     // region service isolation
 
     @Test

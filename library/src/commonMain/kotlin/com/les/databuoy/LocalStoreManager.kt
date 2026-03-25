@@ -72,6 +72,41 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         pendingRequestQueueManager.hasPendingRequests(clientId)
 
     /**
+     * Returns the effective base data to diff against when computing a sparse update.
+     *
+     * - **Synced** → the last server-acknowledged snapshot (`last_synced_server_data`).
+     * - **PendingCreate / PendingUpdate** → the data from the most recent queued request
+     *   (so subsequent offline edits diff against what will be sent, not the original server data).
+     * - **LocalOnly / PendingVoid / Conflict / not found** → throws, because an update is
+     *   not valid in those states.
+     */
+    fun getEffectiveBaseDataForUpdate(data: O): O {
+        val localStoreEntry = getData(
+            clientId = data.clientId,
+            serverId = data.serverId,
+        )
+        return when (localStoreEntry?.syncStatus) {
+            is SyncableObject.SyncStatus.LocalOnly ->
+                throw Exception("You can't create with an update request.")
+
+            // If the status is pending create or update, there must be a queued request.
+            is SyncableObject.SyncStatus.PendingCreate,
+            is SyncableObject.SyncStatus.PendingUpdate ->
+                pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.data
+
+            is SyncableObject.SyncStatus.PendingVoid ->
+                throw Exception("Updates are not permitted to voided items")
+
+            is SyncableObject.SyncStatus.Synced -> localStoreEntry.latestServerData!!
+
+            is SyncableObject.SyncStatus.Conflict ->
+                throw Exception("Resolve conflicts first. Updates are not permitted in conflict.")
+
+            null -> throw Exception("Failed to find db entry to update.")
+        }
+    }
+
+    /**
      * Ensures a background sync is scheduled. Call this on service startup so
      * WorkManager picks up any work left from a prior session.
      *

@@ -264,7 +264,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     ): SyncableObjectServiceResponse<O> = syncDriver.withClientLock(data.clientId) {
         val idempotencyKey = IdGenerator.generateId()
         val effectiveLastSyncedData = try {
-            getEffectiveBaseDataForUpdate(data)
+            localStoreManager.getEffectiveBaseDataForUpdate(data)
         } catch (e: Exception) {
             // The data was not in a valid state to be updated, return an error.
             SyncLog.e(TAG, "Failed to execute update due to being in an invalid state: $e")
@@ -321,33 +321,6 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 ),
                 requestTag = requestTag,
             )
-        }
-    }
-
-    private fun getEffectiveBaseDataForUpdate(data: O): O {
-        // Query the base data from the DB to compute the sparse diff.
-        val localStoreEntry = localStoreManager.getData(
-            clientId = data.clientId,
-            serverId = data.serverId,
-        )
-        return when (localStoreEntry?.syncStatus) {
-            is SyncableObject.SyncStatus.LocalOnly ->
-                throw Exception("You can't create with an update request.")
-
-            // If the status is pending create or update, there must be a queued request.
-            is SyncableObject.SyncStatus.PendingCreate,
-            is SyncableObject.SyncStatus.PendingUpdate ->
-                localStoreManager.pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.data
-
-            is SyncableObject.SyncStatus.PendingVoid ->
-                throw Exception("Updates are not permitted to voided items")
-
-            is SyncableObject.SyncStatus.Synced -> localStoreEntry.latestServerData!!
-
-            is SyncableObject.SyncStatus.Conflict ->
-                throw Exception("Resolve conflicts first. Updates are not permitted in conflict.")
-
-            null -> throw Exception("Failed to find db entry to update.")
         }
     }
 
