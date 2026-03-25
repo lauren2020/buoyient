@@ -304,9 +304,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 if (!row.serverAttemptMade) {
                     localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                 }
-                throw SyncUpRetryLaterException(
-                    "Server error ${response.statusCode} for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
-                )
+                SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
             }
 
             is ServerManager.ServerManagerResponse.Failed -> {

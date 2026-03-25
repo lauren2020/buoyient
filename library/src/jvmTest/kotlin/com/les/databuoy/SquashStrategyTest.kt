@@ -158,20 +158,12 @@ class SquashStrategyTest {
         val updateResult = squashQueueManager.queueUpdateRequest(
             data = updatedItem,
             idempotencyKey = "idem-update",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = updateRequest,
-                buildRequest = UpdateRequestBuilder { _, updated, idemKey, _, _ ->
-                    HttpRequest(
-                        method = HttpRequest.HttpMethod.PUT,
-                        endpointUrl = "https://api.test.com/items/{serverId}",
-                        requestBody = buildJsonObject {
-                            put("client_id", updated.clientId)
-                            put("name", updated.name)
-                            put("value", updated.value)
-                        },
-                    )
-                },
+            updateRequest = updateRequest,
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item,
+                hasPendingRequests = true,
+                squashUpdateIntoCreate = squashMerger,
             ),
             requestTag = TestRequestTag.UPDATE,
         )
@@ -227,13 +219,14 @@ class SquashStrategyTest {
         squashQueueManager.queueUpdateRequest(
             data = item2,
             idempotencyKey = "idem-u1",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
-                    buildJsonObject { put("name", "V2") }),
-                buildRequest = UpdateRequestBuilder { _, updated, _, _, _ ->
-                    HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
-                        buildJsonObject { put("name", updated.name) })
+            updateRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
+                buildJsonObject { put("name", "V2") }),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item,
+                hasPendingRequests = false,
+                squashUpdateIntoCreate = SquashRequestMerger { create, update ->
+                    HttpRequest(create.method, create.endpointUrl, update.requestBody)
                 },
             ),
             requestTag = TestRequestTag.UPDATE,
@@ -246,13 +239,14 @@ class SquashStrategyTest {
         squashQueueManager.queueUpdateRequest(
             data = item3,
             idempotencyKey = "idem-u2",
-            lastSyncedData = item2,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
-                    buildJsonObject { put("name", "V3") }),
-                buildRequest = UpdateRequestBuilder { _, updated, _, _, _ ->
-                    HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
-                        buildJsonObject { put("name", updated.name) })
+            updateRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
+                buildJsonObject { put("name", "V3") }),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item2,
+                hasPendingRequests = true,
+                squashUpdateIntoCreate = SquashRequestMerger { create, update ->
+                    HttpRequest(create.method, create.endpointUrl, update.requestBody)
                 },
             ),
             requestTag = TestRequestTag.UPDATE,
@@ -303,15 +297,17 @@ class SquashStrategyTest {
             requestTag = TestRequestTag.DEFAULT,
         )
 
-        // Queue an UPDATE via StoreAfterServerAttempt — should NOT squash
+        // Queue an UPDATE via ForcedAfterServerAttempt — should NOT squash
         val updatedItem = item.copy(name = "Updated", version = 2)
         squashQueueManager.queueUpdateRequest(
             data = updatedItem,
             idempotencyKey = "idem-update",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.StoreAfterServerAttempt(
-                httpRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
-                    buildJsonObject { put("name", "Updated") }),
+            updateRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
+                buildJsonObject { put("name", "Updated") }),
+            serverAttemptMadeForCurrentRequest = true,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.UPDATE,
         )
@@ -379,21 +375,18 @@ class SquashStrategyTest {
         squashQueueManager.queueUpdateRequest(
             data = item.copy(name = "Final Name", value = 42, version = 2),
             idempotencyKey = "idem-update",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
-                    buildJsonObject {
-                        put("client_id", "c1")
-                        put("name", "Final Name")
-                        put("value", 42)
-                    }),
-                buildRequest = UpdateRequestBuilder { _, updated, _, _, _ ->
-                    HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
-                        buildJsonObject {
-                            put("client_id", updated.clientId)
-                            put("name", updated.name)
-                            put("value", updated.value)
-                        })
+            updateRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
+                buildJsonObject {
+                    put("client_id", "c1")
+                    put("name", "Final Name")
+                    put("value", 42)
+                }),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item,
+                hasPendingRequests = true,
+                squashUpdateIntoCreate = SquashRequestMerger { create, update ->
+                    HttpRequest(create.method, create.endpointUrl, update.requestBody)
                 },
             ),
             requestTag = TestRequestTag.UPDATE,

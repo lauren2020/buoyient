@@ -290,20 +290,15 @@ class SyncUpRegressionTest {
         localStore.updateLocalData(
             data = updateData,
             idempotencyKey = "idem-update-c1",
-            lastSyncedData = createData, // base for the 3-way merge
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(
-                    method = HttpRequest.HttpMethod.PUT,
-                    endpoint = updateEndpoint,
-                    body = buildJsonObject { put("name", "Updated") },
-                ),
-                buildRequest = { lastSynced, updated, idemKey, _, _ ->
-                    makeRequest(
-                        method = HttpRequest.HttpMethod.PUT,
-                        endpoint = updateEndpoint,
-                        body = buildJsonObject { put("name", updated.name) },
-                    )
-                },
+            updateRequest = makeRequest(
+                method = HttpRequest.HttpMethod.PUT,
+                endpoint = updateEndpoint,
+                body = buildJsonObject { put("name", "Updated") },
+            ),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = createData, // base for the 3-way merge
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -413,15 +408,14 @@ class SyncUpRegressionTest {
         localStore.updateLocalData(
             data = item1Update1,
             idempotencyKey = "idem-update1-c1",
-            lastSyncedData = item1Create,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(
-                    method = HttpRequest.HttpMethod.PUT,
-                    endpoint = updateEndpoint,
-                ),
-                buildRequest = { _, updated, _, _, _ ->
-                    makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
-                },
+            updateRequest = makeRequest(
+                method = HttpRequest.HttpMethod.PUT,
+                endpoint = updateEndpoint,
+            ),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item1Create,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -429,15 +423,14 @@ class SyncUpRegressionTest {
         localStore.updateLocalData(
             data = item1Update2,
             idempotencyKey = "idem-update2-c1",
-            lastSyncedData = item1Update1,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(
-                    method = HttpRequest.HttpMethod.PUT,
-                    endpoint = updateEndpoint,
-                ),
-                buildRequest = { _, updated, _, _, _ ->
-                    makeRequest(method = HttpRequest.HttpMethod.PUT, endpoint = updateEndpoint)
-                },
+            updateRequest = makeRequest(
+                method = HttpRequest.HttpMethod.PUT,
+                endpoint = updateEndpoint,
+            ),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item1Update1,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )

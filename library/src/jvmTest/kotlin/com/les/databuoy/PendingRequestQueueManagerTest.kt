@@ -245,10 +245,11 @@ class PendingRequestQueueManagerTest {
         val result = manager.queueUpdateRequest(
             data = item,
             idempotencyKey = "u1",
-            lastSyncedData = null,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -266,9 +267,11 @@ class PendingRequestQueueManagerTest {
             manager.queueUpdateRequest(
                 data = item.copy(name = "v$i"),
                 idempotencyKey = "u$i",
-                lastSyncedData = null,
-                instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                    httpRequest = makeRequest(), buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+                updateRequest = makeRequest(),
+                serverAttemptMadeForCurrentRequest = false,
+                updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                    baseData = item,
+                    hasPendingRequests = i > 0,
                 ),
                 requestTag = TestRequestTag.DEFAULT,
             )
@@ -288,9 +291,11 @@ class PendingRequestQueueManagerTest {
         val result = manager.queueUpdateRequest(
             data = item,
             idempotencyKey = "u1",
-            lastSyncedData = null,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(), buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -306,12 +311,16 @@ class PendingRequestQueueManagerTest {
         val manager = createManager(
             strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
+        val item = testItem()
         val result = manager.queueUpdateRequest(
-            data = testItem(),
+            data = item,
             idempotencyKey = "u1",
-            lastSyncedData = null,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(), buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item,
+                hasPendingRequests = false,
+                squashUpdateIntoCreate = identitySquashMerger,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -336,10 +345,12 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = item.copy(name = "Updated"),
             idempotencyKey = "update-key",
-            lastSyncedData = null,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = updateRequest,
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = updateRequest,
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item,
+                hasPendingRequests = true,
+                squashUpdateIntoCreate = identitySquashMerger,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -367,12 +378,16 @@ class PendingRequestQueueManagerTest {
             idempotencyKey = "create-key", serverAttemptMade = true,
             requestTag = TestRequestTag.DEFAULT,
         )
+        // getEffectiveUpdateContext would return Queue.ForcedAfterServerAttempt here
+        // because the latest pending request was server-attempted.
         val result = manager.queueUpdateRequest(
             data = item.copy(name = "Updated"),
             idempotencyKey = "update-key",
-            lastSyncedData = null,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(), buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -394,16 +409,12 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = item.copy(name = "v1"),
             idempotencyKey = "u1",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(),
-                buildRequest = UpdateRequestBuilder { _, updatedData, idempotencyKey, _, _ ->
-                    HttpRequest(
-                        method = HttpRequest.HttpMethod.PUT,
-                        endpointUrl = "https://api.test.com/items",
-                        requestBody = buildJsonObject { put("name", updatedData.name); put("key", idempotencyKey) },
-                    )
-                },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item,
+                hasPendingRequests = false,
+                squashUpdateIntoCreate = identitySquashMerger,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -411,16 +422,12 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = item.copy(name = "v2"),
             idempotencyKey = "u2",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(),
-                buildRequest = UpdateRequestBuilder { lastSyncedData, updatedData, idempotencyKey, _, _ ->
-                    HttpRequest(
-                        method = HttpRequest.HttpMethod.PUT,
-                        endpointUrl = "https://api.test.com/items",
-                        requestBody = buildJsonObject { put("name", updatedData.name); put("key", idempotencyKey) },
-                    )
-                },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item,
+                hasPendingRequests = true,
+                squashUpdateIntoCreate = identitySquashMerger,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -440,20 +447,25 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = item.copy(name = "v1"),
             idempotencyKey = "u1",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.StoreAfterServerAttempt(
-                httpRequest = makeRequest(),
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = true,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
+                baseData = item,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
         // Second update — should NOT squash because the first was attempted.
+        // getEffectiveUpdateContext would return Queue.ForcedAfterServerAttempt here
+        // because the latest pending request was server-attempted.
         manager.queueUpdateRequest(
             data = item.copy(name = "v2"),
             idempotencyKey = "u2",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -474,9 +486,12 @@ class PendingRequestQueueManagerTest {
         val result = manager.queueUpdateRequest(
             data = item,
             idempotencyKey = "u1",
-            lastSyncedData = null,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(), buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
+                baseData = item,
+                hasPendingRequests = true,
+                squashUpdateIntoCreate = identitySquashMerger,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -497,9 +512,11 @@ class PendingRequestQueueManagerTest {
         val result = manager.queueUpdateRequest(
             data = item,
             idempotencyKey = "u1",
-            lastSyncedData = null,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.StoreAfterServerAttempt(
-                httpRequest = makeRequest(),
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = true,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -515,9 +532,11 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = item,
             idempotencyKey = "u1",
-            lastSyncedData = null,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.StoreAfterServerAttempt(
-                httpRequest = makeRequest(),
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = true,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
+                baseData = item,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -579,9 +598,11 @@ class PendingRequestQueueManagerTest {
         )
         manager.queueUpdateRequest(
             data = item.copy(name = "Updated"), idempotencyKey = "k2",
-            lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(), buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -666,9 +687,12 @@ class PendingRequestQueueManagerTest {
             serverAttemptMade = false, requestTag = TestRequestTag.DEFAULT,
         )
         manager.queueUpdateRequest(
-            data = item.copy(name = "v2"), idempotencyKey = "k2", lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(), buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            data = item.copy(name = "v2"), idempotencyKey = "k2",
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -725,9 +749,12 @@ class PendingRequestQueueManagerTest {
             serverAttemptMade = false, requestTag = TestRequestTag.DEFAULT,
         )
         manager.queueUpdateRequest(
-            data = item.copy(name = "v2"), idempotencyKey = "k2", lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(), buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            data = item.copy(name = "v2"), idempotencyKey = "k2",
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -805,10 +832,11 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = localUpdate,
             idempotencyKey = "u1",
-            lastSyncedData = base,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = base,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -833,10 +861,11 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = localUpdate,
             idempotencyKey = "u1",
-            lastSyncedData = base,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = base,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -894,10 +923,11 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = localUpdate,
             idempotencyKey = "u1",
-            lastSyncedData = base,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = makeRequest(),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = base,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -952,10 +982,11 @@ class PendingRequestQueueManagerTest {
         manager.queueUpdateRequest(
             data = item,
             idempotencyKey = "rt-key",
-            lastSyncedData = item.copy(name = "Original"),
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = request,
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest() },
+            updateRequest = request,
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item.copy(name = "Original"),
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.ALTERNATE,
         )

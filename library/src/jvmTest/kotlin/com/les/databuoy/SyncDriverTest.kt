@@ -242,14 +242,13 @@ class SyncDriverTest {
         // Queue a pending UPDATE
         localStore.updateLocalData(
             data = localItem.copy(name = "LocalEdit", version = 2),
-            idempotencyKey = "idem-update", lastSyncedData = localItem,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
-                    endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
-                buildRequest = { _, updated, _, _, _ ->
-                    makeRequest(method = HttpRequest.HttpMethod.PUT,
-                        endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}")
-                },
+            idempotencyKey = "idem-update",
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
+                endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = localItem,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -291,14 +290,13 @@ class SyncDriverTest {
         )
         localStore.updateLocalData(
             data = createItem.copy(name = "Updated", version = 2),
-            idempotencyKey = "idem-update", lastSyncedData = createItem,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
-                    endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
-                buildRequest = { _, updated, _, _, _ ->
-                    makeRequest(method = HttpRequest.HttpMethod.PUT,
-                        endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}")
-                },
+            idempotencyKey = "idem-update",
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
+                endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = createItem,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -350,14 +348,13 @@ class SyncDriverTest {
         )
         localStore.updateLocalData(
             data = item.copy(name = "Edited", version = 2),
-            idempotencyKey = "idem-update", lastSyncedData = item,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
-                    endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
-                buildRequest = { _, updated, _, _, _ ->
-                    makeRequest(method = HttpRequest.HttpMethod.PUT,
-                        endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}")
-                },
+            idempotencyKey = "idem-update",
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
+                endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = item,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -517,14 +514,13 @@ class SyncDriverTest {
         // Queue a pending UPDATE
         localStore.updateLocalData(
             data = localItem.copy(name = "LocalEdit", version = 2),
-            idempotencyKey = "idem-update", lastSyncedData = localItem,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
-                    endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
-                buildRequest = { _, _, _, _, _ ->
-                    makeRequest(method = HttpRequest.HttpMethod.PUT,
-                        endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}")
-                },
+            idempotencyKey = "idem-update",
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
+                endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = localItem,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -744,14 +740,13 @@ class SyncDriverTest {
         // Now queue an update and run sync-down concurrently
         localStore.updateLocalData(
             data = localItem.copy(name = "LocalEdit", version = 2),
-            idempotencyKey = "idem-update", lastSyncedData = localItem,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
-                    endpoint = "https://api.test.com/items/s1"),
-                buildRequest = { _, _, _, _, _ ->
-                    makeRequest(method = HttpRequest.HttpMethod.PUT,
-                        endpoint = "https://api.test.com/items/s1")
-                },
+            idempotencyKey = "idem-update",
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
+                endpoint = "https://api.test.com/items/s1"),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = localItem,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )

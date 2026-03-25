@@ -197,10 +197,11 @@ class LocalStoreManagerTest {
 
         val updated = original.copy(version = 2, name = "Updated")
         val (returnedItem, result) = manager.updateLocalData(
-            data = updated, idempotencyKey = "key-2", lastSyncedData = original,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest(method = HttpRequest.HttpMethod.PUT) },
+            data = updated, idempotencyKey = "key-2",
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = original, hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -221,10 +222,10 @@ class LocalStoreManagerTest {
         manager.updateLocalData(
             data = original.copy(version = 2, name = "Updated"),
             idempotencyKey = "key-2",
-            lastSyncedData = original,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest(method = HttpRequest.HttpMethod.PUT) },
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = original, hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -252,10 +253,10 @@ class LocalStoreManagerTest {
         val updateResult = manager.updateLocalData(
             data = original.copy(version = 2, name = "Should Not Persist"),
             idempotencyKey = "key-2",
-            lastSyncedData = original,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest(method = HttpRequest.HttpMethod.PUT) },
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = original, hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -283,10 +284,10 @@ class LocalStoreManagerTest {
 
         manager.updateLocalData(
             data = original.copy(version = 2, name = "Updated"), idempotencyKey = "key-2",
-            lastSyncedData = original,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest(method = HttpRequest.HttpMethod.PUT) },
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = original, hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -542,7 +543,7 @@ class LocalStoreManagerTest {
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
 
-        val base = manager.getEffectiveBaseDataForUpdate(item)
+        val base = manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
         assertEquals("ServerV1", base.name)
         assertEquals(1, base.version)
     }
@@ -558,7 +559,7 @@ class LocalStoreManagerTest {
             idempotencyKey = "key-1", requestTag = TestRequestTag.DEFAULT,
         )
 
-        val base = manager.getEffectiveBaseDataForUpdate(item)
+        val base = manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
         assertEquals("Created", base.name)
     }
 
@@ -572,15 +573,16 @@ class LocalStoreManagerTest {
 
         val updated = original.copy(version = 2, name = "Updated")
         manager.updateLocalData(
-            data = updated, idempotencyKey = "key-2", lastSyncedData = original,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
-                buildRequest = UpdateRequestBuilder { _, _, _, _, _ -> makeRequest(method = HttpRequest.HttpMethod.PUT) },
+            data = updated, idempotencyKey = "key-2",
+            updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = original, hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
 
-        val base = manager.getEffectiveBaseDataForUpdate(updated)
+        val base = manager.getEffectiveBaseDataForUpdate(updated, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
         assertEquals("Updated", base.name)
     }
 
@@ -597,7 +599,7 @@ class LocalStoreManagerTest {
         )
 
         val exception = try {
-            manager.getEffectiveBaseDataForUpdate(item)
+            manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
             null
         } catch (e: Exception) { e }
 
@@ -611,7 +613,7 @@ class LocalStoreManagerTest {
         val item = testItem(clientId = "nonexistent", serverId = null)
 
         val exception = try {
-            manager.getEffectiveBaseDataForUpdate(item)
+            manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
             null
         } catch (e: Exception) { e }
 

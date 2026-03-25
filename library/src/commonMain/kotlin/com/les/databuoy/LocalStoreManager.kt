@@ -71,6 +71,84 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun hasPendingRequests(clientId: String): Boolean =
         pendingRequestQueueManager.hasPendingRequests(clientId)
 
+    fun getEffectiveUpdateContext(updatedData: O): UpdateContext<O> {
+        try {
+            val pendingRequests = pendingRequestQueueManager.getPendingRequests(updatedData.clientId)
+            val latestPendingRequest = pendingRequests.lastOrNull()
+            when (pendingRequestQueueManager.strategy) {
+                is PendingRequestQueueManager.PendingRequestQueueStrategy.Squash -> {
+                    if (latestPendingRequest?.serverAttemptMade == true) {
+                        val effectiveBaseData = getEffectiveBaseDataForUpdate(
+                            data = updatedData,
+                            // Override the preferred strategy since we are forcing queue.
+                            effectiveStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+                        )
+                        // If a server attempt was already made and we do not know if the server
+                        // received that request or not, we want to make sure that any retry of
+                        // that data is idempotent so we should not squash that request.
+                        return UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
+                            baseData = effectiveBaseData,
+                            hasPendingRequests = pendingRequests.isNotEmpty(),
+                        )
+                    } else {
+                        val effectiveBaseData = getEffectiveBaseDataForUpdate(
+                            data = updatedData,
+                            effectiveStrategy = pendingRequestQueueManager.strategy,
+                        )
+                        return UpdateContext.ValidUpdate.Squash(
+                            baseData = effectiveBaseData,
+                            hasPendingRequests = pendingRequests.isNotEmpty(),
+                            squashUpdateIntoCreate = pendingRequestQueueManager.strategy.squashUpdateIntoCreate,
+                        )
+                    }
+                }
+
+                is PendingRequestQueueManager.PendingRequestQueueStrategy.Queue -> {
+                    val effectiveBaseData = getEffectiveBaseDataForUpdate(
+                        data = updatedData,
+                        effectiveStrategy = pendingRequestQueueManager.strategy,
+                    )
+                    return UpdateContext.ValidUpdate.Queue.Preferred(
+                        baseData = effectiveBaseData,
+                        hasPendingRequests = pendingRequests.isNotEmpty(),
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            return UpdateContext.InvalidState<O>()
+        }
+    }
+
+    sealed class UpdateContext<O : SyncableObject<O>> {
+        sealed class ValidUpdate<O : SyncableObject<O>>(
+            val baseData: O,
+            val hasPendingRequests: Boolean,
+        ) : UpdateContext<O>() {
+            sealed class Queue<O : SyncableObject<O>>(
+                baseData: O,
+                hasPendingRequests: Boolean,
+            ) : ValidUpdate<O>(baseData, hasPendingRequests) {
+                class Preferred<O : SyncableObject<O>>(
+                    baseData: O,
+                    hasPendingRequests: Boolean,
+                ) : Queue<O>(baseData, hasPendingRequests)
+
+                class ForcedAfterServerAttempt<O : SyncableObject<O>>(
+                    baseData: O,
+                    hasPendingRequests: Boolean,
+                ) : Queue<O>(baseData, hasPendingRequests)
+            }
+
+            class Squash<O : SyncableObject<O>>(
+                baseData: O,
+                hasPendingRequests: Boolean,
+                val squashUpdateIntoCreate: SquashRequestMerger,
+            ) : ValidUpdate<O>(baseData, hasPendingRequests)
+        }
+
+        class InvalidState<O : SyncableObject<O>> : UpdateContext<O>()
+    }
+
     /**
      * Returns the effective base data to diff against when computing a sparse update.
      *
@@ -80,7 +158,10 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * - **LocalOnly / PendingVoid / Conflict / not found** → throws, because an update is
      *   not valid in those states.
      */
-    fun getEffectiveBaseDataForUpdate(data: O): O {
+    fun getEffectiveBaseDataForUpdate(
+        data: O,
+        effectiveStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy,
+    ): O {
         val localStoreEntry = getData(
             clientId = data.clientId,
             serverId = data.serverId,
@@ -90,9 +171,21 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 throw Exception("You can't create with an update request.")
 
             // If the status is pending create or update, there must be a queued request.
-            is SyncableObject.SyncStatus.PendingCreate,
-            is SyncableObject.SyncStatus.PendingUpdate ->
+            is SyncableObject.SyncStatus.PendingCreate -> {
+                // If we have a pending create, lastSyncedData should be null so the effective
+                // base data is always the latest data from the last request regardless of strategy.
+                // The create + update request squasher will handled blending the 2 if needed.
                 pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.data
+            }
+
+            is SyncableObject.SyncStatus.PendingUpdate -> when (effectiveStrategy) {
+                is PendingRequestQueueManager.PendingRequestQueueStrategy.Queue -> {
+                    pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.data
+                }
+                is PendingRequestQueueManager.PendingRequestQueueStrategy.Squash -> {
+                    pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.lastSyncedData!!
+                }
+            }
 
             is SyncableObject.SyncStatus.PendingVoid ->
                 throw Exception("Updates are not permitted to voided items")
@@ -203,8 +296,9 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun updateLocalData(
         data: O,
         idempotencyKey: String,
-        lastSyncedData: O,
-        instruction: PendingRequestQueueManager.UpdateQueueInstruction<O>,
+        updateRequest: HttpRequest,
+        serverAttemptMadeForCurrentRequest: Boolean,
+        updateContext: UpdateContext.ValidUpdate<O>,
         requestTag: T,
     ): Pair<O, PendingRequestQueueManager.QueueResult> {
         try {
@@ -220,8 +314,9 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 pendingRequestQueueManager.queueUpdateRequest(
                     idempotencyKey = idempotencyKey,
                     data = data,
-                    lastSyncedData = lastSyncedData,
-                    instruction = instruction,
+                    updateRequest = updateRequest,
+                    serverAttemptMadeForCurrentRequest = serverAttemptMadeForCurrentRequest,
+                    updateContext = updateContext,
                     requestTag = requestTag,
                 ).let(::requireQueued)
             }

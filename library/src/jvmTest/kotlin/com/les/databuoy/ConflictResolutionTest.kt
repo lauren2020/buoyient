@@ -104,20 +104,15 @@ class ConflictResolutionTest {
         localStore.updateLocalData(
             data = localUpdate,
             idempotencyKey = "idem-1",
-            lastSyncedData = syncedItem,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(
-                    method = HttpRequest.HttpMethod.PUT,
-                    endpoint = "https://api.test.com/items/srv-1",
-                    body = buildJsonObject { put("name", "LocalEdit") },
-                ),
-                buildRequest = { lastSynced, updated, idemKey, _, _ ->
-                    makeRequest(
-                        method = HttpRequest.HttpMethod.PUT,
-                        endpoint = "https://api.test.com/items/srv-1",
-                        body = buildJsonObject { put("name", updated.name) },
-                    )
-                },
+            updateRequest = makeRequest(
+                method = HttpRequest.HttpMethod.PUT,
+                endpoint = "https://api.test.com/items/srv-1",
+                body = buildJsonObject { put("name", "LocalEdit") },
+            ),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = syncedItem,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -298,18 +293,14 @@ class ConflictResolutionTest {
         localStore.updateLocalData(
             data = update,
             idempotencyKey = "idem-1",
-            lastSyncedData = syncedItem,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(
-                    method = HttpRequest.HttpMethod.PUT,
-                    body = buildJsonObject { put("name", "Updated") },
-                ),
-                buildRequest = { _, updated, idemKey, _, _ ->
-                    makeRequest(
-                        method = HttpRequest.HttpMethod.PUT,
-                        body = buildJsonObject { put("name", updated.name) },
-                    )
-                },
+            updateRequest = makeRequest(
+                method = HttpRequest.HttpMethod.PUT,
+                body = buildJsonObject { put("name", "Updated") },
+            ),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = syncedItem,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -365,18 +356,14 @@ class ConflictResolutionTest {
         localStore.updateLocalData(
             data = update1,
             idempotencyKey = "idem-1",
-            lastSyncedData = syncedItem,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(
-                    method = HttpRequest.HttpMethod.PUT,
-                    body = buildJsonObject { put("name", "LocalEdit1") },
-                ),
-                buildRequest = { _, updated, idemKey, _, _ ->
-                    makeRequest(
-                        method = HttpRequest.HttpMethod.PUT,
-                        body = buildJsonObject { put("name", updated.name) },
-                    )
-                },
+            updateRequest = makeRequest(
+                method = HttpRequest.HttpMethod.PUT,
+                body = buildJsonObject { put("name", "LocalEdit1") },
+            ),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = syncedItem,
+                hasPendingRequests = false,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )
@@ -386,18 +373,14 @@ class ConflictResolutionTest {
         localStore.updateLocalData(
             data = update2,
             idempotencyKey = "idem-2",
-            lastSyncedData = update1,
-            instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                httpRequest = makeRequest(
-                    method = HttpRequest.HttpMethod.PUT,
-                    body = buildJsonObject { put("value", 99) },
-                ),
-                buildRequest = { _, updated, idemKey, _, _ ->
-                    makeRequest(
-                        method = HttpRequest.HttpMethod.PUT,
-                        body = buildJsonObject { put("value", updated.value) },
-                    )
-                },
+            updateRequest = makeRequest(
+                method = HttpRequest.HttpMethod.PUT,
+                body = buildJsonObject { put("value", 99) },
+            ),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = update1,
+                hasPendingRequests = true,
             ),
             requestTag = TestRequestTag.DEFAULT,
         )

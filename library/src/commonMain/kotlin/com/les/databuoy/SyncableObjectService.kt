@@ -263,64 +263,55 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         requestTag: T,
     ): SyncableObjectServiceResponse<O> = syncDriver.withClientLock(data.clientId) {
         val idempotencyKey = IdGenerator.generateId()
-        val effectiveLastSyncedData = try {
-            localStoreManager.getEffectiveBaseDataForUpdate(data)
-        } catch (e: Exception) {
-            // The data was not in a valid state to be updated, return an error.
-            SyncLog.e(TAG, "Failed to execute update due to being in an invalid state: $e")
-            return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
-        }
-
-        if (
-            processingConstraints is ProcessingConstraints.OnlineOnly ||
-            (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
+        when (
+            val effectiveUpdateContext = localStoreManager.getEffectiveUpdateContext(data)
         ) {
-            // For performance, only check if pending requests exist inside the online processing
-            // block. There is no need to make this query if we already know we are just going to
-            // queue async anyways.
-            if (localStoreManager.hasPendingRequests(data.clientId)) {
-                // There are pending async requests queued for this item. Sending an online update
-                // now would cause the server to receive operations out of order. Force the update
-                // to be queued so it is processed after the pending requests during sync-up.
-                if (processingConstraints is ProcessingConstraints.OnlineOnly) {
-                    // Caller explicitly requires online-only processing, but we can't safely
+            is LocalStoreManager.UpdateContext.ValidUpdate -> {
+                if (effectiveUpdateContext.hasPendingRequests && processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    // There are pending async requests queued for this item. Sending an online update
+                    // now would cause the server to receive operations out of order. Force the update
+                    // to be queued so it is processed after the pending requests during sync-up.
+                    // However - caller explicitly requires online-only processing, but we can't safely
                     // send online while prior requests are still queued.
                     SyncLog.e(TAG, "Cannot process OnlineOnly update for (client_id: ${data.clientId}) " +
                             "while pending async requests exist.")
                     return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
                 }
-                updateAsync(
-                    idempotencyKey = idempotencyKey,
-                    data = data,
-                    lastSyncedData = effectiveLastSyncedData,
-                    instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                        httpRequest = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey, true, null),
+                if (
+                    processingConstraints is ProcessingConstraints.OnlineOnly ||
+                    (connectivityChecker.isOnline() && !effectiveUpdateContext.hasPendingRequests && processingConstraints !is ProcessingConstraints.OfflineOnly)
+                ) {
+                    updateSync(
+                        data = data,
+                        unpackData = unpackSyncData,
+                        processingConstraints = processingConstraints,
+                        idempotencyKey = idempotencyKey,
+                        updateContext = effectiveUpdateContext,
                         buildRequest = request,
-                    ),
-                    requestTag = requestTag,
-                )
-            } else {
-                updateSync(
-                    data = data,
-                    unpackData = unpackSyncData,
-                    processingConstraints = processingConstraints,
-                    idempotencyKey = idempotencyKey,
-                    lastSyncedData = effectiveLastSyncedData,
-                    buildRequest = request,
-                    requestTag = requestTag,
-                )
+                        requestTag = requestTag,
+                    )
+                } else {
+                    updateAsync(
+                        idempotencyKey = idempotencyKey,
+                        data = data,
+                        updateRequest = request.buildRequest(
+                            lastSyncedData = effectiveUpdateContext.baseData,
+                            updatedData = data,
+                            idempotencyKey = idempotencyKey,
+                            isAsync = true,
+                            attemptedServerRequest = null,
+                        ),
+                        serverAttemptMadeForCurrentRequest = false,
+                        updateContext = effectiveUpdateContext,
+                        requestTag = requestTag,
+                    )
+                }
             }
-        } else {
-            updateAsync(
-                idempotencyKey = idempotencyKey,
-                data = data,
-                lastSyncedData = effectiveLastSyncedData,
-                instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                    httpRequest = request.buildRequest(effectiveLastSyncedData, data, idempotencyKey, true, null),
-                    buildRequest = request,
-                ),
-                requestTag = requestTag,
-            )
+
+            is LocalStoreManager.UpdateContext.InvalidState -> {
+                SyncLog.e(TAG, "Failed to execute update due to being in an invalid state")
+                return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
+            }
         }
     }
 
@@ -337,12 +328,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         unpackData: ResponseUnpacker<O>,
         processingConstraints: ProcessingConstraints,
         idempotencyKey: String,
-        lastSyncedData: O,
+        updateContext: LocalStoreManager.UpdateContext.ValidUpdate<O>,
         buildRequest: UpdateRequestBuilder<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val request = buildRequest.buildRequest(
-            lastSyncedData = lastSyncedData,
+            lastSyncedData = updateContext.baseData,
             updatedData = data,
             idempotencyKey = idempotencyKey,
             isAsync = false,
@@ -358,17 +349,15 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     updateAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
-                        lastSyncedData = lastSyncedData,
-                        instruction = PendingRequestQueueManager.UpdateQueueInstruction.Store(
-                            httpRequest = buildRequest.buildRequest(
-                                lastSyncedData = lastSyncedData,
-                                updatedData = data,
-                                idempotencyKey = idempotencyKey,
-                                isAsync = true,
-                                attemptedServerRequest = null,
-                            ),
-                            buildRequest = buildRequest,
+                        updateRequest = buildRequest.buildRequest(
+                            lastSyncedData = updateContext.baseData,
+                            updatedData = data,
+                            idempotencyKey = idempotencyKey,
+                            isAsync = true,
+                            attemptedServerRequest = null,
                         ),
+                        serverAttemptMadeForCurrentRequest = false,
+                        updateContext = updateContext,
                         requestTag = requestTag,
                     )
                 }
@@ -383,16 +372,18 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     updateAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
-                        lastSyncedData = lastSyncedData,
-                        instruction = PendingRequestQueueManager.UpdateQueueInstruction.StoreAfterServerAttempt(
-                            httpRequest = buildRequest.buildRequest(
-                                lastSyncedData = lastSyncedData,
-                                updatedData = data,
-                                idempotencyKey = idempotencyKey,
-                                isAsync = true,
-                                attemptedServerRequest = request,
-                            ),
+                        updateRequest = buildRequest.buildRequest(
+                            lastSyncedData = updateContext.baseData,
+                            updatedData = data,
+                            idempotencyKey = idempotencyKey,
+                            isAsync = true,
+                            attemptedServerRequest = request,
                         ),
+                        updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
+                            baseData = updateContext.baseData,
+                            hasPendingRequests = updateContext.hasPendingRequests,
+                        ),
+                        serverAttemptMadeForCurrentRequest = true,
                         requestTag = requestTag,
                     )
                 }
@@ -441,15 +432,17 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     private fun updateAsync(
         idempotencyKey: String,
         data: O,
-        lastSyncedData: O,
-        instruction: PendingRequestQueueManager.UpdateQueueInstruction<O>,
+        updateRequest: HttpRequest,
+        serverAttemptMadeForCurrentRequest: Boolean,
+        updateContext: LocalStoreManager.UpdateContext.ValidUpdate<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val (updatedData, queueResult) = localStoreManager.updateLocalData(
             data = data,
             idempotencyKey = idempotencyKey,
-            lastSyncedData = lastSyncedData,
-            instruction = instruction,
+            updateRequest = updateRequest,
+            serverAttemptMadeForCurrentRequest = serverAttemptMadeForCurrentRequest,
+            updateContext = updateContext,
             requestTag = requestTag,
         )
         return convertQueueResultToServiceResponse(updatedData, queueResult)

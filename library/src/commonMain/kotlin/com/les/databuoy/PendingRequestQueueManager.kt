@@ -27,28 +27,6 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         object StoreFailed : QueueResult()
     }
 
-    /**
-     * Describes how an update request should be queued.
-     *
-     * [Store] — the request has not been attempted on the server. The queue may squash it with
-     * other pending requests using the provided [UpdateRequestBuilder] when a
-     * [PendingRequestQueueStrategy.Squash] strategy is configured.
-     *
-     * [StoreAfterServerAttempt] — the request was already sent to the server (e.g. timed out).
-     * The queue must store the exact [HttpRequest] as-is and never rebuild or squash it, since the
-     * server may have already processed the original request body.
-     */
-    sealed class UpdateQueueInstruction<O : SyncableObject<O>> {
-        class Store<O : SyncableObject<O>>(
-            val httpRequest: HttpRequest,
-            val buildRequest: UpdateRequestBuilder<O>,
-        ) : UpdateQueueInstruction<O>()
-
-        class StoreAfterServerAttempt<O : SyncableObject<O>>(
-            val httpRequest: HttpRequest,
-        ) : UpdateQueueInstruction<O>()
-    }
-
     fun queueCreateRequest(
         data: O,
         httpRequest: HttpRequest,
@@ -82,126 +60,65 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun queueUpdateRequest(
         data: O,
         idempotencyKey: String,
-        lastSyncedData: O?,
-        instruction: UpdateQueueInstruction<O>,
+        updateRequest: HttpRequest,
+        serverAttemptMadeForCurrentRequest: Boolean,
+        updateContext: LocalStoreManager.UpdateContext.ValidUpdate<O>,
         requestTag: T,
     ): QueueResult {
-        val httpRequest = when (instruction) {
-            is UpdateQueueInstruction.Store -> instruction.httpRequest
-            is UpdateQueueInstruction.StoreAfterServerAttempt -> instruction.httpRequest
-        }
-        val serverAttemptMade = instruction is UpdateQueueInstruction.StoreAfterServerAttempt
+        return when (updateContext) {
+            is LocalStoreManager.UpdateContext.ValidUpdate.Squash -> {
+                val pendingRequests = getPendingRequests(data.clientId)
+                val latestPendingRequest = pendingRequests.lastOrNull()
+                when (latestPendingRequest?.type) {
+                    PendingSyncRequest.Type.VOID ->
+                        QueueResult.InvalidQueueRequest("Cannot make updates after void!")
 
-        return when (strategy) {
-            is PendingRequestQueueStrategy.Squash -> {
-                when (instruction) {
-                    // Request was already attempted on the server — store the exact request
-                    // as-is without any squashing. The server may have already processed
-                    // the original request body.
-                    is UpdateQueueInstruction.StoreAfterServerAttempt -> {
-                        if (getPendingRequests(data.clientId).any { it.type == PendingSyncRequest.Type.VOID }) {
-                            QueueResult.InvalidQueueRequest("Cannot make updates after void!")
-                        } else {
-                            storeEntry(
-                                pendingSyncRequest = PendingSyncRequest(
-                                    type = PendingSyncRequest.Type.UPDATE,
-                                    idempotencyKey = idempotencyKey,
-                                    request = httpRequest,
-                                    serverAttemptMade = true,
-                                    data = data,
-                                    lastSyncedData = lastSyncedData,
-                                    requestTag = requestTag.value,
+                    PendingSyncRequest.Type.CREATE -> {
+                        replaceEntry(
+                            latestPendingRequest.copy(
+                                type = PendingSyncRequest.Type.CREATE,
+                                idempotencyKey = latestPendingRequest.idempotencyKey,
+                                request = updateContext.squashUpdateIntoCreate.merge(
+                                    createRequest = latestPendingRequest.request,
+                                    updateRequest = updateRequest,
                                 ),
-                            )
-                        }
+                                data = data,
+                                // A pending create should never have base data. It is by
+                                // definition the first request.
+                                lastSyncedData = null,
+                                requestTag = requestTag.value,
+                            ),
+                        )
                     }
 
-                    is UpdateQueueInstruction.Store -> {
-                        val pendingRequests = getPendingRequests(data.clientId)
-                        val latestPendingRequest = pendingRequests.lastOrNull()
-                        when (latestPendingRequest?.type) {
-                            PendingSyncRequest.Type.VOID -> QueueResult.InvalidQueueRequest("Cannot make updates after void!")
+                    PendingSyncRequest.Type.UPDATE -> {
+                        replaceEntry(
+                            latestPendingRequest.copy(
+                                request = updateRequest,
+                                requestTag = requestTag.value,
+                            )
+                        )
+                    }
 
-                            PendingSyncRequest.Type.CREATE -> {
-                                if (latestPendingRequest.serverAttemptMade) {
-                                    storeEntry(
-                                        pendingSyncRequest = PendingSyncRequest(
-                                            type = PendingSyncRequest.Type.UPDATE,
-                                            idempotencyKey = idempotencyKey,
-                                            request = httpRequest,
-                                            serverAttemptMade = true,
-                                            data = data,
-                                            lastSyncedData = lastSyncedData,
-                                            requestTag = requestTag.value,
-                                        ),
-                                    )
-                                } else {
-                                    val squashedCreateRequest = strategy.squashUpdateIntoCreate.merge(
-                                        latestPendingRequest.request,
-                                        httpRequest,
-                                    )
-                                    replaceEntry(
-                                        latestPendingRequest.copy(
-                                            type = PendingSyncRequest.Type.CREATE,
-                                            idempotencyKey = latestPendingRequest.idempotencyKey,
-                                            request = squashedCreateRequest,
-                                            data = data,
-                                            lastSyncedData = lastSyncedData,
-                                            requestTag = requestTag.value,
-                                        ),
-                                    )
-                                }
-                            }
-
-                            PendingSyncRequest.Type.UPDATE -> {
-                                if (latestPendingRequest.serverAttemptMade) {
-                                    storeEntry(
-                                        pendingSyncRequest = PendingSyncRequest(
-                                            type = PendingSyncRequest.Type.UPDATE,
-                                            idempotencyKey = idempotencyKey,
-                                            request = httpRequest,
-                                            serverAttemptMade = false,
-                                            data = data,
-                                            lastSyncedData = lastSyncedData,
-                                            requestTag = requestTag.value,
-                                        ),
-                                    )
-                                } else {
-                                    val squashedUpdateRequest = instruction.buildRequest.buildRequest(
-                                        lastSyncedData = latestPendingRequest.data,
-                                        updatedData = data,
-                                        idempotencyKey = idempotencyKey,
-                                        isAsync = true,
-                                        attemptedServerRequest = null,
-                                    )
-                                    replaceEntry(
-                                        latestPendingRequest.copy(
-                                            request = squashedUpdateRequest,
-                                            requestTag = requestTag.value,
-                                        )
-                                    )
-                                }
-                            }
-
-                            null -> {
-                                storeEntry(
-                                    pendingSyncRequest = PendingSyncRequest(
-                                        type = PendingSyncRequest.Type.UPDATE,
-                                        idempotencyKey = idempotencyKey,
-                                        request = httpRequest,
-                                        serverAttemptMade = false,
-                                        data = data,
-                                        lastSyncedData = lastSyncedData,
-                                        requestTag = requestTag.value,
-                                    ),
-                                )
-                            }
-                        }
+                    null -> {
+                        // There are not pending updates so there is effectively no difference
+                        // between squash and queue.
+                        storeEntry(
+                            pendingSyncRequest = PendingSyncRequest(
+                                type = PendingSyncRequest.Type.UPDATE,
+                                idempotencyKey = idempotencyKey,
+                                request = updateRequest,
+                                serverAttemptMade = false,
+                                data = data,
+                                lastSyncedData = updateContext.baseData,
+                                requestTag = requestTag.value,
+                            ),
+                        )
                     }
                 }
             }
 
-            is PendingRequestQueueStrategy.Queue -> {
+            is LocalStoreManager.UpdateContext.ValidUpdate.Queue -> {
                 if (getPendingRequests(data.clientId).any { it.type == PendingSyncRequest.Type.VOID }) {
                     QueueResult.InvalidQueueRequest("Cannot make updates after void!")
                 } else {
@@ -209,10 +126,10 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         pendingSyncRequest = PendingSyncRequest(
                             type = PendingSyncRequest.Type.UPDATE,
                             idempotencyKey = idempotencyKey,
-                            request = httpRequest,
-                            serverAttemptMade = serverAttemptMade,
+                            request = updateRequest,
+                            serverAttemptMade = serverAttemptMadeForCurrentRequest,
                             data = data,
-                            lastSyncedData = lastSyncedData,
+                            lastSyncedData = updateContext.baseData,
                             requestTag = requestTag.value,
                         ),
                     )
