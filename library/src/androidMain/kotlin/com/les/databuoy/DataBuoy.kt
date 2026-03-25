@@ -18,6 +18,23 @@ object DataBuoy {
         get() = DataBuoyStatus.shared
 
     /**
+     * A [GlobalHeaderProvider] whose [GlobalHeaderProvider.headers] are applied to every
+     * HTTP request made by data-buoy, across all services. Set this once at app startup:
+     *
+     * ```kotlin
+     * DataBuoy.globalHeaderProvider = GlobalHeaderProvider {
+     *     listOf("Authorization" to "Bearer ${authRepository.currentAccessToken}")
+     * }
+     * ```
+     *
+     * The provider is evaluated on every request, so refreshed tokens are picked up
+     * automatically — you never need to update this property after setting it.
+     */
+    var globalHeaderProvider: GlobalHeaderProvider?
+        get() = GlobalHeaderProviderRegistry.provider
+        set(value) { GlobalHeaderProviderRegistry.provider = value }
+
+    /**
      * Register a fixed set of services for background sync.
      *
      * Convenient when services are created eagerly (e.g. in `Application.onCreate()`

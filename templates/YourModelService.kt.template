@@ -28,7 +28,7 @@ class YourModelService(
     serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
     logger: SyncLogger = createPlatformSyncLogger(),
     serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.globalHeaders,
+        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
         logger = logger,
     ),
 ) : SyncableObjectService<YourModel, YourModelRequestTag>(

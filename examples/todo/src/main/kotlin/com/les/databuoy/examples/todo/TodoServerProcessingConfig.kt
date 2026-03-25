@@ -35,7 +35,7 @@ class TodoServerProcessingConfig : ServerProcessingConfig<Todo> {
         }
     }
 
-    override val globalHeaders: List<Pair<String, String>> = listOf(
+    override val serviceHeaders: List<Pair<String, String>> = listOf(
         "Content-Type" to "application/json",
     )
 

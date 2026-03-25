@@ -19,6 +19,17 @@ object DataBuoy {
     val status: DataBuoyStatus
         get() = DataBuoyStatus.shared
 
+    /**
+     * A [GlobalHeaderProvider] whose [GlobalHeaderProvider.headers] are applied to every
+     * HTTP request made by data-buoy, across all services. Set this once at app startup.
+     *
+     * The provider is evaluated on every request, so refreshed tokens are picked up
+     * automatically — you never need to update this property after setting it.
+     */
+    var globalHeaderProvider: GlobalHeaderProvider?
+        get() = GlobalHeaderProviderRegistry.provider
+        set(value) { GlobalHeaderProviderRegistry.provider = value }
+
     internal val registeredServices = mutableSetOf<SyncableObjectService<*, *>>()
 
     /**

@@ -10,7 +10,7 @@ package com.les.databuoy
 interface BackgroundRequestScheduler {
     fun scheduleRequest(
         httpRequest: HttpRequest,
-        globalHeaders: List<Pair<String, String>>,
+        serviceHeaders: List<Pair<String, String>>,
     )
 }
 

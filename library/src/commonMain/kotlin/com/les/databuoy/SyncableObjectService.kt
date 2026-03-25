@@ -13,7 +13,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     private val codec: SyncCodec<O> = SyncCodec(serializer),
     private val serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.globalHeaders,
+        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
     ),
     private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
         codec = codec,
@@ -777,7 +777,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     protected fun voidRequestByIdempotencyKey(voidRequest: HttpRequest) {
         backgroundRequestScheduler.scheduleRequest(
             httpRequest = voidRequest,
-            globalHeaders = serverProcessingConfig.globalHeaders,
+            serviceHeaders = serverProcessingConfig.serviceHeaders,
         )
     }
 

@@ -29,11 +29,12 @@ class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
 
     override fun scheduleRequest(
         httpRequest: HttpRequest,
-        globalHeaders: List<Pair<String, String>>,
+        serviceHeaders: List<Pair<String, String>>,
     ) {
         scope.launch {
+            val registryHeaders = GlobalHeaderProviderRegistry.provider?.headers().orEmpty()
             val serverManager = ServerManager(
-                serviceBaseHeaders = globalHeaders,
+                serviceBaseHeaders = registryHeaders + serviceHeaders,
             )
             try {
                 when (val response = serverManager.sendRequest(httpRequest)) {

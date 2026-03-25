@@ -13,7 +13,11 @@ interface ServerProcessingConfig<O : SyncableObject<O>> {
     val syncUpConfig: SyncUpConfig<O>
 
     /**
-     * The headers that should be applied to every request this service makes.
+     * Headers specific to this service, applied to every request it makes.
+     *
+     * For auth headers shared across all services, use [DataBuoy.globalHeaderProvider] instead.
+     * At request time, headers are merged in order: global provider headers, then these
+     * service headers, then per-request additional headers.
      */
-    val globalHeaders: List<Pair<String, String>>
+    val serviceHeaders: List<Pair<String, String>>
 }

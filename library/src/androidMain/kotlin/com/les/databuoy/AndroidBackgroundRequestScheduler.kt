@@ -17,11 +17,11 @@ class AndroidBackgroundRequestScheduler(private val context: Context) : Backgrou
 
     override fun scheduleRequest(
         httpRequest: HttpRequest,
-        globalHeaders: List<Pair<String, String>>,
+        serviceHeaders: List<Pair<String, String>>,
     ) {
         val inputData = workDataOf(
             VoidByIdempotencyKeyWorker.KEY_REQUEST_JSON to httpRequest.toJson().toString(),
-            VoidByIdempotencyKeyWorker.KEY_HEADERS_JSON to VoidByIdempotencyKeyWorker.serializeHeaders(globalHeaders),
+            VoidByIdempotencyKeyWorker.KEY_HEADERS_JSON to VoidByIdempotencyKeyWorker.serializeHeaders(serviceHeaders),
         )
 
         val constraints = Constraints.Builder()

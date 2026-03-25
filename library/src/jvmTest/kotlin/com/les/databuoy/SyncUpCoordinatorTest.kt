@@ -79,7 +79,7 @@ class SyncUpCoordinatorTest {
                 )
             }
         }
-        override val globalHeaders: List<Pair<String, String>> = emptyList()
+        override val serviceHeaders: List<Pair<String, String>> = emptyList()
     }
 
     /**

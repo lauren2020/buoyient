@@ -63,7 +63,7 @@ class ServiceCreationConventionsTest {
             "override val syncFetchConfig",
             "override val syncUpConfig",
             "fromResponseBody(requestTag: String, responseBody: JsonObject)",
-            "override val globalHeaders",
+            "override val serviceHeaders",
         )
         assertFileContains(
             "templates/YourModelService.kt.template",
@@ -104,7 +104,7 @@ class ServiceCreationConventionsTest {
             ": ServerProcessingConfig<Todo>",
             "override val syncFetchConfig",
             "override val syncUpConfig",
-            "override val globalHeaders",
+            "override val serviceHeaders",
         )
         assertFileContains(
             "examples/todo/src/main/kotlin/com/les/databuoy/examples/todo/TodoService.kt",

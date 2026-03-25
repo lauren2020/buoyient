@@ -152,6 +152,37 @@ SyncWorker.registerServiceProvider(AppSyncServiceRegistryProvider())
 
 ---
 
+## Step 3b: Configure Global Auth Headers (optional)
+
+If all your services share the same auth headers (e.g., a bearer token), set a `GlobalHeaderProvider` once at startup instead of repeating the headers in every `ServerProcessingConfig`:
+
+```kotlin
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        DataBuoy.globalHeaderProvider = GlobalHeaderProvider {
+            // Evaluated on every HTTP request — always reads the latest token.
+            listOf("Authorization" to "Bearer ${authRepository.currentAccessToken}")
+        }
+
+        DataBuoy.registerServices(setOf(todoService, noteService))
+    }
+}
+```
+
+The provider is a lambda evaluated at request time, so refreshed tokens are picked up automatically — you never need to update the property after setting it.
+
+At request time, headers merge in this order (later values win on duplicate names):
+
+1. **Global headers** — from `DataBuoy.globalHeaderProvider`
+2. **Service headers** — from `ServerProcessingConfig.serviceHeaders`
+3. **Request headers** — from `HttpRequest.additionalHeaders`
+
+Use `serviceHeaders` for headers unique to a single service (e.g., a service-specific API version). Use `globalHeaderProvider` for headers shared across all services (e.g., auth).
+
+---
+
 ## Step 4: Verify the Setup
 
 After adding dependencies and registering at least one service, verify everything is wired correctly:

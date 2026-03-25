@@ -23,10 +23,12 @@ class ServerManagerTest {
     private fun makeServerManager(
         engine: MockEngine,
         serviceBaseHeaders: List<Pair<String, String>> = emptyList(),
+        globalHeaderProvider: GlobalHeaderProvider? = null,
     ): ServerManager {
         val client = HttpClient(engine)
         return ServerManager(
             serviceBaseHeaders = serviceBaseHeaders,
+            globalHeaderProvider = globalHeaderProvider,
             httpClient = client,
         )
     }
@@ -146,6 +148,60 @@ class ServerManagerTest {
         assertTrue(capturedHeaders["Authorization"]?.contains("Bearer token-123") == true)
         assertTrue(capturedHeaders["X-Api-Version"]?.contains("2") == true)
         assertTrue(capturedHeaders["X-Request-Id"]?.contains("req-456") == true)
+    }
+
+    @Test
+    fun `sendRequest applies global header provider headers before service and request headers`() = runBlocking {
+        var capturedHeaders: Map<String, List<String>> = emptyMap()
+        val engine = MockEngine { requestData ->
+            capturedHeaders = requestData.headers.entries().associate { (key, values) -> key to values }
+            respond(
+                content = """{}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val serverManager = makeServerManager(
+            engine = engine,
+            serviceBaseHeaders = listOf("X-Service" to "todo"),
+            globalHeaderProvider = GlobalHeaderProvider {
+                listOf("Authorization" to "Bearer global-token")
+            },
+        )
+        val request = makeHttpRequest(
+            additionalHeaders = listOf("X-Request-Id" to "req-789"),
+        )
+
+        serverManager.sendRequest(request)
+
+        assertTrue(capturedHeaders["Authorization"]?.contains("Bearer global-token") == true)
+        assertTrue(capturedHeaders["X-Service"]?.contains("todo") == true)
+        assertTrue(capturedHeaders["X-Request-Id"]?.contains("req-789") == true)
+    }
+
+    @Test
+    fun `global header provider is evaluated on every request`() = runBlocking {
+        var callCount = 0
+        val engine = MockEngine { _ ->
+            respond(
+                content = """{}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val serverManager = makeServerManager(
+            engine = engine,
+            globalHeaderProvider = GlobalHeaderProvider {
+                callCount++
+                listOf("Authorization" to "Bearer token-$callCount")
+            },
+        )
+
+        serverManager.sendRequest(makeHttpRequest())
+        assertEquals(1, callCount)
+
+        serverManager.sendRequest(makeHttpRequest())
+        assertEquals(2, callCount)
     }
 
     @Test

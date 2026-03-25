@@ -43,10 +43,11 @@ class VoidByIdempotencyKeyWorker(
             return Result.failure()
         }
 
-        val globalHeaders = headersJson?.let { deserializeHeaders(it) } ?: emptyList()
+        val registryHeaders = GlobalHeaderProviderRegistry.provider?.headers().orEmpty()
+        val serviceHeaders = headersJson?.let { deserializeHeaders(it) } ?: emptyList()
 
         val serverManager = ServerManager(
-            serviceBaseHeaders = globalHeaders,
+            serviceBaseHeaders = registryHeaders + serviceHeaders,
         )
 
         return try {

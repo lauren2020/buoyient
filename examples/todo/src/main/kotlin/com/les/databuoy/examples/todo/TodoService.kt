@@ -24,7 +24,7 @@ class TodoService(
     serverProcessingConfig: ServerProcessingConfig<Todo> = TodoServerProcessingConfig(),
     connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.globalHeaders,
+        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
     ),
     localStoreManager: LocalStoreManager<Todo, TodoRequestTag> = LocalStoreManager(
         codec = SyncCodec(Todo.serializer()),

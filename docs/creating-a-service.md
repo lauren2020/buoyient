@@ -126,7 +126,7 @@ Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch dat
 |--------|------|---------|
 | `syncFetchConfig` | `SyncFetchConfig<YourModel>` | How to periodically pull data from the server (GET or POST). |
 | `syncUpConfig` | `SyncUpConfig<YourModel>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromResponseBody(requestTag, responseBody)` returning `SyncUpResult<YourModel>` — `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest`. |
-| `globalHeaders` | `List<Pair<String, String>>` | HTTP headers sent with every request (auth, content-type, etc.). |
+| `serviceHeaders` | `List<Pair<String, String>>` | HTTP headers specific to this service, sent with every request it makes. For auth headers shared across all services, use `DataBuoy.globalHeaderProvider` instead (see `docs/setup.md`). |
 
 ### SyncFetchConfig variants
 
@@ -182,8 +182,7 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
         }
     }
 
-    override val globalHeaders: List<Pair<String, String>> = listOf(
-        Pair("Authorization", "Bearer YOUR_TOKEN"),
+    override val serviceHeaders: List<Pair<String, String>> = listOf(
         Pair("Content-Type", "application/json"),
     )
 }
@@ -210,7 +209,7 @@ class YourModelService(
     serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
     connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.globalHeaders,
+        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
     ),
     localStoreManager: LocalStoreManager<YourModel, YourModelRequestTag> = LocalStoreManager(
         codec = SyncCodec(YourModel.serializer()),

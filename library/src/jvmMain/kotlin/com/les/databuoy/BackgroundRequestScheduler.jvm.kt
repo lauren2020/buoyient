@@ -9,11 +9,12 @@ actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestSchedule
     object : BackgroundRequestScheduler {
         override fun scheduleRequest(
             httpRequest: HttpRequest,
-            globalHeaders: List<Pair<String, String>>,
+            serviceHeaders: List<Pair<String, String>>,
         ) {
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                val registryHeaders = GlobalHeaderProviderRegistry.provider?.headers().orEmpty()
                 val serverManager = ServerManager(
-                    serviceBaseHeaders = globalHeaders,
+                    serviceBaseHeaders = registryHeaders + serviceHeaders,
                 )
                 try {
                     serverManager.sendRequest(httpRequest)

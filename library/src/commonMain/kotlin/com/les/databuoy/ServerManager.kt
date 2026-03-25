@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonObject
 
 class ServerManager(
     private val serviceBaseHeaders: List<Pair<String, String>>,
+    private val globalHeaderProvider: GlobalHeaderProvider? = GlobalHeaderProviderRegistry.provider,
     private val httpClient: HttpClient = HttpClient {
         install(HttpTimeout) {
             connectTimeoutMillis = 15_000
@@ -38,7 +39,8 @@ class ServerManager(
                     contentType(ContentType.Application.Json)
                 }
                 headers {
-                    (serviceBaseHeaders + httpRequest.additionalHeaders).forEach {
+                    val globalHeaders = globalHeaderProvider?.headers().orEmpty()
+                    (globalHeaders + serviceBaseHeaders + httpRequest.additionalHeaders).forEach {
                         val (headerName, headerValue) = it
                         append(headerName, headerValue)
                     }

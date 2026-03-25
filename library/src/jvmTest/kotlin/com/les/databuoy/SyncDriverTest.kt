@@ -80,7 +80,7 @@ class SyncDriverTest {
                 )
             }
         }
-        override val globalHeaders: List<Pair<String, String>> = emptyList()
+        override val serviceHeaders: List<Pair<String, String>> = emptyList()
     }
 
     private fun createDriver(
@@ -408,7 +408,7 @@ class SyncDriverTest {
                 },
             )
             override val syncUpConfig = testServerConfig().syncUpConfig
-            override val globalHeaders: List<Pair<String, String>> = emptyList()
+            override val serviceHeaders: List<Pair<String, String>> = emptyList()
         }
 
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
@@ -476,7 +476,7 @@ class SyncDriverTest {
                 },
             )
             override val syncUpConfig = testServerConfig().syncUpConfig
-            override val globalHeaders: List<Pair<String, String>> = emptyList()
+            override val serviceHeaders: List<Pair<String, String>> = emptyList()
         }
 
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(

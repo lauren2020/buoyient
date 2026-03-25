@@ -255,7 +255,7 @@ object ServiceFactory {
             YourModelService(
                 serverProcessingConfig = config,
                 serverManager = mockFixtures.router.buildServerManager(
-                    serviceBaseHeaders = config.globalHeaders,
+                    serviceBaseHeaders = config.serviceHeaders,
                 ),
                 connectivityChecker = TestConnectivityChecker(online = true),
             )
