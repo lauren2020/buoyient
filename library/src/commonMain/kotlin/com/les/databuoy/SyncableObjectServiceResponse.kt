@@ -17,5 +17,7 @@ sealed class SyncableObjectServiceResponse<O> {
 
     class InvalidRequest<O> : SyncableObjectServiceResponse<O>()
 
+    class RequestTimedOut<O> : SyncableObjectServiceResponse<O>()
+
     class LocalStoreFailed<O>(val exception: Exception) : SyncableObjectServiceResponse<O>()
 }

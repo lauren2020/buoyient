@@ -48,3 +48,12 @@ fun interface MockRequestHandler {
 class MockConnectionException(
     message: String = "Simulated connection error",
 ) : Exception(message)
+
+/**
+ * Throw this from a [MockRequestHandler] to simulate a request timeout.
+ * The [MockEndpointRouter] will translate this into a
+ * [ServerManager.ServerManagerResponse.RequestTimedOut].
+ */
+class MockTimeoutException(
+    message: String = "Simulated request timeout",
+) : Exception(message)

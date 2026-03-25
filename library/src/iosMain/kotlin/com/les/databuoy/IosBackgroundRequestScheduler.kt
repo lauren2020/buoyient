@@ -40,7 +40,8 @@ class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
                     is ServerManager.ServerManagerResponse.ServerResponse -> {
                         SyncLog.d(TAG, "Background request completed (${response.statusCode})")
                     }
-                    is ServerManager.ServerManagerResponse.ConnectionError -> {
+                    is ServerManager.ServerManagerResponse.ConnectionError,
+                    is ServerManager.ServerManagerResponse.RequestTimedOut -> {
                         SyncLog.w(TAG, "Background request failed due to connection error — will retry on next sync-up")
                     }
                 }

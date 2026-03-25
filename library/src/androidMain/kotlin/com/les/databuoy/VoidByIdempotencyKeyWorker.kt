@@ -55,7 +55,8 @@ class VoidByIdempotencyKeyWorker(
                     Log.d(TAG, "Void-by-idempotency-key request completed")
                     Result.success()
                 }
-                is ServerManager.ServerManagerResponse.ConnectionError -> {
+                is ServerManager.ServerManagerResponse.ConnectionError,
+                is ServerManager.ServerManagerResponse.RequestTimedOut -> {
                     if (runAttemptCount >= MAX_RETRIES) {
                         Log.e(TAG, "Max retries ($MAX_RETRIES) exceeded, giving up")
                         Result.failure()

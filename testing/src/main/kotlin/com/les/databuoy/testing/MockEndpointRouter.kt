@@ -136,6 +136,11 @@ class MockEndpointRouter {
                     )
                 } catch (_: MockConnectionException) {
                     throw java.io.IOException("Simulated connection error")
+                } catch (_: MockTimeoutException) {
+                    throw io.ktor.client.plugins.HttpRequestTimeoutException(
+                        url = recorded.url,
+                        timeoutMillis = 30_000,
+                    )
                 }
             }
         }

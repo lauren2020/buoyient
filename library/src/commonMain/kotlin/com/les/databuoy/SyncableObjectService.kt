@@ -1,6 +1,5 @@
 package com.les.databuoy
 
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -155,16 +154,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     )
                 }
 
-            is ServerManager.ServerManagerResponse.ServerResponse -> {
-                if (
-                    response.statusCode == HttpStatusCode.RequestTimeout.value &&
-                    processingConstraints !is ProcessingConstraints.OnlineOnly
-                ) {
-                    // If the request failed with a timeout status code that means the request was
-                    // attempted and it may or may not have reached the server and created the data.
-                    // Any request queued here needs to ensure it has considered idempotent retry
-                    // concerns. Set serverAttemptMade to communicate this.
-                    return createAsync(
+            is ServerManager.ServerManagerResponse.RequestTimedOut ->
+                return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    SyncableObjectServiceResponse.RequestTimedOut()
+                } else {
+                    // Timeout means the request was attempted and may or may not have reached the
+                    // server. Queue for async retry with serverAttemptMade=true so that idempotent
+                    // retry concerns are considered.
+                    createAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
                         httpRequest = buildRequest.buildRequest(data, idempotencyKey, true, request),
@@ -172,6 +169,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         serverAttemptMade = true,
                     )
                 }
+
+            is ServerManager.ServerManagerResponse.ServerResponse -> {
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val syncStatus = SyncableObject.SyncStatus.Synced(lastSyncedTimestamp)
                 val updatedData = unpackSyncData.unpack(
@@ -388,17 +387,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     )
                 }
 
-            is ServerManager.ServerManagerResponse.ServerResponse -> {
-                if (
-                    response.statusCode == HttpStatusCode.RequestTimeout.value &&
-                    processingConstraints !is ProcessingConstraints.OnlineOnly
-                ) {
-                    // Timeout means the request may or may not have reached the server.
-                    // Queue the exact request that was already sent for async retry — the
-                    // idempotency key ensures safe replay. StoreAfterServerAttempt ensures
-                    // the queue cannot rebuild or squash this request with other pending
-                    // entries, since the original request body may have already been processed.
-                    return updateAsync(
+            is ServerManager.ServerManagerResponse.RequestTimedOut ->
+                return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    SyncableObjectServiceResponse.RequestTimedOut()
+                } else {
+                    // Timeout means the request was attempted and may or may not have reached the
+                    // server. Use StoreAfterServerAttempt to prevent squashing with other pending
+                    // requests, since the original request body may have already been processed.
+                    updateAsync(
                         idempotencyKey = idempotencyKey,
                         data = data,
                         lastSyncedData = lastSyncedData,
@@ -414,6 +410,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         requestTag = requestTag,
                     )
                 }
+
+            is ServerManager.ServerManagerResponse.ServerResponse -> {
                 SyncLog.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
@@ -554,16 +552,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     )
                 }
 
-            is ServerManager.ServerManagerResponse.ServerResponse -> {
-                if (
-                    response.statusCode == HttpStatusCode.RequestTimeout.value &&
-                    processingConstraints !is ProcessingConstraints.OnlineOnly
-                ) {
-                    // Timeout means the request may or may not have reached the server.
-                    // Queue for async retry — the idempotency key ensures safe replay.
-                    // Mark serverAttemptMade=true to prevent squashing with other pending
+            is ServerManager.ServerManagerResponse.RequestTimedOut ->
+                return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    SyncableObjectServiceResponse.RequestTimedOut()
+                } else {
+                    // Timeout means the request was attempted and may or may not have reached the
+                    // server. Mark serverAttemptMade=true to prevent squashing with other pending
                     // requests, since the original request body may have already been processed.
-                    return voidAsync(
+                    voidAsync(
                         data = data,
                         request = request,
                         idempotencyKey = idempotencyKey,
@@ -571,6 +567,8 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         serverAttemptMade = true,
                     )
                 }
+
+            is ServerManager.ServerManagerResponse.ServerResponse -> {
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {
@@ -647,6 +645,11 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             when (val response = serverManager.sendRequest(httpRequest = request)) {
                 is ServerManager.ServerManagerResponse.ConnectionError -> {
                     // Connection failed despite appearing online — fall back to local store.
+                    getFromLocalStore(clientId = clientId, serverId = serverId)
+                }
+
+                is ServerManager.ServerManagerResponse.RequestTimedOut -> {
+                    // Request timed out — fall back to local store.
                     getFromLocalStore(clientId = clientId, serverId = serverId)
                 }
 

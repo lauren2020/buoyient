@@ -14,4 +14,6 @@ sealed class GetResponse<O> {
     class NotFound<O> : GetResponse<O>()
 
     class NoInternetConnection<O> : GetResponse<O>()
+
+    class RequestTimedOut<O> : GetResponse<O>()
 }

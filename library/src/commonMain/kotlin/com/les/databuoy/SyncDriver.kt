@@ -130,7 +130,8 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
             }
 
             when (response) {
-                is ServerManager.ServerManagerResponse.ConnectionError -> {
+                is ServerManager.ServerManagerResponse.ConnectionError,
+                is ServerManager.ServerManagerResponse.RequestTimedOut -> {
                     SyncLog.w(TAG, "Sync down failed due to connection error. Retrying later.")
                     return
                 }
@@ -280,7 +281,8 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
             request = request.resolveBodyVersion(version.toString()) ?: request
         }
         when (val response = serverManager.sendRequest(request)) {
-            is ServerManager.ServerManagerResponse.ConnectionError -> {
+            is ServerManager.ServerManagerResponse.ConnectionError,
+            is ServerManager.ServerManagerResponse.RequestTimedOut -> {
                 SyncLog.w(TAG, "Sync up failed due to connection error. Trying again later.")
                 throw SyncUpRetryLaterException(
                     "Connection error for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"

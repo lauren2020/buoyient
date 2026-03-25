@@ -1,6 +1,7 @@
 package com.les.databuoy
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.headers
 import io.ktor.client.request.request
@@ -57,6 +58,9 @@ class ServerManager(
                 responseBody = responseBody,
                 responseEpochTimestamp = httpResponse.responseTime.timestamp,
             )
+        } catch (e: HttpRequestTimeoutException) {
+            SyncLog.w(TAG, "[${httpRequest.method.value}] not sent due to request timeout: $e")
+            ServerManagerResponse.RequestTimedOut
         } catch (e: Exception) {
             SyncLog.w(TAG, "[${httpRequest.method.value}] not sent due to connection error: $e")
             ServerManagerResponse.ConnectionError
@@ -76,6 +80,11 @@ class ServerManager(
             val responseBody: JsonObject,
             val responseEpochTimestamp: Long,
         ) : ServerManagerResponse()
+
+        /**
+         * A request was attempted but timed out before a response was received.
+         */
+        object RequestTimedOut : ServerManagerResponse()
 
         /**
          * A request was not attempted due to connectivity failure.
