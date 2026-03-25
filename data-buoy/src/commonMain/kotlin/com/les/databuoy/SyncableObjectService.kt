@@ -12,9 +12,9 @@ import kotlinx.serialization.KSerializer
  * Base class for offline-first syncable services. Subclass this to expose domain-specific
  * CRUD operations that work seamlessly online and offline.
  *
- * **AI agents:** See `CLAUDE.md` at the repository root (or `META-INF/CLAUDE.md` in the
- * published JAR) and `docs/creating-a-service.md` for a step-by-step guide to implementing
- * a service.
+ * **AI agents:** See `CLAUDE.md` / `CODEX.md` at the repository root (or under `META-INF/`
+ * in the published JAR) and `docs/creating-a-service.md` for a step-by-step guide to
+ * implementing a service.
  */
 abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
     serializer: KSerializer<O>,

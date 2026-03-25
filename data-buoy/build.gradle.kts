@@ -83,11 +83,10 @@ kotlin {
     }
 }
 
-// Bundle CLAUDE.md into the published JAR so agents consuming from maven local can find it.
+// Bundle agent instruction files into the published JAR so agents consuming the dependency can find them.
 tasks.withType<Jar> {
-    from(rootProject.file("CLAUDE.md")) {
-        into("META-INF")
-    }
+    from(rootProject.file("CLAUDE.md")) { into("META-INF") }
+    from(rootProject.file("CODEX.md")) { into("META-INF") }
 }
 
 sqldelight {

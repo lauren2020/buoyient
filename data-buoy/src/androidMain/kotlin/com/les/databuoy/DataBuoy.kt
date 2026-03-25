@@ -12,9 +12,9 @@ import android.content.Context
  * If using the `data-buoy-hilt` artifact, registration is handled
  * automatically — just provide your services via Hilt's `@IntoSet` multibinding.
  *
- * **AI agents:** See `CLAUDE.md` at the repository root (or `META-INF/CLAUDE.md` in the
- * published JAR) and the `docs/` directory for integration guides, key class reference,
- * and conventions.
+ * **AI agents:** See `CLAUDE.md` / `CODEX.md` at the repository root (or under `META-INF/`
+ * in the published JAR) and the `docs/` directory for integration guides, key class
+ * reference, and conventions.
  */
 object DataBuoy {
 
