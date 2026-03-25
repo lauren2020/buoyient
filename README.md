@@ -15,10 +15,12 @@ Keep data floating even when network conditions are rough.
 An offline first Kotlin Multiplatform SDK that keeps a local data store in sync with a remote server for a seamless client experience on- or off-line. App code performs CRUD operations through a single API regardless of connectivity - changes persist locally immediately, queue for server transport when offline, and reconcile automatically when connectivity returns. Includes conflict resolution, automatic retries, and periodic sync-down from the server.
 
 ## Agent Optimized
-This is intended to be an agent optimized SDK. 
+This is intended to be an agent optimized SDK.
 - It optimizes for simple, documented API's.
 - We did several rounds of testing having agents attempt to implement this SDK in a project and gathering feedback from the agents about what would have made the process easier. That feedback was then incrementally applied to the SDK to improve its agentic compatibility.
 - This SDK comes loaded with skills that should inform not only how to use the SDK, but also instruct agents regarding any concerns that should be considered to ensure the use is reliable and performant.
+
+**AI agents:** This repo includes a [`CLAUDE.md`](CLAUDE.md) file with detailed integration instructions, key class reference, and conventions. If you are consuming data-buoy as a maven dependency, the same file is bundled in the published JAR at `META-INF/CLAUDE.md`. The [`docs/`](docs/) directory contains step-by-step guides for setup, service creation, testing, and mock mode.
 
 ## Features
 
@@ -328,8 +330,6 @@ The `docs/` directory contains step-by-step guides for integrating data-buoy int
 | [Creating a Service](docs/creating-a-service.md) | Data model, `ServerProcessingConfig`, service class, and registration |
 | [Integration Testing](docs/integration-testing.md) | Automated JVM tests with `TestServiceEnvironment` and mock server |
 | [Mock Mode](docs/mock-mode.md) | Runtime mock mode for manual testing without a real backend |
-
-**For AI agents (Claude Code, Codex, Cursor, etc.):** This repo includes `CLAUDE.md`, `CODEX.md`, `.claude/skills/`, and `codex/skills/` with detailed instructions for setup, service creation, testing, and mock mode. Claude Code and Codex agents can use these as project-local guidance when working in this repo.
 
 ## Build
 

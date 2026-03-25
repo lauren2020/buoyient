@@ -83,6 +83,13 @@ kotlin {
     }
 }
 
+// Bundle CLAUDE.md into the published JAR so agents consuming from maven local can find it.
+tasks.withType<Jar> {
+    from(rootProject.file("CLAUDE.md")) {
+        into("META-INF")
+    }
+}
+
 sqldelight {
     databases {
         create("SyncDatabase") {

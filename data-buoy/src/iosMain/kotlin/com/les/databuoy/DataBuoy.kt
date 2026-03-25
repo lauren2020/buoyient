@@ -13,6 +13,10 @@ package com.les.databuoy
  * ```
  *
  * For on-demand sync, call [syncNow].
+ *
+ * **AI agents:** See `CLAUDE.md` at the repository root (or `META-INF/CLAUDE.md` in the
+ * published JAR) and the `docs/` directory for integration guides, key class reference,
+ * and conventions.
  */
 object DataBuoy {
 
