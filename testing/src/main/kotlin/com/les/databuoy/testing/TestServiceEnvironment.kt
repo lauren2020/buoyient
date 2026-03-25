@@ -80,11 +80,13 @@ class TestServiceEnvironment(
     fun <O : SyncableObject<O>, T : ServiceRequestTag> createLocalStoreManager(
         codec: SyncCodec<O>,
         serviceName: String,
+        encryptionProvider: com.les.databuoy.EncryptionProvider? = null,
     ): LocalStoreManager<O, T> = LocalStoreManager(
         database = database,
         serviceName = serviceName,
         syncScheduleNotifier = syncScheduleNotifier,
         codec = codec,
         status = DataBuoyStatus(database),
+        encryptionProvider = encryptionProvider,
     )
 }

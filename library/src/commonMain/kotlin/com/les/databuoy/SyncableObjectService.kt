@@ -15,10 +15,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     private val serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
     ),
+    encryptionProvider: EncryptionProvider? = null,
     private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
         codec = codec,
         serviceName = serviceName,
         syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+        encryptionProvider = encryptionProvider,
     ),
     private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler(),
 ) : Service<O> {

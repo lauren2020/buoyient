@@ -11,7 +11,9 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val status: DataBuoyStatus = DataBuoyStatus.shared,
     private val queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
         PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+    encryptionProvider: EncryptionProvider? = null,
 ) {
+    private val storageCodec = StorageCodec(encryptionProvider)
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
         fieldConflict.fieldNames.map { fieldName ->
@@ -30,6 +32,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         strategy = queueStrategy,
         codec = codec,
         status = status,
+        storageCodec = storageCodec,
     )
 
     /**
@@ -239,7 +242,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     client_id = data.clientId,
                     server_id = data.serverId,
                     version = data.version.toLong(),
-                    data_blob = jsonData.toString(),
+                    data_blob = storageCodec.encodeForStorage(jsonData.toString()),
                     sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
                 )
 
@@ -275,15 +278,16 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     ) {
         try {
             val serverDataJson = codec.encodeToString(serverData)
+            val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
             database.syncDataQueries.insertFromServerResponse(
                 service_name = serviceName,
                 client_id = serverData.clientId,
                 server_id = serverData.serverId,
                 version = serverData.version.toLong(),
                 last_synced_timestamp = responseTimestamp,
-                data_blob = serverDataJson,
+                data_blob = encryptedServerDataJson,
                 sync_status = SyncableObject.SyncStatus.SYNCED,
-                last_synced_server_data = serverDataJson,
+                last_synced_server_data = encryptedServerDataJson,
             )
         } catch (e: Exception) {
             SyncLog.e(TAG, "Failed to insert data from [create] response (server_id: ${serverData.serverId}): ", e)
@@ -305,7 +309,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             val result = transaction {
                 database.syncDataQueries.updateLocalData(
                     version = data.version.toLong(),
-                    data_blob = codec.encode(data).toString(),
+                    data_blob = storageCodec.encodeForStorage(codec.encode(data).toString()),
                     sync_status = SyncableObject.SyncStatus.PENDING_UPDATE,
                     service_name = serviceName,
                     client_id = data.clientId,
@@ -339,12 +343,13 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun upsertFromServerResponse(serverData: O, responseTimestamp: String) {
         try {
             val serverDataJson = codec.encodeToString(serverData)
+            val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
             database.syncDataQueries.upsertFromServerResponse(
                 last_synced_timestamp = responseTimestamp,
                 version = serverData.version.toLong(),
                 sync_status = SyncableObject.SyncStatus.SYNCED,
-                data_blob = serverDataJson,
-                last_synced_server_data = serverDataJson,
+                data_blob = encryptedServerDataJson,
+                last_synced_server_data = encryptedServerDataJson,
                 service_name = serviceName,
                 client_id = serverData.clientId,
             )
@@ -359,15 +364,16 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         clientId: String,
     ) {
         val serverDataJson = codec.encodeToString(serverObj)
+        val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
         database.syncDataQueries.upsertEntry(
             service_name = serviceName,
             client_id = clientId,
             server_id = serverObj.serverId,
             version = serverObj.version.toLong(),
             last_synced_timestamp = syncedAtTimestamp,
-            data_blob = serverDataJson,
+            data_blob = encryptedServerDataJson,
             sync_status = SyncableObject.SyncStatus.SYNCED,
-            last_synced_server_data = serverDataJson,
+            last_synced_server_data = encryptedServerDataJson,
         )
     }
 
@@ -409,12 +415,13 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun upsertFromVoidServerResponse(serverData: O, responseTimestamp: String) {
         try {
             val serverDataJson = codec.encodeToString(serverData)
+            val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
             database.syncDataQueries.upsertFromVoidServerResponse(
                 last_synced_timestamp = responseTimestamp,
                 version = serverData.version.toLong(),
                 sync_status = SyncableObject.SyncStatus.SYNCED,
-                data_blob = serverDataJson,
-                last_synced_server_data = serverDataJson,
+                data_blob = encryptedServerDataJson,
+                last_synced_server_data = encryptedServerDataJson,
                 service_name = serviceName,
                 client_id = serverData.clientId,
             )
@@ -429,7 +436,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         transaction {
             database.syncDataQueries.voidLocalOnly(
                 sync_status = SyncableObject.SyncStatus.LOCAL_ONLY,
-                data_blob = jsonData.toString(),
+                data_blob = storageCodec.encodeForStorage(jsonData.toString()),
                 service_name = serviceName,
                 client_id = data.clientId,
             )
@@ -451,7 +458,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         lastSyncedTimestamp: String,
         updatedSyncStatus: String,
     ) {
-        val resolvedDataJson = codec.encodeToString(latestServerData)
+        val resolvedDataJson = storageCodec.encodeForStorage(codec.encodeToString(latestServerData))
         when (row.type) {
             PendingSyncRequest.Type.CREATE,
             PendingSyncRequest.Type.UPDATE -> {
@@ -461,7 +468,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         last_synced_timestamp = lastSyncedTimestamp,
                         version = latestServerData.version.toLong(),
                         sync_status = updatedSyncStatus,
-                        data_blob = codec.encodeToString(rebasedLatestData),
+                        data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLatestData)),
                         last_synced_server_data = resolvedDataJson,
                         service_name = serviceName,
                         client_id = row.data.clientId,
@@ -514,9 +521,9 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             },
         )
         val lastSyncedServerData = row.last_synced_server_data?.let {
-            codec.decode(it, SyncableObject.SyncStatus.Synced(lastSyncedTimestamp = lastSyncedTimestamp!!))
+            codec.decode(storageCodec.decodeFromStorage(it), SyncableObject.SyncStatus.Synced(lastSyncedTimestamp = lastSyncedTimestamp!!))
         }
-        val latestLocalData = codec.decode(row.data_blob, syncStatus)
+        val latestLocalData = codec.decode(storageCodec.decodeFromStorage(row.data_blob), syncStatus)
 
         return LocalStoreEntry(
             data = latestLocalData,
@@ -544,9 +551,9 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     emptyList()
                 },
             )
-            val data = codec.decode(row.data_blob, latestSyncStatus)
+            val data = codec.decode(storageCodec.decodeFromStorage(row.data_blob), latestSyncStatus)
             val latestServerData = row.last_synced_server_data?.let {
-                codec.decode(it, SyncableObject.SyncStatus.Synced(lastSyncedTimestamp!!))
+                codec.decode(storageCodec.decodeFromStorage(it), SyncableObject.SyncStatus.Synced(lastSyncedTimestamp!!))
             }
             LocalStoreEntry(
                 data = data,
@@ -581,8 +588,8 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     last_synced_timestamp = lastSyncedTimestamp,
                     version = updatedServerData.version.toLong(),
                     sync_status = SyncableObject.SyncStatus.SYNCED,
-                    data_blob = codec.encodeToString(rebasedLocalData),
-                    last_synced_server_data = codec.encodeToString(updatedServerData),
+                    data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLocalData)),
+                    last_synced_server_data = storageCodec.encodeForStorage(codec.encodeToString(updatedServerData)),
                     service_name = serviceName,
                     client_id = clientId,
                 )
@@ -668,7 +675,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             is PendingRequestQueueManager.RebasePendingRequestsResult.AbortedRebaseToConflicts -> {
                 database.syncDataQueries.markConflictAfterRebase(
                     sync_status = SyncableObject.SyncStatus.CONFLICT,
-                    last_synced_server_data = codec.encodeToString(updatedServerData),
+                    last_synced_server_data = storageCodec.encodeForStorage(codec.encodeToString(updatedServerData)),
                     last_synced_timestamp = lastSyncedTimestamp,
                     service_name = serviceName,
                     client_id = clientId,
@@ -788,7 +795,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         }
                         database.syncDataQueries.resolveConflict(
                             sync_status = updatedSyncStatus,
-                            data_blob = codec.encodeToString(latestData),
+                            data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -844,7 +851,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     // No pending requests — just restore to SYNCED.
                     database.syncDataQueries.resolveConflict(
                         sync_status = SyncableObject.SyncStatus.SYNCED,
-                        data_blob = codec.encodeToString(entry.data),
+                        data_blob = storageCodec.encodeForStorage(codec.encodeToString(entry.data)),
                         service_name = serviceName,
                         client_id = clientId,
                     )
@@ -863,7 +870,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     }
                     database.syncDataQueries.resolveConflict(
                         sync_status = updatedSyncStatus,
-                        data_blob = codec.encodeToString(latestData),
+                        data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                         service_name = serviceName,
                         client_id = clientId,
                     )
@@ -888,7 +895,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     is PendingRequestQueueManager.RebasePendingRequestsResult.NoPendingRequestRemaining -> {
                         database.syncDataQueries.resolveConflict(
                             sync_status = SyncableObject.SyncStatus.SYNCED,
-                            data_blob = codec.encodeToString(entry.data),
+                            data_blob = storageCodec.encodeForStorage(codec.encodeToString(entry.data)),
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -904,7 +911,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         }
                         database.syncDataQueries.resolveConflict(
                             sync_status = updatedSyncStatus,
-                            data_blob = codec.encodeToString(latestData),
+                            data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                             service_name = serviceName,
                             client_id = clientId,
                         )

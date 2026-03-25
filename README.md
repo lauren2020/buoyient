@@ -12,7 +12,7 @@ Keep data floating even when network conditions are rough.
 > feedback are welcome!
 
 ## What
-A Kotlin Multiplatform offline-first sync SDK that handles bidirectional data synchronization between local storage and a remote server, with built-in support for offline queuing, conflict resolution, and automatic retries.
+An offline first Kotlin Multiplatform SDK that keeps a local data store in sync with a remote server for a seamless client experience on- or off-line. App code performs CRUD operations through a single API regardless of connectivity - changes persist locally immediately, queue for server transport when offline, and reconcile automatically when connectivity returns. Includes conflict resolution, automatic retries, and periodic sync-down from the server.
 
 ## Agent Optimized
 This is intended to be an agent optimized SDK. There is a lot of complexity that goes into solid and reliable client server data synchronization and creating a seamless client data alteration experience regardless of network state. This library aims to encapsulate that complexity and expose a simple api that allows consuming applications to get the benefits of that without direct concern for the complexity - and it aims to do that in a way that is accessible and tailored to agentic use. The skills loaded into this SDK should inform not only how to use the SDK, but also instruct agents regarding any concerns that should be considered to ensure the use is reliable and performant.

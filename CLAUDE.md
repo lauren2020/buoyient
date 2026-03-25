@@ -30,6 +30,7 @@ These guides contain complete templates, required field tables, and common patte
 | `SquashRequestMerger` | Functional interface for merging an update into a pending create when using `Squash` strategy |
 | `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
 | `SyncLog` | Process-wide logger singleton — set `SyncLog.logger` to swap the backing `SyncLogger` |
+| `EncryptionProvider` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
 | `GlobalHeaderProvider` | Functional interface for dynamic global headers (e.g., auth tokens) — set via `DataBuoy.globalHeaderProvider` |
 | `DataBuoy` | Convenience API for service registration and global header configuration |
 | `TestServiceEnvironment` | All-in-one test harness (`:testing` module) |

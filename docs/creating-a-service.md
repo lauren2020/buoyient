@@ -725,3 +725,76 @@ app/src/main/java/com/example/yourapp/data/
     └── SyncModule.kt                           # Hilt @Module with @IntoSet bindings
                                                 # (or AppSyncServiceRegistryProvider if not using Hilt)
 ```
+
+---
+
+## Encryption at rest
+
+data-buoy can optionally encrypt all persisted JSON blobs in SQLite on a per-service basis. Encryption is off by default; to enable it, implement `EncryptionProvider` and pass it to your service constructor.
+
+### Implement `EncryptionProvider`
+
+```kotlin
+import com.les.databuoy.EncryptionProvider
+
+class AesGcmEncryptionProvider(
+    private val keyAlias: String,
+) : EncryptionProvider {
+
+    override fun encrypt(plaintext: String): String {
+        // Your encryption logic here — e.g., AES-GCM via Android Keystore.
+        // Return a string-safe representation (e.g., Base64-encoded ciphertext).
+    }
+
+    override fun decrypt(ciphertext: String): String {
+        // Reverse the encryption.
+    }
+}
+```
+
+data-buoy is crypto-agnostic — use whatever algorithm and key management strategy your app requires (Android Keystore, Tink, Jetpack Security, etc.).
+
+### Pass it to your service
+
+```kotlin
+class SecureItemService(
+    encryptionProvider: EncryptionProvider = AesGcmEncryptionProvider("my-key-alias"),
+    serverProcessingConfig: ServerProcessingConfig<SecureItem> = SecureItemServerProcessingConfig(),
+    // ... other params ...
+) : SyncableObjectService<SecureItem, SecureItemRequestTag>(
+    serializer = SecureItem.serializer(),
+    serverProcessingConfig = serverProcessingConfig,
+    serviceName = "secure-items",
+    encryptionProvider = encryptionProvider,
+    // ... other params ...
+)
+```
+
+### What gets encrypted
+
+| Table | Encrypted columns |
+|-------|------------------|
+| `sync_data` | `data_blob`, `last_synced_server_data` |
+| `sync_pending_events` | `data_blob`, `request`, `last_synced_data`, `conflict_info` |
+
+Metadata columns (`service_name`, `client_id`, `server_id`, `sync_status`, `version`, etc.) remain plaintext because they are used in SQL queries and indexes.
+
+### Key points
+
+- **Per-service opt-in**: each service independently decides whether to encrypt. Encrypted and unencrypted services coexist in the same database.
+- **In-memory objects are always plaintext**: encryption only applies at the SQLite storage boundary.
+- **Key management is your responsibility**: data-buoy never touches cryptographic keys or primitives.
+- **No schema changes required**: encrypted values are stored as TEXT (e.g., Base64-encoded ciphertext) in the same columns.
+
+### Testing with encryption
+
+`TestServiceEnvironment.createLocalStoreManager()` accepts an optional `encryptionProvider` parameter:
+
+```kotlin
+val env = TestServiceEnvironment()
+val localStoreManager = env.createLocalStoreManager(
+    codec = codec,
+    serviceName = "secure-items",
+    encryptionProvider = testEncryptionProvider,
+)
+```
