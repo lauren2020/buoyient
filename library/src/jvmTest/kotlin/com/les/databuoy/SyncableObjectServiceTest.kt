@@ -2,6 +2,7 @@ package com.les.databuoy
 
 import com.les.databuoy.testing.MockConnectionException
 import com.les.databuoy.testing.MockResponse
+import com.les.databuoy.testing.MockTimeoutException
 import com.les.databuoy.testing.TestServiceEnvironment
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -12,6 +13,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -92,8 +94,12 @@ class SyncableObjectServiceTest {
             },
         )
 
-        suspend fun testUpdate(item: TestItem) = update(
+        suspend fun testUpdate(
+            item: TestItem,
+            constraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
+        ) = update(
             data = item,
+            processingConstraints = constraints,
             requestTag = TestRequestTag.UPDATE,
             request = UpdateRequestBuilder { _, updated, idempotencyKey, _, _ ->
                 HttpRequest(HttpRequest.HttpMethod.PUT,
@@ -192,7 +198,11 @@ class SyncableObjectServiceTest {
         )
     }
 
-    private fun createServiceAndEnv(online: Boolean = true): Pair<TestItemService, TestServiceEnvironment> {
+    private fun createServiceAndEnv(
+        online: Boolean = true,
+        queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
+            PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+    ): Pair<TestItemService, TestServiceEnvironment> {
         val env = TestServiceEnvironment()
         env.connectivityChecker.online = online
 
@@ -200,8 +210,13 @@ class SyncableObjectServiceTest {
             MockResponse(200, buildJsonObject { put("data", buildJsonObject { }) })
         }
 
-        val localStoreManager = env.createLocalStoreManager<TestItem, TestRequestTag>(
-            codec = SyncCodec(TestItem.serializer()), serviceName = "test-items",
+        val localStoreManager = LocalStoreManager<TestItem, TestRequestTag>(
+            database = env.database,
+            serviceName = "test-items",
+            syncScheduleNotifier = env.syncScheduleNotifier,
+            codec = SyncCodec(TestItem.serializer()),
+            status = DataBuoyStatus(env.database),
+            queueStrategy = queueStrategy,
         )
         val service = TestItemService(
             serverProcessingConfig = testServerConfig(),
@@ -263,16 +278,31 @@ class SyncableObjectServiceTest {
 
     // region update
 
-    @Test
-    fun `update online - returns NetworkResponseReceived`() = runBlocking {
-        val (service, env) = createServiceAndEnv(online = true)
+    // -- Helper to seed a synced item in the db via online create --
 
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1,
-            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+    private suspend fun seedSyncedItem(
+        service: TestItemService,
+        env: TestServiceEnvironment,
+        clientId: String = "client-1",
+        serverId: String = "server-1",
+        name: String = "Test Item",
+        version: Int = 1,
+    ): TestItem {
+        val serverItem = testItem(clientId = clientId, serverId = serverId, version = version,
+            name = name, syncStatus = SyncableObject.SyncStatus.Synced("1000"))
         env.mockRouter.onPost("https://api.test.com/items") { _ ->
             MockResponse(201, wrapResponse(serverItem))
         }
-        service.testCreate(testItem(clientId = "client-1"))
+        service.testCreate(testItem(clientId = clientId, name = name))
+        return serverItem
+    }
+
+    // -- Online (NoConstraints, connectivity = true, no pending requests) --
+
+    @Test
+    fun `update online - returns NetworkResponseReceived`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
 
         val updatedServerItem = serverItem.copy(name = "Updated", version = 2)
         env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
@@ -288,15 +318,49 @@ class SyncableObjectServiceTest {
     }
 
     @Test
+    fun `update online - db reflects server response data`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        val updatedServerItem = serverItem.copy(name = "Server Name", version = 2)
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            MockResponse(200, wrapResponse(updatedServerItem))
+        }
+
+        service.testUpdate(serverItem.copy(name = "Server Name", version = 2))
+
+        val stored = service.getAllFromLocalStore()
+        assertEquals(1, stored.size)
+        assertEquals("Server Name", stored[0].name)
+        assertEquals(2, stored[0].version)
+        service.close()
+    }
+
+    @Test
+    fun `update online - no pending requests remain after success`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        val updatedServerItem = serverItem.copy(name = "Updated", version = 2)
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            MockResponse(200, wrapResponse(updatedServerItem))
+        }
+
+        service.testUpdate(serverItem.copy(name = "Updated", version = 2))
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertTrue(pendingRequests.isEmpty())
+        service.close()
+    }
+
+    // -- Offline (NoConstraints, connectivity = false) --
+
+    @Test
     fun `update offline - queues pending UPDATE`() = runBlocking {
         val (service, env) = createServiceAndEnv(online = true)
-
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1,
-            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
-        env.mockRouter.onPost("https://api.test.com/items") { _ ->
-            MockResponse(201, wrapResponse(serverItem))
-        }
-        service.testCreate(testItem(clientId = "client-1"))
+        val serverItem = seedSyncedItem(service, env)
 
         env.connectivityChecker.online = false
 
@@ -304,6 +368,420 @@ class SyncableObjectServiceTest {
 
         assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
         assertEquals("Updated Offline", result.updatedData.name)
+        service.close()
+    }
+
+    @Test
+    fun `update offline - db data updated and pending request queued`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        env.connectivityChecker.online = false
+        service.testUpdate(serverItem.copy(name = "Offline Name"))
+
+        val stored = service.getAllFromLocalStore()
+        assertEquals(1, stored.size)
+        assertEquals("Offline Name", stored[0].name)
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertEquals(1, pendingRequests.size)
+        assertEquals("UPDATE", pendingRequests[0].type)
+        service.close()
+    }
+
+    // -- ProcessingConstraints.OfflineOnly (forces async even when online) --
+
+    @Test
+    fun `update with OfflineOnly constraint - queues async even when online`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        // Server should not be called — no PUT handler registered
+        val result = service.testUpdate(
+            serverItem.copy(name = "Forced Offline"),
+            constraints = SyncableObjectService.ProcessingConstraints.OfflineOnly,
+        )
+
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
+        assertEquals("Forced Offline", result.updatedData.name)
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertEquals(1, pendingRequests.size)
+        service.close()
+    }
+
+    // -- ProcessingConstraints.OnlineOnly --
+
+    @Test
+    fun `update with OnlineOnly constraint - succeeds when online`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        val updatedServerItem = serverItem.copy(name = "Online Only", version = 2)
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            MockResponse(200, wrapResponse(updatedServerItem))
+        }
+
+        val result = service.testUpdate(
+            serverItem.copy(name = "Online Only", version = 2),
+            constraints = SyncableObjectService.ProcessingConstraints.OnlineOnly,
+        )
+
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
+        assertEquals("Online Only", result.updatedData!!.name)
+        service.close()
+    }
+
+    @Test
+    fun `update with OnlineOnly constraint offline - connection error returns NoInternetConnection`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        // OnlineOnly enters the online branch regardless of connectivity state.
+        // Simulate connection failure so updateSync gets a ConnectionError.
+        env.connectivityChecker.online = false
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            throw MockConnectionException()
+        }
+
+        val result = service.testUpdate(
+            serverItem.copy(name = "Will Fail"),
+            constraints = SyncableObjectService.ProcessingConstraints.OnlineOnly,
+        )
+
+        assertIs<SyncableObjectServiceResponse.NoInternetConnection<TestItem>>(result)
+
+        // DB should remain unchanged
+        val stored = service.getAllFromLocalStore()
+        assertEquals(1, stored.size)
+        assertEquals("Test Item", stored[0].name)
+        service.close()
+    }
+
+    @Test
+    fun `update with OnlineOnly constraint - returns InvalidRequest when pending requests exist`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        // Create a pending request by going offline and doing an update
+        env.connectivityChecker.online = false
+        service.testUpdate(serverItem.copy(name = "Pending Update"))
+        env.connectivityChecker.online = true
+
+        val result = service.testUpdate(
+            serverItem.copy(name = "OnlineOnly After Pending"),
+            constraints = SyncableObjectService.ProcessingConstraints.OnlineOnly,
+        )
+
+        assertIs<SyncableObjectServiceResponse.InvalidRequest<TestItem>>(result)
+        service.close()
+    }
+
+    // -- Online with pending requests (forces async to preserve ordering) --
+
+    @Test
+    fun `update online with pending requests - queues async to preserve order`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        // Create a pending request by going offline
+        env.connectivityChecker.online = false
+        service.testUpdate(serverItem.copy(name = "First Offline"))
+        env.connectivityChecker.online = true
+
+        // Now update again online — should be forced async
+        val result = service.testUpdate(serverItem.copy(name = "Second Online"))
+
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertEquals(2, pendingRequests.size)
+        service.close()
+    }
+
+    // -- Connection error fallback --
+
+    @Test
+    fun `update online with connection error - falls back to async`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            throw MockConnectionException()
+        }
+
+        val result = service.testUpdate(serverItem.copy(name = "Conn Error"))
+
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
+        assertEquals("Conn Error", result.updatedData.name)
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertEquals(1, pendingRequests.size)
+        assertEquals(0L, pendingRequests[0].server_attempt_made)
+        service.close()
+    }
+
+    @Test
+    fun `update OnlineOnly with connection error - returns NoInternetConnection`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            throw MockConnectionException()
+        }
+
+        val result = service.testUpdate(
+            serverItem.copy(name = "No Fallback"),
+            constraints = SyncableObjectService.ProcessingConstraints.OnlineOnly,
+        )
+
+        assertIs<SyncableObjectServiceResponse.NoInternetConnection<TestItem>>(result)
+
+        // No pending request should be created for OnlineOnly
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertTrue(pendingRequests.isEmpty())
+        service.close()
+    }
+
+    // -- Timeout fallback --
+
+    @Test
+    fun `update online with timeout - falls back to async with server attempt flag`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            throw MockTimeoutException()
+        }
+
+        val result = service.testUpdate(serverItem.copy(name = "Timed Out"))
+
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertEquals(1, pendingRequests.size)
+        assertEquals(1L, pendingRequests[0].server_attempt_made)
+        service.close()
+    }
+
+    @Test
+    fun `update OnlineOnly with timeout - returns RequestTimedOut`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            throw MockTimeoutException()
+        }
+
+        val result = service.testUpdate(
+            serverItem.copy(name = "No Fallback Timeout"),
+            constraints = SyncableObjectService.ProcessingConstraints.OnlineOnly,
+        )
+
+        assertIs<SyncableObjectServiceResponse.RequestTimedOut<TestItem>>(result)
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertTrue(pendingRequests.isEmpty())
+        service.close()
+    }
+
+    // -- Server error (5xx) --
+
+    @Test
+    fun `update online with server error - returns ServerError`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            MockResponse(500, buildJsonObject { put("error", "Internal Server Error") })
+        }
+
+        val result = service.testUpdate(serverItem.copy(name = "Server Fail"))
+
+        assertIs<SyncableObjectServiceResponse.ServerError<TestItem>>(result)
+        assertEquals(500, result.statusCode)
+
+        // DB should not be updated
+        val stored = service.getAllFromLocalStore()
+        assertEquals("Test Item", stored[0].name)
+
+        // No pending request queued for server errors
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertTrue(pendingRequests.isEmpty())
+        service.close()
+    }
+
+    // -- Client error (4xx) --
+
+    @Test
+    fun `update online with 4xx error - returns Failed NetworkResponseReceived`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val serverItem = seedSyncedItem(service, env)
+
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            MockResponse(422, buildJsonObject { put("error", "Validation failed") })
+        }
+
+        val result = service.testUpdate(serverItem.copy(name = "Bad Request"))
+
+        assertIs<SyncableObjectServiceResponse.Failed.NetworkResponseReceived<TestItem>>(result)
+        assertEquals(422, result.statusCode)
+
+        // DB should not be updated
+        val stored = service.getAllFromLocalStore()
+        assertEquals("Test Item", stored[0].name)
+        service.close()
+    }
+
+    // -- Invalid DB state (no existing data to update) --
+
+    @Test
+    fun `update on item not in db - returns InvalidRequest`() = runBlocking {
+        val (service, _) = createServiceAndEnv(online = true)
+
+        val orphanItem = testItem(clientId = "nonexistent", serverId = "s-1", version = 1,
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+
+        val result = service.testUpdate(orphanItem.copy(name = "Ghost"))
+
+        assertIs<SyncableObjectServiceResponse.InvalidRequest<TestItem>>(result)
+        service.close()
+    }
+
+    // -- Queue strategy: Queue (default) -- multiple offline updates create separate entries --
+
+    @Test
+    fun `update offline Queue strategy - multiple updates create separate pending requests`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true, queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val serverItem = seedSyncedItem(service, env)
+
+        env.connectivityChecker.online = false
+
+        service.testUpdate(serverItem.copy(name = "Edit 1"))
+        service.testUpdate(serverItem.copy(name = "Edit 2"))
+        service.testUpdate(serverItem.copy(name = "Edit 3"))
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertEquals(3, pendingRequests.size)
+
+        // DB reflects the latest update
+        val stored = service.getAllFromLocalStore()
+        assertEquals("Edit 3", stored[0].name)
+        service.close()
+    }
+
+    // -- Queue strategy: Squash -- consecutive offline updates squash into one --
+
+    @Test
+    fun `update offline Squash strategy - consecutive updates squash into one pending request`() = runBlocking {
+        val (service, env) = createServiceAndEnv(
+            online = true,
+            queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+                squashUpdateIntoCreate = SquashRequestMerger { createReq, updateReq ->
+                    // Merge the update body into the create request
+                    HttpRequest(createReq.method, createReq.endpointUrl, updateReq.requestBody)
+                },
+            ),
+        )
+        val serverItem = seedSyncedItem(service, env)
+
+        env.connectivityChecker.online = false
+
+        service.testUpdate(serverItem.copy(name = "Squash 1"))
+        service.testUpdate(serverItem.copy(name = "Squash 2"))
+        service.testUpdate(serverItem.copy(name = "Squash 3"))
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        // Squash strategy collapses consecutive updates (no server attempt) into one
+        assertEquals(1, pendingRequests.size)
+
+        // DB reflects the latest update
+        val stored = service.getAllFromLocalStore()
+        assertEquals("Squash 3", stored[0].name)
+        service.close()
+    }
+
+    @Test
+    fun `update Squash strategy - timeout update not squashed with subsequent update`() = runBlocking {
+        val (service, env) = createServiceAndEnv(
+            online = true,
+            queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+                squashUpdateIntoCreate = SquashRequestMerger { createReq, updateReq ->
+                    HttpRequest(createReq.method, createReq.endpointUrl, updateReq.requestBody)
+                },
+            ),
+        )
+        val serverItem = seedSyncedItem(service, env)
+
+        // First update times out — gets queued with serverAttemptMade = true
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            throw MockTimeoutException()
+        }
+        service.testUpdate(serverItem.copy(name = "Timeout Edit"))
+
+        // Second update offline — should NOT squash into the timed-out one
+        env.connectivityChecker.online = false
+        service.testUpdate(serverItem.copy(name = "After Timeout"))
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        // Timed-out request is preserved separately since server may have processed it
+        assertEquals(2, pendingRequests.size)
+        assertEquals(1L, pendingRequests[0].server_attempt_made)
+        assertEquals(0L, pendingRequests[1].server_attempt_made)
+        service.close()
+    }
+
+    // -- Squash strategy: offline create then update squashes into the create --
+
+    @Test
+    fun `update Squash strategy - update after offline create squashes into create`() = runBlocking {
+        val (service, env) = createServiceAndEnv(
+            online = false,
+            queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+                squashUpdateIntoCreate = SquashRequestMerger { createReq, updateReq ->
+                    HttpRequest(createReq.method, createReq.endpointUrl, updateReq.requestBody)
+                },
+            ),
+        )
+
+        // Offline create — queues a pending CREATE
+        service.testCreate(testItem(clientId = "client-1", name = "Original"))
+
+        // Now update the locally-created item — should squash into the pending CREATE
+        val localItem = service.getAllFromLocalStore().first()
+        val result = service.testUpdate(localItem.copy(name = "Squashed Into Create"))
+
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
+        assertEquals("Squashed Into Create", result.updatedData.name)
+
+        val pendingRequests = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        // Should still be just one pending request (the squashed create)
+        assertEquals(1, pendingRequests.size)
+        assertEquals("CREATE", pendingRequests[0].type)
         service.close()
     }
 
