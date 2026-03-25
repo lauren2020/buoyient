@@ -19,5 +19,7 @@ sealed class SyncableObjectServiceResponse<O> {
 
     class RequestTimedOut<O> : SyncableObjectServiceResponse<O>()
 
+    class ServerError<O>(val statusCode: Int, val responseBody: JsonObject?) : SyncableObjectServiceResponse<O>()
+
     class LocalStoreFailed<O>(val exception: Exception) : SyncableObjectServiceResponse<O>()
 }

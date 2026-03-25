@@ -136,6 +136,11 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     return
                 }
 
+                is ServerManager.ServerManagerResponse.ServerError -> {
+                    SyncLog.w(TAG, "Sync down failed due to server error (${response.statusCode}). Retrying later.")
+                    return
+                }
+
                 is ServerManager.ServerManagerResponse.ServerResponse -> {
                     val syncedAtTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                     val items = serverProcessingConfig.syncFetchConfig.transformItemsListFromResponse(
@@ -286,6 +291,16 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 SyncLog.w(TAG, "Sync up failed due to connection error. Trying again later.")
                 throw SyncUpRetryLaterException(
                     "Connection error for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
+                )
+            }
+
+            is ServerManager.ServerManagerResponse.ServerError -> {
+                SyncLog.w(TAG, "Sync up failed due to server error (${response.statusCode}). Trying again later.")
+                if (!row.serverAttemptMade) {
+                    localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
+                }
+                throw SyncUpRetryLaterException(
+                    "Server error ${response.statusCode} for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
                 )
             }
 

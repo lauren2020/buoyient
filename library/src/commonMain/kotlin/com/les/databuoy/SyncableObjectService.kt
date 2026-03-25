@@ -170,6 +170,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     )
                 }
 
+            is ServerManager.ServerManagerResponse.ServerError ->
+                return SyncableObjectServiceResponse.ServerError(
+                    statusCode = response.statusCode,
+                    responseBody = response.responseBody,
+                )
+
             is ServerManager.ServerManagerResponse.ServerResponse -> {
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val syncStatus = SyncableObject.SyncStatus.Synced(lastSyncedTimestamp)
@@ -411,6 +417,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     )
                 }
 
+            is ServerManager.ServerManagerResponse.ServerError ->
+                return SyncableObjectServiceResponse.ServerError(
+                    statusCode = response.statusCode,
+                    responseBody = response.responseBody,
+                )
+
             is ServerManager.ServerManagerResponse.ServerResponse -> {
                 SyncLog.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
@@ -568,6 +580,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     )
                 }
 
+            is ServerManager.ServerManagerResponse.ServerError ->
+                return SyncableObjectServiceResponse.ServerError(
+                    statusCode = response.statusCode,
+                    responseBody = response.responseBody,
+                )
+
             is ServerManager.ServerManagerResponse.ServerResponse -> {
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
@@ -650,6 +668,11 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
 
                 is ServerManager.ServerManagerResponse.RequestTimedOut -> {
                     // Request timed out — fall back to local store.
+                    getFromLocalStore(clientId = clientId, serverId = serverId)
+                }
+
+                is ServerManager.ServerManagerResponse.ServerError -> {
+                    // Server error — fall back to local store.
                     getFromLocalStore(clientId = clientId, serverId = serverId)
                 }
 

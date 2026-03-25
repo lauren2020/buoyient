@@ -330,6 +330,9 @@ suspend fun createItem(item: YourModel): CreateItemResponse {
             }
         }
 
+        is SyncableObjectServiceResponse.ServerError ->
+            CreateItemResponse.Failed(errors = JsonArray(emptyList()))
+
         is SyncableObjectServiceResponse.InvalidRequest,
         is SyncableObjectServiceResponse.NoInternetConnection,
         is SyncableObjectServiceResponse.LocalStoreFailed ->

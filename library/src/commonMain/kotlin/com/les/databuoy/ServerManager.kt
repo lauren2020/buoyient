@@ -53,11 +53,18 @@ class ServerManager(
                 JsonObject(emptyMap())
             }
             SyncLog.d(TAG, "[${httpRequest.method.value}] response received (${httpResponse.status.value}): $responseBody")
-            ServerManagerResponse.ServerResponse(
-                statusCode = httpResponse.status.value,
-                responseBody = responseBody,
-                responseEpochTimestamp = httpResponse.responseTime.timestamp,
-            )
+            if (httpResponse.status.value in 500..599) {
+                ServerManagerResponse.ServerError(
+                    statusCode = httpResponse.status.value,
+                    responseBody = responseBody,
+                )
+            } else {
+                ServerManagerResponse.ServerResponse(
+                    statusCode = httpResponse.status.value,
+                    responseBody = responseBody,
+                    responseEpochTimestamp = httpResponse.responseTime.timestamp,
+                )
+            }
         } catch (e: HttpRequestTimeoutException) {
             SyncLog.w(TAG, "[${httpRequest.method.value}] not sent due to request timeout: $e")
             ServerManagerResponse.RequestTimedOut
@@ -79,6 +86,18 @@ class ServerManager(
             val statusCode: Int,
             val responseBody: JsonObject,
             val responseEpochTimestamp: Long,
+        ) : ServerManagerResponse()
+
+        /**
+         * A request was sent and the server returned a 5xx status code, indicating a
+         * server-side error.
+         *
+         * @property statusCode - the 5xx status code of the server response.
+         * @property responseBody - the json response body from the server, if any.
+         */
+        class ServerError(
+            val statusCode: Int,
+            val responseBody: JsonObject,
         ) : ServerManagerResponse()
 
         /**
