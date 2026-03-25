@@ -46,7 +46,7 @@ class ServerManagerTest {
     // endregion
 
     @Test
-    fun `sendRequest returns ServerResponse on successful JSON response`() = runBlocking {
+    fun `sendRequest returns Success on successful JSON response`() = runBlocking {
         val engine = MockEngine { _ ->
             respond(
                 content = """{"id": "abc-123", "name": "test"}""",
@@ -62,7 +62,7 @@ class ServerManagerTest {
 
         val result = serverManager.sendRequest(request)
 
-        assertIs<ServerManager.ServerManagerResponse.ServerResponse>(result)
+        assertIs<ServerManager.ServerManagerResponse.Success>(result)
         assertEquals(200, result.statusCode)
         assertEquals("abc-123", result.responseBody["id"]?.jsonPrimitive?.content)
         assertEquals("test", result.responseBody["name"]?.jsonPrimitive?.content)
@@ -70,7 +70,7 @@ class ServerManagerTest {
     }
 
     @Test
-    fun `sendRequest returns ServerResponse for GET request`() = runBlocking {
+    fun `sendRequest returns Success for GET request`() = runBlocking {
         var capturedMethod: String? = null
         val engine = MockEngine { requestData ->
             capturedMethod = requestData.method.value
@@ -85,7 +85,7 @@ class ServerManagerTest {
 
         val result = serverManager.sendRequest(request)
 
-        assertIs<ServerManager.ServerManagerResponse.ServerResponse>(result)
+        assertIs<ServerManager.ServerManagerResponse.Success>(result)
         assertEquals(200, result.statusCode)
         assertEquals("GET", capturedMethod)
     }
@@ -118,7 +118,7 @@ class ServerManagerTest {
 
         val result = serverManager.sendRequest(request)
 
-        assertIs<ServerManager.ServerManagerResponse.ServerResponse>(result)
+        assertIs<ServerManager.ServerManagerResponse.Success>(result)
         assertEquals(JsonObject(emptyMap()), result.responseBody)
     }
 
@@ -161,7 +161,7 @@ class ServerManagerTest {
         val request = makeHttpRequest()
 
         val result404 = serverManager404.sendRequest(request)
-        assertIs<ServerManager.ServerManagerResponse.ServerResponse>(result404)
+        assertIs<ServerManager.ServerManagerResponse.Failed>(result404)
         assertEquals(404, result404.statusCode)
 
         val engine500 = MockEngine { _ ->
@@ -174,7 +174,7 @@ class ServerManagerTest {
         val serverManager500 = makeServerManager(engine500)
 
         val result500 = serverManager500.sendRequest(request)
-        assertIs<ServerManager.ServerManagerResponse.ServerResponse>(result500)
+        assertIs<ServerManager.ServerManagerResponse.ServerError>(result500)
         assertEquals(500, result500.statusCode)
     }
 }

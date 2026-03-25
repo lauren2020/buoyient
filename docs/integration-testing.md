@@ -180,7 +180,7 @@ fun `update item online sends PUT and returns updated data`() = runBlocking {
 
     val result = service.updateItem(existingItem, newName = "Updated Name")
 
-    assertTrue(result is SyncableObjectServiceResponse.Finished.NetworkResponseReceived)
+    assertTrue(result is SyncableObjectServiceResponse.Success.NetworkResponseReceived)
     assertEquals(200, result.statusCode)
 }
 ```

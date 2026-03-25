@@ -317,25 +317,23 @@ suspend fun createItem(item: YourModel): CreateItemResponse {
         },
     )
     return when (response) {
-        is SyncableObjectServiceResponse.Finished.StoredLocally ->
+        is SyncableObjectServiceResponse.Success.StoredLocally ->
             CreateItemResponse.Success(response.updatedData)
 
-        is SyncableObjectServiceResponse.Finished.NetworkResponseReceived -> {
-            if (response.statusCode in 200..299) {
-                CreateItemResponse.Success(response.updatedData!!)
-            } else {
-                CreateItemResponse.Failed(
-                    errors = response.responseBody["errors"]?.jsonArray ?: JsonArray(emptyList())
-                )
-            }
-        }
+        is SyncableObjectServiceResponse.Success.NetworkResponseReceived ->
+            CreateItemResponse.Success(response.updatedData!!)
+
+        is SyncableObjectServiceResponse.Failed.NetworkResponseReceived ->
+            CreateItemResponse.Failed(
+                errors = response.responseBody["errors"]?.jsonArray ?: JsonArray(emptyList())
+            )
 
         is SyncableObjectServiceResponse.ServerError ->
             CreateItemResponse.Failed(errors = JsonArray(emptyList()))
 
         is SyncableObjectServiceResponse.InvalidRequest,
         is SyncableObjectServiceResponse.NoInternetConnection,
-        is SyncableObjectServiceResponse.LocalStoreFailed ->
+        is SyncableObjectServiceResponse.Failed.LocalStoreFailed ->
             CreateItemResponse.Failed(errors = JsonArray(emptyList()))
     }
 }
@@ -618,11 +616,12 @@ Every `create()`, `update()`, and `void()` call returns a `SyncableObjectService
 
 | Type | Meaning |
 |------|---------|
-| `Finished.StoredLocally(updatedData)` | Device was offline; data saved locally and queued for background sync. |
-| `Finished.NetworkResponseReceived(statusCode, responseBody, updatedData)` | Server responded. Check `statusCode` for success/failure. |
+| `Success.StoredLocally(updatedData)` | Device was offline; data saved locally and queued for background sync. |
+| `Success.NetworkResponseReceived(statusCode, responseBody, updatedData)` | Server responded with a 2xx status code. |
+| `Failed.NetworkResponseReceived(statusCode, responseBody)` | Server responded with a non-2xx, non-5xx status code. |
+| `Failed.LocalStoreFailed(exception)` | SQLite write failed. |
 | `NoInternetConnection` | Network call failed (connection error). |
 | `InvalidRequest` | The object was in an invalid state for this operation (e.g., updating a voided item). |
-| `LocalStoreFailed(exception)` | SQLite write failed. |
 
 ---
 

@@ -450,7 +450,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
         assertEquals(201, response.statusCode)
         // Record is in the store
         assertEquals(1, todos.count())
@@ -475,7 +475,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
         assertEquals("Updated", todos.get("srv-1")?.data?.get("title")?.jsonPrimitive?.content)
         assertEquals(2, todos.get("srv-1")?.version)
@@ -499,7 +499,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
         val data = response.responseBody["data"]?.jsonObject
         assertNotNull(data)
@@ -523,7 +523,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Failed)
         assertEquals(404, response.statusCode)
     }
 
@@ -546,7 +546,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
     }
 
@@ -568,7 +568,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
         assertTrue(todos.get("srv-1")!!.voided)
     }
@@ -596,7 +596,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
         // Response uses "item" key instead of default "data"
         assertNotNull(response.responseBody["item"])
         assertNull(response.responseBody["data"])
@@ -628,7 +628,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
     }
 
@@ -662,7 +662,7 @@ class MockServerStoreTest {
             ),
         )
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
         // Only the "New" record should be in the response (created at t=2000, cutoff=1000)
         val body = response.responseBody

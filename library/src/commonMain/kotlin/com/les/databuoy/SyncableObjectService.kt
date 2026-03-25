@@ -176,7 +176,13 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     responseBody = response.responseBody,
                 )
 
-            is ServerManager.ServerManagerResponse.ServerResponse -> {
+            is ServerManager.ServerManagerResponse.Failed ->
+                return SyncableObjectServiceResponse.Failed.NetworkResponseReceived(
+                    statusCode = response.statusCode,
+                    responseBody = response.responseBody,
+                )
+
+            is ServerManager.ServerManagerResponse.Success -> {
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val syncStatus = SyncableObject.SyncStatus.Synced(lastSyncedTimestamp)
                 val updatedData = unpackSyncData.unpack(
@@ -190,7 +196,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         responseTimestamp = lastSyncedTimestamp,
                     )
                 }
-                return SyncableObjectServiceResponse.Finished.NetworkResponseReceived(
+                return SyncableObjectServiceResponse.Success.NetworkResponseReceived(
                     statusCode = response.statusCode,
                     responseBody = response.responseBody,
                     updatedData = updatedData,
@@ -423,7 +429,13 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     responseBody = response.responseBody,
                 )
 
-            is ServerManager.ServerManagerResponse.ServerResponse -> {
+            is ServerManager.ServerManagerResponse.Failed ->
+                return SyncableObjectServiceResponse.Failed.NetworkResponseReceived(
+                    statusCode = response.statusCode,
+                    responseBody = response.responseBody,
+                )
+
+            is ServerManager.ServerManagerResponse.Success -> {
                 SyncLog.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
@@ -434,7 +446,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         responseTimestamp = lastSyncedTimestamp,
                     )
                 }
-                return SyncableObjectServiceResponse.Finished.NetworkResponseReceived(
+                return SyncableObjectServiceResponse.Success.NetworkResponseReceived(
                     statusCode = response.statusCode,
                     responseBody = response.responseBody,
                     updatedData = updatedData,
@@ -499,10 +511,10 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         if (data.serverId == null && serverAttemptedPendingRequests.isEmpty()) {
             return@withClientLock try {
                 val updatedData = localStoreManager.voidLocalOnlyData(data = data)
-                SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = updatedData)
+                SyncableObjectServiceResponse.Success.StoredLocally(updatedData = updatedData)
             } catch (e: Exception) {
                 SyncLog.e(TAG, "Failed to void local-only object (client_id: ${data.clientId}): ", e)
-                SyncableObjectServiceResponse.LocalStoreFailed(exception = e)
+                SyncableObjectServiceResponse.Failed.LocalStoreFailed(exception = e)
             }
         }
 
@@ -586,7 +598,13 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     responseBody = response.responseBody,
                 )
 
-            is ServerManager.ServerManagerResponse.ServerResponse -> {
+            is ServerManager.ServerManagerResponse.Failed ->
+                return SyncableObjectServiceResponse.Failed.NetworkResponseReceived(
+                    statusCode = response.statusCode,
+                    responseBody = response.responseBody,
+                )
+
+            is ServerManager.ServerManagerResponse.Success -> {
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {
@@ -595,7 +613,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                         responseTimestamp = lastSyncedTimestamp,
                     )
                 }
-                return SyncableObjectServiceResponse.Finished.NetworkResponseReceived(
+                return SyncableObjectServiceResponse.Success.NetworkResponseReceived(
                     statusCode = response.statusCode,
                     responseBody = response.responseBody,
                     updatedData = updatedData,
@@ -676,7 +694,15 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                     getFromLocalStore(clientId = clientId, serverId = serverId)
                 }
 
-                is ServerManager.ServerManagerResponse.ServerResponse -> {
+                is ServerManager.ServerManagerResponse.Failed -> {
+                    GetResponse.ReceivedServerResponse(
+                        statusCode = response.statusCode,
+                        responseBody = response.responseBody,
+                        data = null,
+                    )
+                }
+
+                is ServerManager.ServerManagerResponse.Success -> {
                     val syncStatus = SyncableObject.SyncStatus.Synced(TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp))
                     val data = unpackData.unpack(response.responseBody, response.statusCode, syncStatus)
                     GetResponse.ReceivedServerResponse(
@@ -852,7 +878,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
                 block()
             } catch (e: Exception) {
                 SyncLog.e(TAG, "Request flow failed: ${e.message}")
-                SyncableObjectServiceResponse.LocalStoreFailed(e)
+                SyncableObjectServiceResponse.Failed.LocalStoreFailed(e)
             }
             flow.value = SyncableObjectServiceRequestState.Result(response)
         }
@@ -871,17 +897,17 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     ): SyncableObjectServiceResponse<O> = when (queueResult) {
         is PendingRequestQueueManager.QueueResult.Stored -> {
             SyncLog.d(TAG, "Queue for (client_id: ${data.clientId}) succeeded.")
-            SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = data)
+            SyncableObjectServiceResponse.Success.StoredLocally(updatedData = data)
         }
         is PendingRequestQueueManager.QueueResult.StoreFailed -> {
             SyncLog.e(TAG, "Queue for (client_id: ${data.clientId}) failed.")
-            SyncableObjectServiceResponse.LocalStoreFailed(
+            SyncableObjectServiceResponse.Failed.LocalStoreFailed(
                 exception = IllegalStateException("Failed to persist data locally for client_id: ${data.clientId}")
             )
         }
         is PendingRequestQueueManager.QueueResult.InvalidQueueRequest -> {
             SyncLog.e(TAG, "Queue for (client_id: ${data.clientId}) was invalid: ${queueResult.errorMessage}")
-            SyncableObjectServiceResponse.LocalStoreFailed(
+            SyncableObjectServiceResponse.Failed.LocalStoreFailed(
                 exception = IllegalStateException(queueResult.errorMessage)
             )
         }

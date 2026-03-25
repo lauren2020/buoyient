@@ -53,16 +53,19 @@ class ServerManager(
                 JsonObject(emptyMap())
             }
             SyncLog.d(TAG, "[${httpRequest.method.value}] response received (${httpResponse.status.value}): $responseBody")
-            if (httpResponse.status.value in 500..599) {
-                ServerManagerResponse.ServerError(
-                    statusCode = httpResponse.status.value,
-                    responseBody = responseBody,
-                )
-            } else {
-                ServerManagerResponse.ServerResponse(
+            when {
+                httpResponse.status.value in 200..299 -> ServerManagerResponse.Success(
                     statusCode = httpResponse.status.value,
                     responseBody = responseBody,
                     responseEpochTimestamp = httpResponse.responseTime.timestamp,
+                )
+                httpResponse.status.value in 500..599 -> ServerManagerResponse.ServerError(
+                    statusCode = httpResponse.status.value,
+                    responseBody = responseBody,
+                )
+                else -> ServerManagerResponse.Failed(
+                    statusCode = httpResponse.status.value,
+                    responseBody = responseBody,
                 )
             }
         } catch (e: HttpRequestTimeoutException) {
@@ -76,16 +79,28 @@ class ServerManager(
 
     sealed class ServerManagerResponse {
         /**
-         * A request was sent and the provided data resulted from the attempt.
+         * A request was sent and the server returned a 2xx status code.
          *
-         * @property statusCode - the status code of the server response.
+         * @property statusCode - the 2xx status code of the server response.
          * @property responseBody - the json response body from the server.
          * @property responseEpochTimestamp - the time in epoch seconds that the response was started.
          */
-        class ServerResponse(
+        class Success(
             val statusCode: Int,
             val responseBody: JsonObject,
             val responseEpochTimestamp: Long,
+        ) : ServerManagerResponse()
+
+        /**
+         * A request was sent and the server returned a non-2xx, non-5xx status code
+         * (e.g. 3xx, 4xx).
+         *
+         * @property statusCode - the status code of the server response.
+         * @property responseBody - the json response body from the server.
+         */
+        class Failed(
+            val statusCode: Int,
+            val responseBody: JsonObject,
         ) : ServerManagerResponse()
 
         /**

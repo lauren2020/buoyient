@@ -39,7 +39,7 @@ class TodoServiceTest {
 
         val result = service.createTodo(Todo(title = "Buy milk"))
 
-        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<Todo>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<Todo>>(result)
         assertEquals("srv-1", result.updatedData?.serverId)
         assertEquals("Buy milk", result.updatedData?.title)
         assertEquals(1, env.mockRouter.requestLog.size)
@@ -71,7 +71,7 @@ class TodoServiceTest {
 
         val offlineResult = service.createTodo(Todo(title = "Queue me"))
 
-        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<Todo>>(offlineResult)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<Todo>>(offlineResult)
         assertEquals(SyncableObject.SyncStatus.PendingCreate.status, offlineResult.updatedData.syncStatus.status)
         assertEquals(0, env.mockRouter.requestLog.size)
 

@@ -37,8 +37,12 @@ class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
             )
             try {
                 when (val response = serverManager.sendRequest(httpRequest)) {
-                    is ServerManager.ServerManagerResponse.ServerResponse -> {
+                    is ServerManager.ServerManagerResponse.Success -> {
                         SyncLog.d(TAG, "Background request completed (${response.statusCode})")
+                    }
+                    is ServerManager.ServerManagerResponse.Failed,
+                    is ServerManager.ServerManagerResponse.ServerError -> {
+                        SyncLog.w(TAG, "Background request failed — will retry on next sync-up")
                     }
                     is ServerManager.ServerManagerResponse.ConnectionError,
                     is ServerManager.ServerManagerResponse.RequestTimedOut -> {

@@ -141,7 +141,12 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     return
                 }
 
-                is ServerManager.ServerManagerResponse.ServerResponse -> {
+                is ServerManager.ServerManagerResponse.Failed -> {
+                    SyncLog.w(TAG, "Sync down failed with status ${response.statusCode}. Retrying later.")
+                    return
+                }
+
+                is ServerManager.ServerManagerResponse.Success -> {
                     val syncedAtTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                     val items = serverProcessingConfig.syncFetchConfig.transformItemsListFromResponse(
                         response = response.responseBody,
@@ -304,7 +309,15 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 )
             }
 
-            is ServerManager.ServerManagerResponse.ServerResponse -> {
+            is ServerManager.ServerManagerResponse.Failed -> {
+                SyncLog.w(TAG, "Sync up received non-success status ${response.statusCode}.")
+                if (!row.serverAttemptMade) {
+                    localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
+                }
+                SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
+            }
+
+            is ServerManager.ServerManagerResponse.Success -> {
                 if (
                     !serverProcessingConfig.syncUpConfig.acceptUploadResponseAsProcessed(
                         statusCode = response.statusCode,

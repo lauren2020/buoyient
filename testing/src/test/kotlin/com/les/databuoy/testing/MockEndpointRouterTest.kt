@@ -61,7 +61,7 @@ class MockEndpointRouterTest {
             )
         )
 
-        assertTrue(response is ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is ServerManager.ServerManagerResponse.Success)
         assertEquals(201, response.statusCode)
         assertEquals(responseBody, response.responseBody)
     }
@@ -81,7 +81,7 @@ class MockEndpointRouterTest {
             )
         )
 
-        assertTrue(response is ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
     }
 
@@ -98,7 +98,7 @@ class MockEndpointRouterTest {
             )
         )
 
-        assertTrue(response is ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is ServerManager.ServerManagerResponse.Failed)
         assertEquals(404, response.statusCode)
     }
 
@@ -116,7 +116,7 @@ class MockEndpointRouterTest {
             )
         )
 
-        assertTrue(response is ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is ServerManager.ServerManagerResponse.Failed)
         assertEquals(404, response.statusCode)
     }
 
@@ -134,7 +134,7 @@ class MockEndpointRouterTest {
             )
         )
 
-        assertTrue(response is ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
     }
 
@@ -203,7 +203,7 @@ class MockEndpointRouterTest {
             HttpRequest(HttpRequest.HttpMethod.GET, "https://api.test.com/health", JsonObject(emptyMap()))
         )
 
-        assertTrue(response is ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is ServerManager.ServerManagerResponse.Success)
         assertEquals(200, response.statusCode)
         assertEquals(body, response.responseBody)
     }
@@ -241,7 +241,7 @@ class MockEndpointRouterTest {
             HttpRequest(HttpRequest.HttpMethod.GET, "https://api.test.com/items", JsonObject(emptyMap()))
         )
 
-        assertTrue(response is ServerManager.ServerManagerResponse.ServerResponse)
+        assertTrue(response is ServerManager.ServerManagerResponse.Success)
         assertEquals("first", response.responseBody["from"].toString().trim('"'))
     }
 }

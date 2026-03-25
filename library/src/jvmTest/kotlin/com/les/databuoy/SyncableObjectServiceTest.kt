@@ -226,7 +226,7 @@ class SyncableObjectServiceTest {
 
         val result = service.testCreate(testItem(clientId = "client-1"))
 
-        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
         assertEquals(201, result.statusCode)
         assertNotNull(result.updatedData)
         assertEquals("server-1", result.updatedData!!.serverId)
@@ -239,7 +239,7 @@ class SyncableObjectServiceTest {
 
         val result = service.testCreate(testItem(clientId = "client-1"))
 
-        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
         assertEquals("client-1", result.updatedData.clientId)
         assertEquals(1, service.getAllFromLocalStore().size)
         service.close()
@@ -254,7 +254,7 @@ class SyncableObjectServiceTest {
 
         val result = service.testCreate(testItem(clientId = "client-1"))
 
-        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
         assertEquals(1, service.getAllFromLocalStore().size)
         service.close()
     }
@@ -281,7 +281,7 @@ class SyncableObjectServiceTest {
 
         val result = service.testUpdate(serverItem.copy(name = "Updated", version = 2))
 
-        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
         assertEquals(200, result.statusCode)
         assertEquals("Updated", result.updatedData!!.name)
         service.close()
@@ -302,7 +302,7 @@ class SyncableObjectServiceTest {
 
         val result = service.testUpdate(serverItem.copy(name = "Updated Offline"))
 
-        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
         assertEquals("Updated Offline", result.updatedData.name)
         service.close()
     }
@@ -328,7 +328,7 @@ class SyncableObjectServiceTest {
 
         val result = service.testVoid(serverItem)
 
-        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
         assertEquals(200, result.statusCode)
         service.close()
     }
@@ -342,7 +342,7 @@ class SyncableObjectServiceTest {
         val localItem = service.getAllFromLocalStore().first()
         val result = service.testVoid(localItem)
 
-        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<TestItem>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
         service.close()
     }
 
@@ -454,8 +454,8 @@ class SyncableObjectServiceTest {
         // Wait for completion
         val result = flow.first { it is SyncableObjectServiceRequestState.Result }
         assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
-        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result.response)
-        val response = result.response as SyncableObjectServiceResponse.Finished.NetworkResponseReceived
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result.response)
+        val response = result.response as SyncableObjectServiceResponse.Success.NetworkResponseReceived
         assertEquals(201, response.statusCode)
         assertEquals("server-1", response.updatedData!!.serverId)
         service.close()
@@ -469,7 +469,7 @@ class SyncableObjectServiceTest {
 
         val result = flow.first { it is SyncableObjectServiceRequestState.Result }
         assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
-        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<TestItem>>(result.response)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result.response)
         service.close()
     }
 
@@ -497,8 +497,8 @@ class SyncableObjectServiceTest {
 
         val result = flow.first { it is SyncableObjectServiceRequestState.Result }
         assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
-        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result.response)
-        val response = result.response as SyncableObjectServiceResponse.Finished.NetworkResponseReceived
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result.response)
+        val response = result.response as SyncableObjectServiceResponse.Success.NetworkResponseReceived
         assertEquals(200, response.statusCode)
         assertEquals("Updated", response.updatedData!!.name)
         service.close()
@@ -527,8 +527,8 @@ class SyncableObjectServiceTest {
 
         val result = flow.first { it is SyncableObjectServiceRequestState.Result }
         assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
-        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<TestItem>>(result.response)
-        val response = result.response as SyncableObjectServiceResponse.Finished.NetworkResponseReceived
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result.response)
+        val response = result.response as SyncableObjectServiceResponse.Success.NetworkResponseReceived
         assertEquals(200, response.statusCode)
         service.close()
     }
@@ -544,7 +544,7 @@ class SyncableObjectServiceTest {
 
         val result = flow.first { it is SyncableObjectServiceRequestState.Result }
         assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
-        assertIs<SyncableObjectServiceResponse.Finished.StoredLocally<TestItem>>(result.response)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result.response)
         service.close()
     }
 
