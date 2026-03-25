@@ -12,7 +12,6 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
     val serviceName: String,
     private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    private val syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     private val codec: SyncCodec<O> = SyncCodec(serializer),
     private val serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.globalHeaders,
@@ -20,7 +19,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
         codec = codec,
         serviceName = serviceName,
-        syncScheduleNotifier = syncScheduleNotifier,
+        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     ),
     private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler(),
 ) : Service<O> {
@@ -49,7 +48,6 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             codec = codec,
             serverProcessingConfig = serverProcessingConfig,
             localStoreManager = localStoreManager,
-            syncScheduleNotifier = syncScheduleNotifier,
             serviceName = serviceName,
             rebaseHandler = rebaseHandler,
         )
@@ -709,15 +707,11 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             // by rebasing any pending requests to verify no real conflicts and restoring the
             // correct sync_status.
             SyncLog.w(TAG, "No conflicting pending request found for (client_id: $clientId), repairing orphaned conflict status.")
-            val repairResult = localStoreManager.repairOrphanedConflictStatus(
+            return localStoreManager.repairOrphanedConflictStatus(
                 clientId = clientId,
                 serverId = resolution.resolvedData.serverId,
                 mergeHandler = rebaseHandler,
             )
-            if (repairResult is ResolveConflictResult.Resolved) {
-                syncScheduleNotifier.scheduleSyncIfNeeded()
-            }
-            return repairResult
         }
 
         val result = localStoreManager.resolveConflictData(
@@ -728,18 +722,14 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         )
 
         when (result) {
-            is ResolveConflictResult.Resolved -> {
-                syncScheduleNotifier.scheduleSyncIfNeeded()
+            is ResolveConflictResult.Resolved ->
                 SyncLog.d(TAG, "Conflict resolved for (client_id: $clientId).")
-            }
 
-            is ResolveConflictResult.RebaseConflict -> {
+            is ResolveConflictResult.RebaseConflict ->
                 SyncLog.w(TAG, "Conflict resolved for (client_id: $clientId) but a subsequent pending request also has a conflict.")
-            }
 
-            is ResolveConflictResult.Failed -> {
+            is ResolveConflictResult.Failed ->
                 SyncLog.e(TAG, "Failed to resolve conflict for (client_id: $clientId): ${result.exception}")
-            }
         }
 
         return result
@@ -854,7 +844,6 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         queueResult: PendingRequestQueueManager.QueueResult,
     ): SyncableObjectServiceResponse<O> = when (queueResult) {
         is PendingRequestQueueManager.QueueResult.Stored -> {
-            syncScheduleNotifier.scheduleSyncIfNeeded()
             SyncLog.d(TAG, "Queue for (client_id: ${data.clientId}) succeeded.")
             SyncableObjectServiceResponse.Finished.StoredLocally(updatedData = data)
         }

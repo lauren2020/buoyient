@@ -245,7 +245,6 @@ fun `create todo online returns server response`() = runBlocking {
             serviceName = "todos",
         ),
         logger = env.logger,
-        syncScheduleNotifier = env.syncScheduleNotifier,
     )
 
     val result = service.addTodo("Buy milk")

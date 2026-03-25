@@ -109,7 +109,6 @@ class SyncDriverTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )
@@ -340,7 +339,6 @@ class SyncDriverTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )
@@ -432,7 +430,6 @@ class SyncDriverTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = postFetchConfig,
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )
@@ -501,7 +498,6 @@ class SyncDriverTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = postFetchConfig,
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )
@@ -576,7 +572,6 @@ class SyncDriverTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )
@@ -631,7 +626,6 @@ class SyncDriverTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )
@@ -682,7 +676,6 @@ class SyncDriverTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )

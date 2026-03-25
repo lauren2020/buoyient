@@ -209,21 +209,19 @@ There are also non-suspend flow-based variants — `createWithFlow()`, `updateWi
 class YourModelService(
     serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
     connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.globalHeaders,
     ),
     localStoreManager: LocalStoreManager<YourModel, YourModelRequestTag> = LocalStoreManager(
         codec = SyncCodec(YourModel.serializer()),
         serviceName = "your_model",
-        syncScheduleNotifier = syncScheduleNotifier,
+        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     ),
 ) : SyncableObjectService<YourModel, YourModelRequestTag>(
     serializer = YourModel.serializer(),
     serverProcessingConfig = serverProcessingConfig,
     serviceName = "your_model",
     connectivityChecker = connectivityChecker,
-    syncScheduleNotifier = syncScheduleNotifier,
     serverManager = serverManager,
     localStoreManager = localStoreManager,
 ) {
@@ -266,7 +264,7 @@ To opt into squash, pass a `queueStrategy` to `LocalStoreManager`. You must prov
 val localStoreManager = LocalStoreManager<YourModel, YourModelRequestTag>(
     codec = SyncCodec(YourModel.serializer()),
     serviceName = "your_model",
-    syncScheduleNotifier = syncScheduleNotifier,
+    syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
         squashUpdateIntoCreate = SquashRequestMerger { createRequest, updateRequest ->
             // Replace the create body with the latest update body

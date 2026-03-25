@@ -7,7 +7,6 @@ import com.les.databuoy.ResponseUnpacker
 import com.les.databuoy.ServerManager
 import com.les.databuoy.ServerProcessingConfig
 import com.les.databuoy.SyncCodec
-import com.les.databuoy.SyncScheduleNotifier
 import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.SyncableObjectServiceResponse
 import com.les.databuoy.UpdateRequestBuilder
@@ -27,11 +26,10 @@ class TodoService(
     serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.globalHeaders,
     ),
-    syncScheduleNotifier: SyncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     localStoreManager: LocalStoreManager<Todo, TodoRequestTag> = LocalStoreManager(
         codec = SyncCodec(Todo.serializer()),
         serviceName = SERVICE_NAME,
-        syncScheduleNotifier = syncScheduleNotifier,
+        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
     ),
 ) : SyncableObjectService<Todo, TodoRequestTag>(
     serializer = Todo.serializer(),
@@ -40,7 +38,6 @@ class TodoService(
     connectivityChecker = connectivityChecker,
     serverManager = serverManager,
     localStoreManager = localStoreManager,
-    syncScheduleNotifier = syncScheduleNotifier,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }

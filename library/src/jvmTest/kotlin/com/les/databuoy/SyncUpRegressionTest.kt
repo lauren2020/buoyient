@@ -205,7 +205,6 @@ class SyncUpRegressionTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )
@@ -315,7 +314,6 @@ class SyncUpRegressionTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )
@@ -450,7 +448,6 @@ class SyncUpRegressionTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = "test",
             autoStart = false,
         )

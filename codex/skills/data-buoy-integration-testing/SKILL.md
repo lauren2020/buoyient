@@ -138,7 +138,6 @@ class YourModelServiceTest {
                 serviceName = "your_model",
             ),
             logger = env.logger,
-            syncScheduleNotifier = env.syncScheduleNotifier,
         )
 
         val result = service.createItem(YourModel(name = "Test", amount = 100))

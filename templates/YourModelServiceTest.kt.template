@@ -44,7 +44,6 @@ class YourModelServiceTest {
                 serviceName = "your_model",
             ),
             logger = env.logger,
-            syncScheduleNotifier = env.syncScheduleNotifier,
         ).also {
             it.stopPeriodicSyncDown()
             env.mockRouter.clearRequestLog()

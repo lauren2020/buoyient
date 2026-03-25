@@ -34,7 +34,6 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val codec: SyncCodec<O>,
     private val serverProcessingConfig: ServerProcessingConfig<O>,
     private val localStoreManager: LocalStoreManager<O, T>,
-    private val syncScheduleNotifier: SyncScheduleNotifier,
     val serviceName: String,
     val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(codec),
     autoStart: Boolean = true,
@@ -65,7 +64,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     init {
         if (autoStart) {
-            syncScheduleNotifier.scheduleSyncIfNeeded()
+            localStoreManager.scheduleSyncUp()
             startPeriodicSyncDown()
         }
     }

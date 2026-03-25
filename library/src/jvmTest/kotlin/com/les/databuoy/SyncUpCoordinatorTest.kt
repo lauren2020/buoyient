@@ -124,7 +124,6 @@ class SyncUpCoordinatorTest {
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
-            syncScheduleNotifier = noOpNotifier,
             serviceName = serviceName,
             autoStart = false,
         )

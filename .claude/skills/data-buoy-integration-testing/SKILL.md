@@ -142,7 +142,6 @@ class YourModelServiceTest {
                 serviceName = "your_model",
             ),
             logger = env.logger,
-            syncScheduleNotifier = env.syncScheduleNotifier,
         )
 
         // 5. Exercise
@@ -401,7 +400,6 @@ private fun buildService(env: TestServiceEnvironment): YourModelService {
             serviceName = "your_model",
         ),
         logger = env.logger,
-        syncScheduleNotifier = env.syncScheduleNotifier,
     )
 }
 ```

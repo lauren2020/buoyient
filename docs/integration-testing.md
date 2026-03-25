@@ -140,7 +140,6 @@ class YourModelServiceTest {
                 codec = SyncCodec(YourModel.serializer()),
                 serviceName = "your_model",
             ),
-            syncScheduleNotifier = env.syncScheduleNotifier,
         )
 
         // 5. Exercise
@@ -396,7 +395,6 @@ private fun buildService(env: TestServiceEnvironment): YourModelService {
             codec = SyncCodec(YourModel.serializer()),
             serviceName = "your_model",
         ),
-        syncScheduleNotifier = env.syncScheduleNotifier,
     )
 }
 ```

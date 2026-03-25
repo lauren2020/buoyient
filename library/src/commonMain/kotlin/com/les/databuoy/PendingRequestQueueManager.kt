@@ -284,6 +284,11 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         QueueResult.StoreFailed
     }
 
+    fun hasAnyPendingRequests(): Boolean =
+        database.syncPendingEventsQueries.hasPendingRequestsByService(
+            service_name = serviceName,
+        ).executeAsOne()
+
     fun hasPendingRequests(clientId: String): Boolean =
         database.syncPendingEventsQueries.hasPendingRequestsByClientId(
             service_name = serviceName,

@@ -71,6 +71,18 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     fun hasPendingRequests(clientId: String): Boolean =
         pendingRequestQueueManager.hasPendingRequests(clientId)
 
+    /**
+     * Ensures a background sync is scheduled. Call this on service startup so
+     * WorkManager picks up any work left from a prior session.
+     *
+     * This is unconditional because [SyncScheduleNotifier.scheduleSyncIfNeeded]
+     * is already cheap and idempotent (Android uses [ExistingWorkPolicy.KEEP]).
+     * An extra no-op enqueue is cheaper than a DB query to check first.
+     */
+    fun scheduleSyncUp() {
+        syncScheduleNotifier.scheduleSyncIfNeeded()
+    }
+
     internal fun refreshStatus() {
         status.refresh()
     }
@@ -601,7 +613,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         val newServerBaseline = conflictingRequest.conflict!!.serverValue
 
         return try {
-            database.transactionWithResult {
+            val result = database.transactionWithResult {
                 // 1. Resolve the conflict on the pending request
                 pendingRequestQueueManager.resolveConflictOnPendingRequest(
                     pendingRequest = conflictingRequest,
@@ -655,6 +667,11 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     }
                 }
             }
+            // Conflict resolved — pending request is now eligible for upload.
+            if (result is ResolveConflictResult.Resolved) {
+                syncScheduleNotifier.scheduleSyncIfNeeded()
+            }
+            result
         } catch (e: Exception) {
             SyncLog.e(TAG, "Failed to resolve conflict for client_id: $clientId", e)
             ResolveConflictResult.Failed(e)
@@ -692,7 +709,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         val pendingRequests = pendingRequestQueueManager.getPendingRequests(clientId)
 
         return try {
-            database.transactionWithResult {
+            val result = database.transactionWithResult {
                 if (pendingRequests.isEmpty()) {
                     // No pending requests — just restore to SYNCED.
                     database.syncDataQueries.resolveConflict(
@@ -765,6 +782,11 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     }
                 }
             }
+            // Conflict repaired — pending requests are now eligible for upload.
+            if (result is ResolveConflictResult.Resolved) {
+                syncScheduleNotifier.scheduleSyncIfNeeded()
+            }
+            result
         } catch (e: Exception) {
             SyncLog.e(TAG, "Failed to repair orphaned conflict for client_id: $clientId", e)
             ResolveConflictResult.Failed(e)
