@@ -41,7 +41,7 @@ These guides contain complete templates, required field tables, and common patte
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:library` | `com.les.databuoy:library` | Core sync engine (KMP) |
+| `:data-buoy` | `com.les.databuoy:data-buoy` | Core sync engine (KMP) |
 | `:hilt` | `com.les.databuoy:data-buoy-hilt` | Optional Hilt integration — auto-registers services |
 | `:testing` | `com.les.databuoy:testing` | Test utilities — mock server, in-memory DB, test doubles |
 

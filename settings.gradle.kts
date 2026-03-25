@@ -17,6 +17,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "data-buoy"
-include(":library")
+include(":data-buoy")
 include(":hilt")
 include(":testing")

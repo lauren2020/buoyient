@@ -14,4 +14,4 @@ The source lives under:
 - `examples/todo/src/main/kotlin/com/les/databuoy/examples/todo/`
 - `examples/todo/src/test/kotlin/com/les/databuoy/examples/todo/`
 
-Those files are compiled as part of `:library`'s JVM tests so API drift shows up in CI.
+Those files are compiled as part of `:data-buoy`'s JVM tests so API drift shows up in CI.

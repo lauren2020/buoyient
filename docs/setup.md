@@ -14,7 +14,7 @@ Add the data-buoy artifacts to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.les.databuoy:library:<version>")
+    implementation("com.les.databuoy:data-buoy:<version>")
 }
 ```
 
@@ -22,7 +22,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("com.les.databuoy:library:<version>")
+    implementation("com.les.databuoy:data-buoy:<version>")
     implementation("com.les.databuoy:data-buoy-hilt:<version>")
 }
 ```
@@ -42,7 +42,7 @@ Replace `<version>` with the current release version.
 
 ### Transitive dependencies
 
-The `:library` module exposes `kotlinx-serialization-json` as an `api` dependency — it appears transitively and you do **not** need to add it yourself unless you need a different version:
+The `:data-buoy` module exposes `kotlinx-serialization-json` as an `api` dependency — it appears transitively and you do **not** need to add it yourself unless you need a different version:
 
 | Dependency | Purpose |
 |-----------|---------|

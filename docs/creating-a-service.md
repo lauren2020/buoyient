@@ -522,7 +522,7 @@ Add the dependency:
 
 ```kotlin
 // build.gradle.kts
-implementation("com.les.databuoy:library:<version>")
+implementation("com.les.databuoy:data-buoy:<version>")
 implementation("com.les.databuoy:data-buoy-hilt:<version>")
 ```
 

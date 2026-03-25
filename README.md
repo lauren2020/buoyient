@@ -161,7 +161,7 @@ Add the `data-buoy-hilt` dependency and provide services via standard `@IntoSet`
 
 ```kotlin
 // build.gradle.kts
-implementation("com.les.databuoy:library:<version>")
+implementation("com.les.databuoy:data-buoy:<version>")
 implementation("com.les.databuoy:data-buoy-hilt:<version>")
 ```
 
@@ -311,7 +311,7 @@ fun provideServerManager(useMock: Boolean): ServerManager {
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:library` | `com.les.databuoy:library` | Core sync engine (KMP) |
+| `:data-buoy` | `com.les.databuoy:data-buoy` | Core sync engine (KMP) |
 | `:hilt` | `com.les.databuoy:data-buoy-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
 | `:testing` | `com.les.databuoy:testing` | Test utilities — mock server, in-memory DB, test doubles |
 
@@ -331,7 +331,7 @@ The `docs/` directory contains step-by-step guides for integrating data-buoy int
 ## Build
 
 ```bash
-./gradlew :library:build
+./gradlew :data-buoy:build
 ./gradlew :hilt:build
 ./gradlew :testing:build
 ```
@@ -345,7 +345,7 @@ To run tests:
 To publish to local Maven:
 
 ```bash
-./gradlew :library:publishToMavenLocal
+./gradlew :data-buoy:publishToMavenLocal
 ./gradlew :hilt:publishToMavenLocal
 ./gradlew :testing:publishToMavenLocal
 ```

@@ -7,8 +7,8 @@ group = "com.les.databuoy"
 version = "0.1.0-SNAPSHOT"
 
 dependencies {
-    // Depend on the JVM variant of the KMP :library module.
-    api(project(":library")) {
+    // Depend on the JVM variant of the KMP :data-buoy module.
+    api(project(":data-buoy")) {
         attributes {
             attribute(
                 org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.attribute,

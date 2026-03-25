@@ -31,7 +31,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":library"))
+    implementation(project(":data-buoy"))
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.startup)
