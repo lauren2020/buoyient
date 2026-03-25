@@ -22,7 +22,6 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         serviceName = serviceName,
         syncScheduleNotifier = syncScheduleNotifier,
     ),
-    private val idGenerator: IdGenerator = createPlatformIdGenerator(),
     private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler(),
 ) : Service<O> {
 
@@ -104,7 +103,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         unpackSyncData: ResponseUnpacker<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> = syncDriver.withClientLock(data.clientId) {
-        val idempotencyKey = idGenerator.generateId()
+        val idempotencyKey = IdGenerator.generateId()
         if (
             processingConstraints is ProcessingConstraints.OnlineOnly ||
             (connectivityChecker.isOnline() && processingConstraints !is ProcessingConstraints.OfflineOnly)
@@ -253,7 +252,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         unpackSyncData: ResponseUnpacker<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> = syncDriver.withClientLock(data.clientId) {
-        val idempotencyKey = idGenerator.generateId()
+        val idempotencyKey = IdGenerator.generateId()
         val effectiveLastSyncedData = try {
             getEffectiveBaseDataForUpdate(data)
         } catch (e: Exception) {
@@ -499,7 +498,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
             }
         }
 
-        val idempotencyKey = idGenerator.generateId()
+        val idempotencyKey = IdGenerator.generateId()
         val httpRequest = request.buildRequest(data, serverAttemptedPendingRequests)
 
         // Object exists on server — use the online/offline dual-path.

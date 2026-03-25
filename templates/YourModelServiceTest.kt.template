@@ -43,7 +43,6 @@ class YourModelServiceTest {
                 codec = SyncCodec(YourModel.serializer()),
                 serviceName = "your_model",
             ),
-            idGenerator = env.idGenerator,
             logger = env.logger,
             syncScheduleNotifier = env.syncScheduleNotifier,
         ).also {

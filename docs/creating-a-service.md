@@ -218,7 +218,6 @@ class YourModelService(
         serviceName = "your_model",
         syncScheduleNotifier = syncScheduleNotifier,
     ),
-    idGenerator: IdGenerator = createPlatformIdGenerator(),
 ) : SyncableObjectService<YourModel, YourModelRequestTag>(
     serializer = YourModel.serializer(),
     serverProcessingConfig = serverProcessingConfig,
@@ -227,7 +226,6 @@ class YourModelService(
     syncScheduleNotifier = syncScheduleNotifier,
     serverManager = serverManager,
     localStoreManager = localStoreManager,
-    idGenerator = idGenerator,
 ) {
     // operations go here
 }

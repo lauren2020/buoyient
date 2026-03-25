@@ -2,7 +2,6 @@ package com.les.databuoy.examples.todo
 
 import com.les.databuoy.ConnectivityChecker
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.IdGenerator
 import com.les.databuoy.LocalStoreManager
 import com.les.databuoy.ResponseUnpacker
 import com.les.databuoy.ServerManager
@@ -15,7 +14,6 @@ import com.les.databuoy.UpdateRequestBuilder
 import com.les.databuoy.VoidRequestBuilder
 import com.les.databuoy.CreateRequestBuilder
 import com.les.databuoy.createPlatformConnectivityChecker
-import com.les.databuoy.createPlatformIdGenerator
 import com.les.databuoy.createPlatformSyncScheduleNotifier
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -35,7 +33,6 @@ class TodoService(
         serviceName = SERVICE_NAME,
         syncScheduleNotifier = syncScheduleNotifier,
     ),
-    idGenerator: IdGenerator = createPlatformIdGenerator(),
 ) : SyncableObjectService<Todo, TodoRequestTag>(
     serializer = Todo.serializer(),
     serverProcessingConfig = serverProcessingConfig,
@@ -43,7 +40,6 @@ class TodoService(
     connectivityChecker = connectivityChecker,
     serverManager = serverManager,
     localStoreManager = localStoreManager,
-    idGenerator = idGenerator,
     syncScheduleNotifier = syncScheduleNotifier,
 ) {
 

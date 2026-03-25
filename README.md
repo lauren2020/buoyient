@@ -244,7 +244,6 @@ fun `create todo online returns server response`() = runBlocking {
             codec = SyncCodec(Todo.serializer()),
             serviceName = "todos",
         ),
-        idGenerator = env.idGenerator,
         logger = env.logger,
         syncScheduleNotifier = env.syncScheduleNotifier,
     )

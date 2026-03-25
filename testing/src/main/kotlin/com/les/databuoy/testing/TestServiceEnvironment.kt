@@ -29,7 +29,6 @@ import com.les.databuoy.db.SyncDatabase
  *     connectivityChecker = env.connectivityChecker,
  *     serverManager = env.serverManager,
  *     localStoreManager = env.createLocalStoreManager(codec, "my-items"),
- *     idGenerator = env.idGenerator,
  *     syncScheduleNotifier = env.syncScheduleNotifier,
  * )
  * ```
@@ -40,7 +39,8 @@ import com.les.databuoy.db.SyncDatabase
  *   Defaults to silent ([NoOpSyncLogger]). Pass [PrintSyncLogger] to see sync engine
  *   activity during debugging.
  * @property syncScheduleNotifier no-op notifier by default.
- * @property idGenerator deterministic ID generator for predictable assertions.
+ * @property idGenerator deterministic ID generator. Also installed as the global
+ *   [IdGenerator.generator] so that service code picks it up automatically.
  * @property database in-memory SQLite database. Each [TestServiceEnvironment] instance
  *   gets its own isolated database.
  * @property mockServerStore optional stateful mock server store. Use
@@ -59,6 +59,7 @@ class TestServiceEnvironment(
 ) {
     init {
         SyncLog.logger = logger
+        IdGenerator.generator = idGenerator
     }
 
     /**

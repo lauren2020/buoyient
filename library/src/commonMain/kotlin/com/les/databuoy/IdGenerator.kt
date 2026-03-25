@@ -6,6 +6,20 @@ package com.les.databuoy
  */
 interface IdGenerator {
     fun generateId(): String
+
+    /**
+     * Process-wide ID generator for the data-buoy sync engine.
+     *
+     * By default this delegates to [createPlatformIdGenerator]. Swap
+     * [generator] at startup to install a test or mock implementation —
+     * for example, `IdGenerator.generator = IncrementingIdGenerator()`.
+     */
+    companion object : IdGenerator {
+        @Volatile
+        var generator: IdGenerator = createPlatformIdGenerator()
+
+        override fun generateId(): String = generator.generateId()
+    }
 }
 
 /**

@@ -65,7 +65,6 @@ class SyncableObjectServiceTest {
         connectivityChecker: ConnectivityChecker,
         serverManager: ServerManager,
         localStoreManager: LocalStoreManager<TestItem, TestRequestTag>,
-        idGenerator: IdGenerator,
         syncScheduleNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier,
     ) : SyncableObjectService<TestItem, TestRequestTag>(
         serializer = TestItem.serializer(),
@@ -75,7 +74,6 @@ class SyncableObjectServiceTest {
         syncScheduleNotifier = syncScheduleNotifier,
         serverManager = serverManager,
         localStoreManager = localStoreManager,
-        idGenerator = idGenerator,
     ) {
         init { stopPeriodicSyncDown() }
 
@@ -213,7 +211,6 @@ class SyncableObjectServiceTest {
             connectivityChecker = env.connectivityChecker,
             serverManager = env.serverManager,
             localStoreManager = localStoreManager,
-            idGenerator = env.idGenerator,
             syncScheduleNotifier = env.syncScheduleNotifier,
         )
         return service to env

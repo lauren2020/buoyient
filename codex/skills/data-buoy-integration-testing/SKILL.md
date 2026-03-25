@@ -35,7 +35,7 @@ The `:testing` module transitively provides everything from `:library`, plus `kt
 | `connectivityChecker` | `TestConnectivityChecker` | `online = true` | Control online/offline state |
 | `logger` | `SyncLogger` | `NoOpSyncLogger` (silent) | Swap to `PrintSyncLogger` for debugging |
 | `syncScheduleNotifier` | `SyncScheduleNotifier` | `NoOpSyncScheduleNotifier` | No-op (no WorkManager in tests) |
-| `idGenerator` | `IdGenerator` | `IncrementingIdGenerator` | Deterministic IDs: `test-id-1`, `test-id-2`, ... |
+| `idGenerator` | `IdGenerator` | `IncrementingIdGenerator` | Deterministic IDs: `test-id-1`, `test-id-2`, ... Installed as the global `IdGenerator.generator` |
 | `database` | `SyncDatabase` | in-memory SQLite | Isolated per `TestServiceEnvironment` instance |
 | `serverManager` | `ServerManager` | built from `mockRouter` (lazy) | Pass to service constructor |
 
@@ -137,7 +137,6 @@ class YourModelServiceTest {
                 codec = SyncCodec(YourModel.serializer()),
                 serviceName = "your_model",
             ),
-            idGenerator = env.idGenerator,
             logger = env.logger,
             syncScheduleNotifier = env.syncScheduleNotifier,
         )
