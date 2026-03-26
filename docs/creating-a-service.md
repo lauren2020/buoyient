@@ -126,7 +126,7 @@ Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch dat
 |--------|------|---------|
 | `syncFetchConfig` | `SyncFetchConfig<YourModel>` | How to periodically pull data from the server (GET or POST). |
 | `syncUpConfig` | `SyncUpConfig<YourModel>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromResponseBody(requestTag, responseBody)` returning `SyncUpResult<YourModel>` — `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest`. |
-| `serviceHeaders` | `List<Pair<String, String>>` | HTTP headers specific to this service, sent with every request it makes. For auth headers shared across all services, use `DataBuoy.globalHeaderProvider` instead (see `docs/setup.md`). |
+| `serviceHeaders` | `List<Pair<String, String>>` | HTTP headers specific to this service, sent with every request it makes. At request time, global headers, service headers, and per-request headers are concatenated in that order — if the same name appears in multiple lists, both values are sent (no deduplication). Use `DataBuoy.globalHeaderProvider` for auth headers shared across all services; use `serviceHeaders` only for headers unique to this service. See `docs/setup.md` § "Configure Global Auth Headers" for full details. |
 
 ### SyncFetchConfig variants
 

@@ -173,13 +173,15 @@ class MyApp : Application() {
 
 The provider is a lambda evaluated at request time, so refreshed tokens are picked up automatically — you never need to update the property after setting it.
 
-At request time, headers merge in this order (later values win on duplicate names):
+At request time, headers are applied in this order:
 
 1. **Global headers** — from `DataBuoy.globalHeaderProvider`
 2. **Service headers** — from `ServerProcessingConfig.serviceHeaders`
 3. **Request headers** — from `HttpRequest.additionalHeaders`
 
-Use `serviceHeaders` for headers unique to a single service (e.g., a service-specific API version). Use `globalHeaderProvider` for headers shared across all services (e.g., auth).
+All three lists are concatenated and sent with every request. If the same header name appears in multiple lists, **both values are sent** (they are not deduplicated or overwritten). To avoid unexpected behavior, don't set the same header name in more than one list — for example, set `Authorization` in the global provider only, not also in `serviceHeaders`.
+
+Use `globalHeaderProvider` for headers shared across all services (e.g., auth tokens). Use `serviceHeaders` for headers unique to a single service (e.g., a service-specific API version or API key). Use `additionalHeaders` on individual `HttpRequest` objects for one-off per-request headers.
 
 ---
 

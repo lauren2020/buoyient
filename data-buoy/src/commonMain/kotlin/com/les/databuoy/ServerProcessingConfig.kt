@@ -108,6 +108,12 @@ public interface ServerProcessingConfig<O : SyncableObject<O>> {
 
         /**
          * Sets per-service headers applied to every request this service makes.
+         *
+         * At request time, headers are concatenated in order: global headers
+         * ([DataBuoy.globalHeaderProvider]), then these service headers, then per-request
+         * headers ([HttpRequest.additionalHeaders]). If the same header name appears in
+         * multiple lists, both values are sent — they are not deduplicated. Avoid setting
+         * the same header name here and in the global provider.
          */
         public fun serviceHeaders(vararg headers: Pair<String, String>): Builder<O> = apply {
             this.headers = headers.toList()
