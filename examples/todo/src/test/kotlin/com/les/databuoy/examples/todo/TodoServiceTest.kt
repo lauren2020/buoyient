@@ -1,7 +1,7 @@
 package com.les.databuoy.examples.todo
 
 import com.les.databuoy.SyncableObject
-import com.les.databuoy.SyncableObjectServiceResponse
+import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceResponse
 import com.les.databuoy.testing.MockResponse
 import com.les.databuoy.testing.TestServiceEnvironment
 import com.les.databuoy.testing.syncUpLocalChanges

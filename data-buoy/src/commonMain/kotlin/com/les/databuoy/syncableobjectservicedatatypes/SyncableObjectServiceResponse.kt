@@ -1,15 +1,15 @@
-package com.les.databuoy
+package com.les.databuoy.syncableobjectservicedatatypes
 
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Result of a [SyncableObjectService] operation (create, update, or void).
+ * Result of a [com.les.databuoy.SyncableObjectService] operation (create, update, or void).
  *
- * Every call to [SyncableObjectService.create], [SyncableObjectService.update], or
- * [SyncableObjectService.void] returns one of these variants, indicating whether the
+ * Every call to [com.les.databuoy.SyncableObjectService.create], [com.les.databuoy.SyncableObjectService.update], or
+ * [com.les.databuoy.SyncableObjectService.void] returns one of these variants, indicating whether the
  * operation succeeded, failed, or was queued offline.
  *
- * @param O the domain model type that implements [SyncableObject].
+ * @param O the domain model type that implements [com.les.databuoy.SyncableObject].
  */
 public sealed class SyncableObjectServiceResponse<O> {
     /**

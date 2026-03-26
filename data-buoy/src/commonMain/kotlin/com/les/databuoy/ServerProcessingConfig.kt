@@ -3,6 +3,7 @@ package com.les.databuoy
 import com.les.databuoy.publicconfigs.SyncFetchConfig
 import com.les.databuoy.publicconfigs.SyncUpConfig
 import com.les.databuoy.publicconfigs.SyncUpResult
+import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
 import kotlinx.serialization.json.JsonObject
 
 public interface ServerProcessingConfig<O : SyncableObject<O>> {
@@ -99,11 +100,11 @@ public interface ServerProcessingConfig<O : SyncableObject<O>> {
         }
 
         /**
-         * Configures sync-up by delegating to an existing [ResponseUnpacker], so you can
+         * Configures sync-up by delegating to an existing [com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker], so you can
          * define your response parsing logic once and reuse it for both synchronous operations
          * and async sync-up.
          *
-         * @param unpacker the [ResponseUnpacker] to delegate to.
+         * @param unpacker the [com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker] to delegate to.
          */
         public fun syncUpFromUnpacker(unpacker: ResponseUnpacker<O>): Builder<O> = apply {
             upConfig = SyncUpConfig.fromUnpacker(unpacker)

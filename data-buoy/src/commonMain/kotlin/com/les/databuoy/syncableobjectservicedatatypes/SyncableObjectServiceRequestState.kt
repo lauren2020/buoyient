@@ -1,14 +1,14 @@
-package com.les.databuoy
+package com.les.databuoy.syncableobjectservicedatatypes
 
 /**
  * State emitted by the flow-based service operations
- * ([SyncableObjectService.createWithFlow], [SyncableObjectService.updateWithFlow],
- * [SyncableObjectService.voidWithFlow]).
+ * ([com.les.databuoy.SyncableObjectService.createWithFlow], [com.les.databuoy.SyncableObjectService.updateWithFlow],
+ * [com.les.databuoy.SyncableObjectService.voidWithFlow]).
  *
  * Collect the returned [kotlinx.coroutines.flow.Flow] to observe the request lifecycle:
  * a [Loading] emission followed by a terminal [Result].
  *
- * @param O the domain model type that implements [SyncableObject].
+ * @param O the domain model type that implements [com.les.databuoy.SyncableObject].
  */
 public sealed class SyncableObjectServiceRequestState<O> {
     /** The request is in progress. */

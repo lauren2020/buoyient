@@ -6,6 +6,7 @@ import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.publicconfigs.SyncFetchConfig
 import com.les.databuoy.publicconfigs.SyncUpConfig
 import com.les.databuoy.publicconfigs.SyncUpResult
+import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
 import com.les.databuoy.testing.TestServiceEnvironment
 import com.les.databuoy.testing.registerCrudHandlers
 import com.les.databuoy.utils.SyncCodec

@@ -5,6 +5,14 @@ import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.publicconfigs.SyncFetchConfig
 import com.les.databuoy.publicconfigs.SyncUpConfig
 import com.les.databuoy.publicconfigs.SyncUpResult
+import com.les.databuoy.syncableobjectservicedatatypes.CreateRequestBuilder
+import com.les.databuoy.syncableobjectservicedatatypes.GetResponse
+import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
+import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
+import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceRequestState
+import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceResponse
+import com.les.databuoy.syncableobjectservicedatatypes.UpdateRequestBuilder
+import com.les.databuoy.syncableobjectservicedatatypes.VoidRequestBuilder
 import com.les.databuoy.testing.MockConnectionException
 import com.les.databuoy.testing.MockResponse
 import com.les.databuoy.testing.MockTimeoutException
@@ -84,7 +92,8 @@ class SyncableObjectServiceTest {
             data = item,
             requestTag = TestRequestTag.DEFAULT,
             request = CreateRequestBuilder { data, idempotencyKey, _, _ ->
-                HttpRequest(HttpRequest.HttpMethod.POST, "https://api.test.com/items",
+                HttpRequest(
+                    HttpRequest.HttpMethod.POST, "https://api.test.com/items",
                     buildJsonObject {
                         put("client_id", data.clientId)
                         put("name", data.name)
@@ -106,7 +115,8 @@ class SyncableObjectServiceTest {
             processingConstraints = constraints,
             requestTag = TestRequestTag.UPDATE,
             request = UpdateRequestBuilder { _, updated, idempotencyKey, _, _ ->
-                HttpRequest(HttpRequest.HttpMethod.PUT,
+                HttpRequest(
+                    HttpRequest.HttpMethod.PUT,
                     "https://api.test.com/items/${updated.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
                     buildJsonObject {
                         put("client_id", updated.clientId)
@@ -133,7 +143,10 @@ class SyncableObjectServiceTest {
                     HttpRequest.HttpMethod.POST, "https://api.test.com/items",
                     buildJsonObject {
                         put("client_id", data.clientId)
-                        put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+                        put(
+                            "order_id",
+                            HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1")
+                        )
                         put("idempotency_key", idempotencyKey)
                     },
                 )
@@ -149,9 +162,11 @@ class SyncableObjectServiceTest {
             data = item,
             requestTag = TestRequestTag.VOID,
             request = VoidRequestBuilder { data, _, _ ->
-                HttpRequest(HttpRequest.HttpMethod.DELETE,
+                HttpRequest(
+                    HttpRequest.HttpMethod.DELETE,
                     "https://api.test.com/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
-                    JsonObject(emptyMap()))
+                    JsonObject(emptyMap())
+                )
             },
             unpackData = ResponseUnpacker { body, _, syncStatus ->
                 body["data"]?.jsonObject?.let {
@@ -177,7 +192,8 @@ class SyncableObjectServiceTest {
             data = item,
             requestTag = TestRequestTag.DEFAULT,
             request = CreateRequestBuilder { data, idempotencyKey, _, _ ->
-                HttpRequest(HttpRequest.HttpMethod.POST, "https://api.test.com/items",
+                HttpRequest(
+                    HttpRequest.HttpMethod.POST, "https://api.test.com/items",
                     buildJsonObject {
                         put("client_id", data.clientId)
                         put("name", data.name)
@@ -195,7 +211,8 @@ class SyncableObjectServiceTest {
             data = item,
             requestTag = TestRequestTag.UPDATE,
             request = UpdateRequestBuilder { _, updated, idempotencyKey, _, _ ->
-                HttpRequest(HttpRequest.HttpMethod.PUT,
+                HttpRequest(
+                    HttpRequest.HttpMethod.PUT,
                     "https://api.test.com/items/${updated.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
                     buildJsonObject {
                         put("client_id", updated.clientId)
@@ -214,9 +231,11 @@ class SyncableObjectServiceTest {
             data = item,
             requestTag = TestRequestTag.VOID,
             request = VoidRequestBuilder { data, _, _ ->
-                HttpRequest(HttpRequest.HttpMethod.DELETE,
+                HttpRequest(
+                    HttpRequest.HttpMethod.DELETE,
                     "https://api.test.com/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
-                    JsonObject(emptyMap()))
+                    JsonObject(emptyMap())
+                )
             },
             unpackData = ResponseUnpacker { body, _, syncStatus ->
                 body["data"]?.jsonObject?.let {

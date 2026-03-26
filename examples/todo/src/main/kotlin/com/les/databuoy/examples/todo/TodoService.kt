@@ -4,10 +4,10 @@ import com.les.databuoy.publicconfigs.ConnectivityChecker
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.ServerProcessingConfig
 import com.les.databuoy.SyncableObjectService
-import com.les.databuoy.SyncableObjectServiceResponse
-import com.les.databuoy.UpdateRequestBuilder
-import com.les.databuoy.VoidRequestBuilder
-import com.les.databuoy.CreateRequestBuilder
+import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceResponse
+import com.les.databuoy.syncableobjectservicedatatypes.UpdateRequestBuilder
+import com.les.databuoy.syncableobjectservicedatatypes.VoidRequestBuilder
+import com.les.databuoy.syncableobjectservicedatatypes.CreateRequestBuilder
 import com.les.databuoy.publicconfigs.createPlatformConnectivityChecker
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put

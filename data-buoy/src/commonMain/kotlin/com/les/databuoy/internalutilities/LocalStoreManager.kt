@@ -10,7 +10,7 @@ import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.PendingSyncRequest
 import com.les.databuoy.ResolveConflictResult
 import com.les.databuoy.ServiceRequestTag
-import com.les.databuoy.SquashRequestMerger
+import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
 import com.les.databuoy.utils.StorageCodec
 import com.les.databuoy.utils.SyncCodec
 import com.les.databuoy.utils.SyncLog

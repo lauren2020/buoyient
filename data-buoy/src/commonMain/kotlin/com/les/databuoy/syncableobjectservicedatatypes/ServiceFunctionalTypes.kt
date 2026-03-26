@@ -1,5 +1,8 @@
-package com.les.databuoy
+package com.les.databuoy.syncableobjectservicedatatypes
 
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.PendingSyncRequest
+import com.les.databuoy.SyncableObject
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
