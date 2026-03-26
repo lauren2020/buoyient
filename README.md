@@ -6,7 +6,7 @@
 Keep data floating even when network conditions are rough.
 
 ## What
-An offline first Kotlin Multiplatform SDK that keeps a local data store in sync with a remote server for a seamless client experience on- or off-line. App code performs CRUD operations through a single API regardless of connectivity - changes persist locally immediately, queue for server transport when offline, and reconcile automatically when connectivity returns. Includes conflict resolution, automatic retries, and periodic sync-down from the server.
+An offline first Kotlin Multiplatform SDK that keeps a local data store in sync with a remote server for a seamless client experience on- or off-line. App code performs data operations through a single API regardless of connectivity - changes persist locally immediately, queue for server transport when offline, and reconcile automatically when connectivity returns. Includes conflict resolution, automatic retries, and periodic sync-down from the server.
 
 ## Agent Optimized
 This is intended to be an agent optimized SDK.
@@ -52,26 +52,7 @@ This is intended to be an agent optimized SDK.
 
 ## Architecture
 
-```
-┌─────────────────────────────────┐
-│   YourService                   │  ← You implement this
-│   extends SyncableObjectService │
-└──────────────┬──────────────────┘
-               │
-       ┌───────▼────────┐
-       │   SyncDriver    │  Orchestrates sync-up & sync-down
-       └───────┬─────────┘
-               │
-    ┌──────────┼──────────────┐
-    │          │              │
-    ▼          ▼              ▼
-ServerManager  LocalStoreManager  SyncableObjectRebaseHandler
-(Ktor HTTP)   (SQLDelight)        (3-way merge)
-               │
-               ▼
-        PendingRequestQueueManager
-        (offline request queue)
-```
+![img.png](img.png)
 
 ## Usage
 
@@ -194,6 +175,46 @@ DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
     override fun createDrivers(context: Context) = listOf(TodoService().syncDriver)
 })
 ```
+
+## Usage Examples
+
+### CREATE
+SyncableObjectService offers a create() method. This is intended to be used for any request
+where you are instantiating a brand new object that does not exist yet.
+When this is leveraged, data-buoy will create a brand new data entry in the db.
+
+Example flow:
+
+![img_1.png](img_1.png)
+
+### UPDATE
+SyncableObjectService offers an updat() method. This is intended to be used to facilitate any
+request that makes a change to existing data. This may literally be a sparse diff update to the 
+data or it may be a non-traditional update like "completing" an object. update() is intended
+to be a broad utility serving every use case where your service implementation wants to modify
+an existing object in any way.
+
+When this is leveraged, data-buoy will apply the updated data to the existing entry in the
+db and if being processed async, queue up a pending request for sync.
+
+### VOID
+SyncableObjectService offers a void() method. void() is offered as a sort of special case update.
+Void allows you to ensure that all pending requests are removed from the db and that the entry
+is internally marked as voided. While this does not hard delete the entry from the db, it does
+provide efficient query filtering to omit voided items when fetching data.
+
+### GET
+SyncableObjectService offers both get() and getFromLocalStore() method options. 
+
+get() will attempt to fetch the object from the server if connection is available and fallback to 
+retrieving from the db if not available. If data is successfully fetched from the server, it will be 
+upserted to the db immediately. 
+
+getFromLocalStore() will not attempt to fetch from the server, it will only pull directly from the 
+local store.
+
+SyncableObjectService also offers getAllFromLocalStore() and getAllFromLocalStoreAsFlow() that can be
+used to retrieve all data items from the db and optionally observe on changes to that data.
 
 ## Key Extension Points
 
