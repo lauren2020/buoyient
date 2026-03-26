@@ -192,7 +192,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
 
             // If the status is pending create or update, there must be a queued request.
             is SyncableObject.SyncStatus.PendingCreate -> {
-                // If we have a pending create, lastSyncedData should be null so the effective
+                // If we have a pending create, baseData should be null so the effective
                 // base data is always the latest data from the last request regardless of strategy.
                 // The create + update request squasher will handled blending the 2 if needed.
                 pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.data
@@ -203,7 +203,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.data
                 }
                 is PendingRequestQueueManager.PendingRequestQueueStrategy.Squash -> {
-                    pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.lastSyncedData!!
+                    pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.baseData!!
                 }
             }
 
@@ -911,7 +911,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * should not normally occur.
      *
      * If pending requests exist, rebases them against each other using the first request's
-     * lastSyncedData as the base, then updates sync_data status based on the result.
+     * baseData as the base, then updates sync_data status based on the result.
      * If no pending requests exist, transitions sync_data back to SYNCED.
      *
      * @return [ResolveConflictResult.Resolved] with the current latest data on success,
@@ -948,8 +948,8 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     return@transactionWithResult ResolveConflictResult.Resolved(resolvedData = entry.data)
                 }
 
-                // Use the first pending request's lastSyncedData as the base for rebasing.
-                val baseData = pendingRequests.first().lastSyncedData ?: entry.latestServerData
+                // Use the first pending request's baseData as the base for rebasing.
+                val baseData = pendingRequests.first().baseData ?: entry.latestServerData
                 if (baseData == null) {
                     // No server baseline available — use the first pending request's data as-is.
                     val latestData = pendingRequests.last().data

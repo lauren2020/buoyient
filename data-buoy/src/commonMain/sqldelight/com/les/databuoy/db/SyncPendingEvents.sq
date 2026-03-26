@@ -9,7 +9,7 @@ CREATE TABLE sync_pending_events (
     data_blob TEXT NOT NULL,
     conflict_info TEXT,
     queued_at TEXT NOT NULL DEFAULT '',
-    last_synced_data TEXT,
+    base_data TEXT,
     request_tag TEXT NOT NULL
 );
 
@@ -20,7 +20,7 @@ CREATE INDEX idx_pending_events_service_client
 insertPendingEvent:
 INSERT INTO sync_pending_events (
     service_name, client_id, data_blob, type, request,
-    idempotency_key, server_attempt_made, conflict_info, queued_at, last_synced_data, request_tag
+    idempotency_key, server_attempt_made, conflict_info, queued_at, base_data, request_tag
 )
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?);
 
@@ -34,7 +34,7 @@ SET client_id = ?,
     idempotency_key = ?,
     server_attempt_made = ?,
     conflict_info = ?,
-    last_synced_data = ?,
+    base_data = ?,
     request_tag = ?,
     queued_at = datetime('now')
 WHERE pending_request_id = ?;
@@ -42,14 +42,14 @@ WHERE pending_request_id = ?;
 -- Get a single pending request by its ID.
 getPendingRequestById:
 SELECT pending_request_id, type, idempotency_key, request,
-       server_attempt_made, data_blob, conflict_info, last_synced_data, request_tag
+       server_attempt_made, data_blob, conflict_info, base_data, request_tag
 FROM sync_pending_events
 WHERE pending_request_id = ?;
 
 -- Get all pending requests for a specific client_id within a service.
 getPendingRequestsByClientId:
 SELECT pending_request_id, type, idempotency_key, request,
-       server_attempt_made, data_blob, conflict_info, last_synced_data, request_tag
+       server_attempt_made, data_blob, conflict_info, base_data, request_tag
 FROM sync_pending_events
 WHERE service_name = ? AND client_id = ?
 ORDER BY queued_at;
@@ -57,7 +57,7 @@ ORDER BY queued_at;
 -- Get all pending requests for a service.
 getAllPendingRequests:
 SELECT pending_request_id, type, idempotency_key, request,
-       server_attempt_made, data_blob, conflict_info, last_synced_data, request_tag
+       server_attempt_made, data_blob, conflict_info, base_data, request_tag
 FROM sync_pending_events
 WHERE service_name = ?
 ORDER BY queued_at;
@@ -78,23 +78,23 @@ UPDATE sync_pending_events
 SET server_attempt_made = 1
 WHERE pending_request_id = ?;
 
--- Update the last synced server data for a pending request.
-updateLastSyncedData:
+-- Update the base data for a pending request.
+updateBaseData:
 UPDATE sync_pending_events
-SET last_synced_data = ?
+SET base_data = ?
 WHERE pending_request_id = ?;
 
 -- Rebase a pending request with updated base data and local data.
 rebasePendingSync:
 UPDATE sync_pending_events
-SET last_synced_data = ?,
+SET base_data = ?,
     data_blob = ?
 WHERE pending_request_id = ?;
 
 -- Rebase a pending request with updated base data, local data, and request.
 rebasePendingSyncWithRequest:
 UPDATE sync_pending_events
-SET last_synced_data = ?,
+SET base_data = ?,
     data_blob = ?,
     request = ?
 WHERE pending_request_id = ?;
@@ -146,5 +146,5 @@ UPDATE sync_pending_events
 SET conflict_info = NULL,
     data_blob = ?,
     request = ?,
-    last_synced_data = ?
+    base_data = ?
 WHERE pending_request_id = ?;

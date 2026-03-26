@@ -27,7 +27,7 @@ public fun interface CreateRequestBuilder<O : SyncableObject<O>> {
  * Builds the HTTP request for an update operation using the sparse diff between the last
  * synced state and the current state.
  *
- * @param lastSyncedData the last known server-synced version of the object.
+ * @param baseData the last known server-synced version of the object.
  * @param updatedData the current local version containing the updates.
  * @param idempotencyKey a unique key to ensure the request is idempotent.
  * @param isAsync indicates if the request being built is going to processed online of offline.
@@ -37,7 +37,7 @@ public fun interface CreateRequestBuilder<O : SyncableObject<O>> {
  */
 public fun interface UpdateRequestBuilder<O : SyncableObject<O>> {
     public fun buildRequest(
-        lastSyncedData: O,
+        baseData: O,
         updatedData: O,
         idempotencyKey: String,
         isAsync: Boolean,

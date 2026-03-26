@@ -316,7 +316,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                         idempotencyKey = idempotencyKey,
                         data = data,
                         updateRequest = request.buildRequest(
-                            lastSyncedData = effectiveUpdateContext.baseData,
+                            baseData = effectiveUpdateContext.baseData,
                             updatedData = data,
                             idempotencyKey = idempotencyKey,
                             isAsync = true,
@@ -354,7 +354,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
         val request = buildRequest.buildRequest(
-            lastSyncedData = updateContext.baseData,
+            baseData = updateContext.baseData,
             updatedData = data,
             idempotencyKey = idempotencyKey,
             isAsync = false,
@@ -371,7 +371,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                         idempotencyKey = idempotencyKey,
                         data = data,
                         updateRequest = buildRequest.buildRequest(
-                            lastSyncedData = updateContext.baseData,
+                            baseData = updateContext.baseData,
                             updatedData = data,
                             idempotencyKey = idempotencyKey,
                             isAsync = true,
@@ -394,7 +394,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                         idempotencyKey = idempotencyKey,
                         data = data,
                         updateRequest = buildRequest.buildRequest(
-                            lastSyncedData = updateContext.baseData,
+                            baseData = updateContext.baseData,
                             updatedData = data,
                             idempotencyKey = idempotencyKey,
                             isAsync = true,

@@ -16,7 +16,7 @@ public data class PendingSyncRequest<O : SyncableObject<O>>(
     public val request: HttpRequest,
     public val serverAttemptMade: Boolean,
     public val data: O,
-    public val lastSyncedData: O?,
+    public val baseData: O?,
     public val conflict: SyncableObjectRebaseHandler.FieldConflict<O>? = null,
     public val requestTag: String,
 ) {

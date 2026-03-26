@@ -261,7 +261,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
         var request = row.request
         // If the request contains placeholders, updates those based on the latest server context.
         if (row.request.endpointUrl.contains(HttpRequest.SERVER_ID_PLACEHOLDER)) {
-            val serverId = row.lastSyncedData?.serverId ?: row.data.serverId
+            val serverId = row.baseData?.serverId ?: row.data.serverId
             if (serverId == null) {
                 // If the endpoint contains unresolved placeholders and still has no server id,
                 // skip this entry.
@@ -276,7 +276,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
         // Use the (potentially endpoint-resolved) request, not the original row.request,
         // so that all placeholder checks operate on the latest resolved state.
         if (request.requestBody.toString().contains(HttpRequest.SERVER_ID_PLACEHOLDER)) {
-            val serverId = row.lastSyncedData?.serverId ?: row.data.serverId
+            val serverId = row.baseData?.serverId ?: row.data.serverId
             if (serverId == null) {
                 // If the request body contains unresolved placeholders and still has no server id,
                 // skip this entry.
@@ -290,7 +290,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
         }
         if (request.requestBody.toString().contains(HttpRequest.VERSION_PLACEHOLDER)) {
             // Resolve the version placeholder in the request body with the most up-to-date version.
-            val version = row.lastSyncedData?.version ?: row.data.version
+            val version = row.baseData?.version ?: row.data.version
             request = request.resolveBodyVersion(version.toString()) ?: request
         }
         // Resolve cross-service placeholders (e.g., {cross:orders:abc-123} → server ID from orders service).

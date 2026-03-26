@@ -299,7 +299,7 @@ class YourModelService(
 )
 ```
 
-For update-into-update squashing, the `UpdateRequestBuilder` you provide to `update()` is called with the previous pending data as `lastSyncedData` — the queue manager rebuilds the squashed request automatically. No extra configuration is needed beyond the `SquashRequestMerger` (which only handles the create-into-update case).
+For update-into-update squashing, the `UpdateRequestBuilder` you provide to `update()` is called with the previous pending data as `baseData` — the queue manager rebuilds the squashed request automatically. No extra configuration is needed beyond the `SquashRequestMerger` (which only handles the create-into-update case).
 
 > **Note:** The default strategy is `Queue`. You only need to pass `queueStrategy` when opting into `Squash`.
 
@@ -373,7 +373,7 @@ suspend fun updateItem(item: YourModel, newName: String): SyncableObjectServiceR
     return update(
         data = updatedItem,
         requestTag = YourModelRequestTag.UPDATE,
-        request = UpdateRequestBuilder { lastSyncedData, updatedData, idempotencyKey, isAsync, attemptedServerRequest ->
+        request = UpdateRequestBuilder { baseData, updatedData, idempotencyKey, isAsync, attemptedServerRequest ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.PUT,
                 endpointUrl = "https://api.example.com/v2/items/${updatedData.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
@@ -874,7 +874,7 @@ class SecureItemService(
 | Table | Encrypted columns |
 |-------|------------------|
 | `sync_data` | `data_blob`, `last_synced_server_data` |
-| `sync_pending_events` | `data_blob`, `request`, `last_synced_data`, `conflict_info` |
+| `sync_pending_events` | `data_blob`, `request`, `base_data`, `conflict_info` |
 
 Metadata columns (`service_name`, `client_id`, `server_id`, `sync_status`, `version`, etc.) remain plaintext because they are used in SQL queries and indexes.
 

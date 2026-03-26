@@ -220,7 +220,7 @@ class PendingRequestQueueManagerTest {
     }
 
     @Test
-    fun `queueVoidRequest preserves lastSyncedData`() {
+    fun `queueVoidRequest preserves baseData`() {
         val manager = createManager()
         val item = testItem(name = "Original")
         val serverData = testItem(name = "ServerVersion", serverId = "s1")
@@ -230,8 +230,8 @@ class PendingRequestQueueManagerTest {
             lastSyncedServerData = serverData, requestTag = TestRequestTag.DEFAULT,
         )
         val pending = manager.getPendingRequests(item.clientId)
-        assertNotNull(pending[0].lastSyncedData)
-        assertEquals("ServerVersion", pending[0].lastSyncedData!!.name)
+        assertNotNull(pending[0].baseData)
+        assertEquals("ServerVersion", pending[0].baseData!!.name)
     }
 
     // endregion
@@ -999,7 +999,7 @@ class PendingRequestQueueManagerTest {
         assertEquals(42, p.data.value)
         assertEquals(HttpRequest.HttpMethod.PUT, p.request.method)
         assertEquals("https://api.test.com/items/s1", p.request.endpointUrl)
-        assertEquals("Original", p.lastSyncedData?.name)
+        assertEquals("Original", p.baseData?.name)
         assertEquals("alternate", p.requestTag)
     }
 
