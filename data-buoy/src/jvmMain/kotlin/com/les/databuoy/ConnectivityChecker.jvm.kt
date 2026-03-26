@@ -1,5 +1,6 @@
-package com.les.databuoy
+package com.les.databuoy.publicconfigs
 
-public actual fun createPlatformConnectivityChecker(): ConnectivityChecker = object : ConnectivityChecker {
+public actual fun createPlatformConnectivityChecker(): ConnectivityChecker = object :
+    ConnectivityChecker {
     override fun isOnline(): Boolean = true
 }

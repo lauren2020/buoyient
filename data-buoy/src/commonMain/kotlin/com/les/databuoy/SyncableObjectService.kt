@@ -3,6 +3,8 @@ package com.les.databuoy
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.internalutilities.ServerManager
+import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.publicconfigs.createPlatformConnectivityChecker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

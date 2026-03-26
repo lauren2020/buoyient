@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.publicconfigs
 
 /**
  * Platform-agnostic interface for checking network connectivity.
