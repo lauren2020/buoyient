@@ -128,10 +128,10 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
     private fun resolveRequest(
         request: HttpRequest,
         serverId: String?,
-        version: Int?,
+        version: String?,
     ): HttpRequest.PlaceholderResolutionResult = request.resolveAllPlaceholders(
         serverId = serverId,
-        version = version?.toString(),
+        version = version,
         crossServiceResolver = localStoreManager.crossServiceIdResolver,
     )
 

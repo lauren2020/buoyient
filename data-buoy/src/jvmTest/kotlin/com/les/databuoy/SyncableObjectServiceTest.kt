@@ -66,7 +66,7 @@ class SyncableObjectServiceTest {
     private fun testItem(
         clientId: String = "client-1",
         serverId: String? = null,
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test Item",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
@@ -276,7 +276,7 @@ class SyncableObjectServiceTest {
     @Test
     fun `create online - returns NetworkResponseReceived with server data`() = runBlocking {
         val (service, env) = createServiceAndEnv(online = true)
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = "1")
         env.mockRouter.onPost("https://api.test.com/items") { _ ->
             MockResponse(201, wrapResponse(serverItem))
         }
@@ -328,7 +328,7 @@ class SyncableObjectServiceTest {
         clientId: String = "client-1",
         serverId: String = "server-1",
         name: String = "Test Item",
-        version: Int = 1,
+        version: String = "1",
     ): TestItem {
         val serverItem = testItem(clientId = clientId, serverId = serverId, version = version,
             name = name, syncStatus = SyncableObject.SyncStatus.Synced("1000"))
@@ -346,12 +346,12 @@ class SyncableObjectServiceTest {
         val (service, env) = createServiceAndEnv(online = true)
         val serverItem = seedSyncedItem(service, env)
 
-        val updatedServerItem = serverItem.copy(name = "Updated", version = 2)
+        val updatedServerItem = serverItem.copy(name = "Updated", version = "2")
         env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
             MockResponse(200, wrapResponse(updatedServerItem))
         }
 
-        val result = service.testUpdate(serverItem.copy(name = "Updated", version = 2))
+        val result = service.testUpdate(serverItem.copy(name = "Updated", version = "2"))
 
         assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
         assertEquals(200, result.statusCode)
@@ -364,17 +364,17 @@ class SyncableObjectServiceTest {
         val (service, env) = createServiceAndEnv(online = true)
         val serverItem = seedSyncedItem(service, env)
 
-        val updatedServerItem = serverItem.copy(name = "Server Name", version = 2)
+        val updatedServerItem = serverItem.copy(name = "Server Name", version = "2")
         env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
             MockResponse(200, wrapResponse(updatedServerItem))
         }
 
-        service.testUpdate(serverItem.copy(name = "Server Name", version = 2))
+        service.testUpdate(serverItem.copy(name = "Server Name", version = "2"))
 
         val stored = service.getAllFromLocalStore()
         assertEquals(1, stored.size)
         assertEquals("Server Name", stored[0].name)
-        assertEquals(2, stored[0].version)
+        assertEquals("2", stored[0].version)
         service.close()
     }
 
@@ -383,12 +383,12 @@ class SyncableObjectServiceTest {
         val (service, env) = createServiceAndEnv(online = true)
         val serverItem = seedSyncedItem(service, env)
 
-        val updatedServerItem = serverItem.copy(name = "Updated", version = 2)
+        val updatedServerItem = serverItem.copy(name = "Updated", version = "2")
         env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
             MockResponse(200, wrapResponse(updatedServerItem))
         }
 
-        service.testUpdate(serverItem.copy(name = "Updated", version = 2))
+        service.testUpdate(serverItem.copy(name = "Updated", version = "2"))
 
         val pendingRequests = env.database.syncPendingEventsQueries
             .getPendingRequestsByClientId("test-items", "client-1")
@@ -463,13 +463,13 @@ class SyncableObjectServiceTest {
         val (service, env) = createServiceAndEnv(online = true)
         val serverItem = seedSyncedItem(service, env)
 
-        val updatedServerItem = serverItem.copy(name = "Online Only", version = 2)
+        val updatedServerItem = serverItem.copy(name = "Online Only", version = "2")
         env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
             MockResponse(200, wrapResponse(updatedServerItem))
         }
 
         val result = service.testUpdate(
-            serverItem.copy(name = "Online Only", version = 2),
+            serverItem.copy(name = "Online Only", version = "2"),
             constraints = SyncableObjectService.ProcessingConstraints.OnlineOnly,
         )
 
@@ -697,7 +697,7 @@ class SyncableObjectServiceTest {
     fun `update on item not in db - returns InvalidRequest`() = runBlocking {
         val (service, _) = createServiceAndEnv(online = true)
 
-        val orphanItem = testItem(clientId = "nonexistent", serverId = "s-1", version = 1,
+        val orphanItem = testItem(clientId = "nonexistent", serverId = "s-1", version = "1",
             syncStatus = SyncableObject.SyncStatus.Synced("1000"))
 
         val result = service.testUpdate(orphanItem.copy(name = "Ghost"))
@@ -835,7 +835,7 @@ class SyncableObjectServiceTest {
     fun `void online - returns NetworkResponseReceived`() = runBlocking {
         val (service, env) = createServiceAndEnv(online = true)
 
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1,
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = "1",
             syncStatus = SyncableObject.SyncStatus.Synced("1000"))
         env.mockRouter.onPost("https://api.test.com/items") { _ ->
             MockResponse(201, wrapResponse(serverItem))
@@ -960,7 +960,7 @@ class SyncableObjectServiceTest {
     @Test
     fun `createWithFlow emits Loading then Result on success`() = runBlocking {
         val (service, env) = createServiceAndEnv(online = true)
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = "1")
         env.mockRouter.onPost("https://api.test.com/items") { _ ->
             MockResponse(201, wrapResponse(serverItem))
         }
@@ -1001,19 +1001,19 @@ class SyncableObjectServiceTest {
     fun `updateWithFlow emits Loading then Result on success`() = runBlocking {
         val (service, env) = createServiceAndEnv(online = true)
 
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1,
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = "1",
             syncStatus = SyncableObject.SyncStatus.Synced("1000"))
         env.mockRouter.onPost("https://api.test.com/items") { _ ->
             MockResponse(201, wrapResponse(serverItem))
         }
         service.testCreate(testItem(clientId = "client-1"))
 
-        val updatedServerItem = serverItem.copy(name = "Updated", version = 2)
+        val updatedServerItem = serverItem.copy(name = "Updated", version = "2")
         env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
             MockResponse(200, wrapResponse(updatedServerItem))
         }
 
-        val flow = service.testUpdateWithFlow(serverItem.copy(name = "Updated", version = 2))
+        val flow = service.testUpdateWithFlow(serverItem.copy(name = "Updated", version = "2"))
 
         val result = flow.first { it is SyncableObjectServiceRequestState.Result }
         assertIs<SyncableObjectServiceRequestState.Result<TestItem>>(result)
@@ -1032,7 +1032,7 @@ class SyncableObjectServiceTest {
     fun `voidWithFlow emits Loading then Result on success`() = runBlocking {
         val (service, env) = createServiceAndEnv(online = true)
 
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1,
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = "1",
             syncStatus = SyncableObject.SyncStatus.Synced("1000"))
         env.mockRouter.onPost("https://api.test.com/items") { _ ->
             MockResponse(201, wrapResponse(serverItem))
@@ -1111,7 +1111,7 @@ class SyncableObjectServiceTest {
         service.testCreate(testItem(clientId = "client-2", name = "Voided"))
 
         env.mockRouter.onDelete("https://api.test.com/items/*") { _ ->
-            MockResponse(200, wrapResponse(voidedItem.copy(version = 2)))
+            MockResponse(200, wrapResponse(voidedItem.copy(version = "2")))
         }
         service.testVoid(voidedItem)
 
@@ -1194,7 +1194,7 @@ class SyncableObjectServiceTest {
     fun `updateSync resolves serverId placeholder in URL from baseData`() = runBlocking {
         val (service, env) = createServiceAndEnv(online = true)
         // First create an item so it has a serverId in the local store.
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = "1")
         env.mockRouter.onPost("https://api.test.com/items") { _ ->
             MockResponse(201, wrapResponse(serverItem))
         }
@@ -1203,7 +1203,7 @@ class SyncableObjectServiceTest {
         // Now update — the request builder uses SERVER_ID_PLACEHOLDER in the URL.
         // The placeholder should be resolved from baseData.serverId before sending.
         var capturedUrl: String? = null
-        val updatedServerItem = testItem(clientId = "client-1", serverId = "server-1", version = 2, name = "Updated")
+        val updatedServerItem = testItem(clientId = "client-1", serverId = "server-1", version = "2", name = "Updated")
         env.mockRouter.onPut("https://api.test.com/items/server-1") { request ->
             capturedUrl = request.url
             MockResponse(200, wrapResponse(updatedServerItem))
@@ -1224,7 +1224,7 @@ class SyncableObjectServiceTest {
     fun `voidSync resolves serverId placeholder in URL from data`() = runBlocking {
         val (service, env) = createServiceAndEnv(online = true)
         // Create an item first.
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = "1")
         env.mockRouter.onPost("https://api.test.com/items") { _ ->
             MockResponse(201, wrapResponse(serverItem))
         }
@@ -1232,7 +1232,7 @@ class SyncableObjectServiceTest {
 
         // Void it — URL uses SERVER_ID_PLACEHOLDER pattern, should be resolved.
         var capturedUrl: String? = null
-        val voidedItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        val voidedItem = testItem(clientId = "client-1", serverId = "server-1", version = "1")
         env.mockRouter.onDelete("https://api.test.com/items/server-1") { request ->
             capturedUrl = request.url
             MockResponse(200, wrapResponse(voidedItem))
@@ -1257,7 +1257,7 @@ class SyncableObjectServiceTest {
             service_name = "orders",
             client_id = "order-1",
             server_id = "server-order-42",
-            version = 1,
+            version = "1",
             data_blob = "{}",
             last_synced_timestamp = "2024-01-01",
             sync_status = SyncableObject.SyncStatus.SYNCED,
@@ -1266,7 +1266,7 @@ class SyncableObjectServiceTest {
 
         // Now create an item whose request body contains a cross-service placeholder.
         var capturedBody: String? = null
-        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = "1")
         env.mockRouter.onPost("https://api.test.com/items") { request ->
             capturedBody = request.body.toString()
             MockResponse(201, wrapResponse(serverItem))

@@ -48,7 +48,7 @@ class SquashStrategyTest {
     private fun testItem(
         clientId: String = "client-1",
         serverId: String? = null,
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test Item",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
@@ -129,7 +129,7 @@ class SquashStrategyTest {
             service_name = "squash-test",
             client_id = "c1",
             server_id = null,
-            version = 1,
+            version = "1",
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
         )
@@ -154,7 +154,7 @@ class SquashStrategyTest {
         assertIs<PendingRequestQueueManager.QueueResult.Stored>(createResult)
 
         // Queue an UPDATE — with squash, it should merge into the existing CREATE
-        val updatedItem = item.copy(name = "Updated", version = 2)
+        val updatedItem = item.copy(name = "Updated", version = "2")
         val updateRequest = HttpRequest(
             method = HttpRequest.HttpMethod.PUT,
             endpointUrl = "https://api.test.com/items/{serverId}",
@@ -216,7 +216,7 @@ class SquashStrategyTest {
             service_name = "squash-updates",
             client_id = "c1",
             server_id = "s1",
-            version = 1,
+            version = "1",
             last_synced_timestamp = "1000",
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.SYNCED,
@@ -224,7 +224,7 @@ class SquashStrategyTest {
         )
 
         // Queue first UPDATE
-        val item2 = item.copy(name = "V2", version = 2)
+        val item2 = item.copy(name = "V2", version = "2")
         squashQueueManager.queueUpdateRequest(
             data = item2,
             idempotencyKey = "idem-u1",
@@ -245,7 +245,7 @@ class SquashStrategyTest {
         assertEquals(1, squashQueueManager.getPendingRequests("c1").size)
 
         // Queue second UPDATE — should squash into the first
-        val item3 = item2.copy(name = "V3", version = 3)
+        val item3 = item2.copy(name = "V3", version = "3")
         squashQueueManager.queueUpdateRequest(
             data = item3,
             idempotencyKey = "idem-u2",
@@ -293,7 +293,7 @@ class SquashStrategyTest {
             service_name = "squash-no-merge",
             client_id = "c1",
             server_id = null,
-            version = 1,
+            version = "1",
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
         )
@@ -310,7 +310,7 @@ class SquashStrategyTest {
         )
 
         // Queue an UPDATE via ForcedAfterServerAttempt — should NOT squash
-        val updatedItem = item.copy(name = "Updated", version = 2)
+        val updatedItem = item.copy(name = "Updated", version = "2")
         squashQueueManager.queueUpdateRequest(
             data = updatedItem,
             idempotencyKey = "idem-update",
@@ -365,7 +365,7 @@ class SquashStrategyTest {
             service_name = "squash-e2e",
             client_id = "c1",
             server_id = null,
-            version = 1,
+            version = "1",
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
         )
@@ -387,7 +387,7 @@ class SquashStrategyTest {
 
         // Queue UPDATE — gets squashed into CREATE
         squashQueueManager.queueUpdateRequest(
-            data = item.copy(name = "Final Name", value = 42, version = 2),
+            data = item.copy(name = "Final Name", value = 42, version = "2"),
             idempotencyKey = "idem-update",
             updateRequest = HttpRequest(
                 HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",

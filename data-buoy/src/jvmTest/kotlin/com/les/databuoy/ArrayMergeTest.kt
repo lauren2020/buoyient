@@ -28,7 +28,7 @@ class ArrayMergeTest {
     private fun testItem(
         clientId: String = "c1",
         serverId: String? = "srv-1",
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test",
         value: Int = 0,
         tags: List<String> = emptyList(),

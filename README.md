@@ -64,7 +64,7 @@ Implement `SyncableObject<O>` on a `@Serializable` data class:
 data class Todo(
     override val serverId: String? = null,
     override val clientId: String = UUID.randomUUID().toString(),
-    override val version: Int = 0,
+    override val version: String = "0",
     @Transient override val syncStatus: SyncStatus = SyncStatus.LocalOnly,
     val title: String,
     val completed: Boolean = false,

@@ -59,7 +59,7 @@ class SyncUpRegressionTest {
     private fun testItem(
         clientId: String,
         serverId: String? = null,
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
@@ -142,8 +142,8 @@ class SyncUpRegressionTest {
             service_name = "test",
             client_id = "c1",
             server_id = null,
-            version = 1,
-            data_blob = """{"client_id":"c1","version":1,"name":"Item","value":0}""",
+            version = "1",
+            data_blob = """{"client_id":"c1","version":"1","name":"Item","value":0}""",
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
         )
 
@@ -153,11 +153,11 @@ class SyncUpRegressionTest {
             service_name = "test",
             client_id = "c1",
             server_id = "server_1",
-            version = 1,
+            version = "1",
             last_synced_timestamp = "1000",
-            data_blob = """{"client_id":"c1","server_id":"server_1","version":1,"name":"Item","value":0}""",
+            data_blob = """{"client_id":"c1","server_id":"server_1","version":"1","name":"Item","value":0}""",
             sync_status = SyncableObject.SyncStatus.SYNCED,
-            last_synced_server_data = """{"client_id":"c1","server_id":"server_1","version":1,"name":"Item","value":0}""",
+            last_synced_server_data = """{"client_id":"c1","server_id":"server_1","version":"1","name":"Item","value":0}""",
         )
 
         // Verify sync_status was updated.
@@ -262,9 +262,9 @@ class SyncUpRegressionTest {
         val db = TestDatabaseFactory.createInMemory()
 
         // The original data stored in the CREATE.
-        val createData = testItem(clientId = "c1", name = "Original", value = 10, version = 1)
+        val createData = testItem(clientId = "c1", name = "Original", value = 10, version = "1")
         // The data after the local update (offline).
-        val updateData = createData.copy(name = "Updated", version = 2)
+        val updateData = createData.copy(name = "Updated", version = "2")
         // What the server returns for the CREATE — includes a server_id.
         val createResponse = createData.copy(serverId = "server_1")
         // What the server returns for the UPDATE.
@@ -369,10 +369,10 @@ class SyncUpRegressionTest {
     fun `full offline queue scenario syncs all items correctly`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
 
-        val item1Create = testItem(clientId = "c1", name = "Item 1", value = 10, version = 1)
-        val item2Create = testItem(clientId = "c2", name = "Item 2", value = 20, version = 1)
-        val item1Update1 = item1Create.copy(name = "Item 1 - Edit 1", version = 2)
-        val item1Update2 = item1Create.copy(name = "Item 1 - Edit 2", version = 3)
+        val item1Create = testItem(clientId = "c1", name = "Item 1", value = 10, version = "1")
+        val item2Create = testItem(clientId = "c2", name = "Item 2", value = 20, version = "1")
+        val item1Update1 = item1Create.copy(name = "Item 1 - Edit 1", version = "2")
+        val item1Update2 = item1Create.copy(name = "Item 1 - Edit 2", version = "3")
 
         val item1ServerCreate = item1Create.copy(serverId = "s1")
         val item2ServerCreate = item2Create.copy(serverId = "s2")
@@ -519,11 +519,11 @@ class SyncUpRegressionTest {
     fun `offline create then update with URL and body placeholders syncs both to SYNCED`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
 
-        val createData = testItem(clientId = "c1", name = "Coffee", value = 150, version = 1)
-        val updateData = createData.copy(name = "Large Coffee", value = 350, version = 2)
+        val createData = testItem(clientId = "c1", name = "Coffee", value = 150, version = "1")
+        val updateData = createData.copy(name = "Large Coffee", value = 350, version = "2")
 
-        val serverCreateResponse = createData.copy(serverId = "srv-abc123", version = 1)
-        val serverUpdateResponse = updateData.copy(serverId = "srv-abc123", version = 2)
+        val serverCreateResponse = createData.copy(serverId = "srv-abc123", version = "1")
+        val serverUpdateResponse = updateData.copy(serverId = "srv-abc123", version = "2")
 
         // Capture each request so we can verify placeholder resolution.
         val capturedRequests = mutableListOf<io.ktor.client.request.HttpRequestData>()
@@ -640,7 +640,7 @@ class SyncUpRegressionTest {
         assertNotNull(localEntry, "Local store entry should exist")
         assertEquals("Large Coffee", localEntry.data.name,
             "Local data should reflect the updated name")
-        assertEquals(2, localEntry.data.version,
+        assertEquals("2", localEntry.data.version,
             "Local data should reflect the updated version")
 
         // No pending requests should remain.

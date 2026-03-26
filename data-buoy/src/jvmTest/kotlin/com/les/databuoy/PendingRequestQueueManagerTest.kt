@@ -36,7 +36,7 @@ class PendingRequestQueueManagerTest {
     private fun testItem(
         clientId: String = "client-1",
         serverId: String? = null,
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
@@ -979,7 +979,7 @@ class PendingRequestQueueManagerTest {
     fun `pending request data survives database round-trip`() {
         val manager = createManager()
         val item = testItem(
-            clientId = "c1", serverId = "s1", version = 3,
+            clientId = "c1", serverId = "s1", version = "3",
             name = "RoundTrip", value = 42,
         )
         val request = HttpRequest(

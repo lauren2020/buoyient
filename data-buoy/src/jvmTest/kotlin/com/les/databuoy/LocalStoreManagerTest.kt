@@ -31,7 +31,7 @@ class LocalStoreManagerTest {
     private fun testItem(
         clientId: String = "client-1",
         serverId: String? = null,
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
@@ -148,7 +148,7 @@ class LocalStoreManagerTest {
     fun `insertFromServerResponse stores synced data with server info`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val item = testItem(clientId = "c-1", serverId = "s-1", version = 2, name = "Synced")
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = "2", name = "Synced")
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
 
@@ -164,7 +164,7 @@ class LocalStoreManagerTest {
     fun `insertFromServerResponse stores last synced server data`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "FromServer")
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "FromServer")
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
 
@@ -195,11 +195,11 @@ class LocalStoreManagerTest {
     fun `updateLocalData updates data and queues pending UPDATE request`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "Original")
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original")
 
         manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
 
-        val updated = original.copy(version = 2, name = "Updated")
+        val updated = original.copy(version = "2", name = "Updated")
         val (returnedItem, result) = manager.updateLocalData(
             data = updated, idempotencyKey = "key-2",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
@@ -219,12 +219,12 @@ class LocalStoreManagerTest {
     fun `updateLocalData persists PENDING_UPDATE status in sync data`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "Original")
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original")
 
         manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
 
         manager.updateLocalData(
-            data = original.copy(version = 2, name = "Updated"),
+            data = original.copy(version = "2", name = "Updated"),
             idempotencyKey = "key-2",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
             serverAttemptMadeForCurrentRequest = false,
@@ -244,7 +244,7 @@ class LocalStoreManagerTest {
     fun `updateLocalData rolls back sync data when queueing is invalid`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "Original")
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original")
 
         manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
         manager.voidData(
@@ -255,7 +255,7 @@ class LocalStoreManagerTest {
         )
 
         val updateResult = manager.updateLocalData(
-            data = original.copy(version = 2, name = "Should Not Persist"),
+            data = original.copy(version = "2", name = "Should Not Persist"),
             idempotencyKey = "key-2",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
             serverAttemptMadeForCurrentRequest = false,
@@ -271,7 +271,7 @@ class LocalStoreManagerTest {
         assertNotNull(entry)
         assertIs<SyncableObject.SyncStatus.PendingVoid>(entry.syncStatus)
         assertEquals("Original", entry.data.name)
-        assertEquals(1, entry.data.version)
+        assertEquals("1", entry.data.version)
     }
 
     @Test
@@ -282,12 +282,12 @@ class LocalStoreManagerTest {
         }
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db, syncScheduleNotifier = notifier)
-        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1)
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
         manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
 
         manager.updateLocalData(
-            data = original.copy(version = 2, name = "Updated"), idempotencyKey = "key-2",
+            data = original.copy(version = "2", name = "Updated"), idempotencyKey = "key-2",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
             serverAttemptMadeForCurrentRequest = false,
             updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
@@ -307,17 +307,17 @@ class LocalStoreManagerTest {
     fun `upsertFromServerResponse upserts server data for existing entry`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "V1")
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "V1")
 
         manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
 
-        val serverUpdate = original.copy(version = 2, name = "V2")
+        val serverUpdate = original.copy(version = "2", name = "V2")
         manager.upsertFromServerResponse(serverData = serverUpdate, responseTimestamp = "2024-01-02T00:00:00Z")
 
         val entry = manager.getData(clientId = "c-1", serverId = "s-1")
         assertNotNull(entry)
         assertEquals("V2", entry.data.name)
-        assertEquals(2, entry.data.version)
+        assertEquals("2", entry.data.version)
         assertIs<SyncableObject.SyncStatus.Synced>(entry.syncStatus)
     }
 
@@ -329,7 +329,7 @@ class LocalStoreManagerTest {
     fun `voidData marks data voided and queues pending VOID request`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1)
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
 
@@ -346,7 +346,7 @@ class LocalStoreManagerTest {
     fun `voidData persists PENDING_VOID status in sync data`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1)
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
 
@@ -366,7 +366,7 @@ class LocalStoreManagerTest {
     fun `voidData with serverAttemptMade passes through to queue`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1)
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
 
@@ -502,7 +502,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
 
         manager.upsertEntry(
-            serverObj = testItem(clientId = "c-1", serverId = "s-1", version = 5, name = "Upserted"),
+            serverObj = testItem(clientId = "c-1", serverId = "s-1", version = "5", name = "Upserted"),
             syncedAtTimestamp = "2024-03-01T00:00:00Z",
             clientId = "c-1",
         )
@@ -519,12 +519,12 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
 
         manager.insertFromServerResponse(
-            serverData = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "Original"),
+            serverData = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original"),
             responseTimestamp = "2024-01-01T00:00:00Z",
         )
 
         manager.upsertEntry(
-            serverObj = testItem(clientId = "c-1", serverId = "s-1", version = 2, name = "Overwritten"),
+            serverObj = testItem(clientId = "c-1", serverId = "s-1", version = "2", name = "Overwritten"),
             syncedAtTimestamp = "2024-02-01T00:00:00Z",
             clientId = "c-1",
         )
@@ -532,7 +532,7 @@ class LocalStoreManagerTest {
         val entry = manager.getData(clientId = "c-1", serverId = "s-1")
         assertNotNull(entry)
         assertEquals("Overwritten", entry.data.name)
-        assertEquals(2, entry.data.version)
+        assertEquals("2", entry.data.version)
     }
 
     // endregion
@@ -543,13 +543,13 @@ class LocalStoreManagerTest {
     fun `getEffectiveBaseDataForUpdate returns latestServerData for synced entry`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "ServerV1")
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "ServerV1")
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
 
         val base = manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueStrategy.Queue)
         assertEquals("ServerV1", base.name)
-        assertEquals(1, base.version)
+        assertEquals("1", base.version)
     }
 
     @Test
@@ -571,11 +571,11 @@ class LocalStoreManagerTest {
     fun `getEffectiveBaseDataForUpdate returns latest pending request data for PendingUpdate`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val original = testItem(clientId = "c-1", serverId = "s-1", version = 1, name = "Original")
+        val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original")
 
         manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
 
-        val updated = original.copy(version = 2, name = "Updated")
+        val updated = original.copy(version = "2", name = "Updated")
         manager.updateLocalData(
             data = updated, idempotencyKey = "key-2",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT),
@@ -594,7 +594,7 @@ class LocalStoreManagerTest {
     fun `getEffectiveBaseDataForUpdate throws for PendingVoid entry`() {
         val db = TestDatabaseFactory.createInMemory()
         val manager = createManager(database = db)
-        val item = testItem(clientId = "c-1", serverId = "s-1", version = 1)
+        val item = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
         manager.voidData(

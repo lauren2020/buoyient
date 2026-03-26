@@ -49,7 +49,7 @@ class SyncDriverTest {
     private fun testItem(
         clientId: String,
         serverId: String? = null,
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
@@ -227,8 +227,8 @@ class SyncDriverTest {
     @Test
     fun `syncDownFromServer - merges with pending local changes`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = 1)
-        val serverItem = localItem.copy(name = "ServerEdit", value = 10, version = 2)
+        val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = "1")
+        val serverItem = localItem.copy(name = "ServerEdit", value = 10, version = "2")
 
         val createResponse = wrapResponse(localItem.copy(serverId = "s1"))
         val syncDownResponse = wrapListResponse(listOf(serverItem))
@@ -255,7 +255,7 @@ class SyncDriverTest {
 
         // Queue a pending UPDATE
         localStore.updateLocalData(
-            data = localItem.copy(name = "LocalEdit", version = 2),
+            data = localItem.copy(name = "LocalEdit", version = "2"),
             idempotencyKey = "idem-update",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
                 endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
@@ -285,9 +285,9 @@ class SyncDriverTest {
     @Test
     fun `syncUpSinglePendingRequest - resolves serverId placeholder`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val createItem = testItem(clientId = "c1", name = "Item", value = 10, version = 1)
+        val createItem = testItem(clientId = "c1", name = "Item", value = 10, version = "1")
         val createResponse = createItem.copy(serverId = "s1")
-        val updateResponse = createItem.copy(serverId = "s1", name = "Updated", version = 2)
+        val updateResponse = createItem.copy(serverId = "s1", name = "Updated", version = "2")
 
         var requestCount = 0
         val mockEngine = MockEngine {
@@ -303,7 +303,7 @@ class SyncDriverTest {
             idempotencyKey = "idem-create", requestTag = TestRequestTag.DEFAULT,
         )
         localStore.updateLocalData(
-            data = createItem.copy(name = "Updated", version = 2),
+            data = createItem.copy(name = "Updated", version = "2"),
             idempotencyKey = "idem-update",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
                 endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
@@ -363,7 +363,7 @@ class SyncDriverTest {
             idempotencyKey = "idem-create", requestTag = TestRequestTag.DEFAULT,
         )
         localStore.updateLocalData(
-            data = item.copy(name = "Edited", version = 2),
+            data = item.copy(name = "Edited", version = "2"),
             idempotencyKey = "idem-update",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
                 endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
@@ -467,8 +467,8 @@ class SyncDriverTest {
     fun `syncDownFromServer - PostFetchConfig merges with pending local changes`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
         val status = DataBuoyStatus(db)
-        val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = 1)
-        val serverItem = localItem.copy(name = "ServerEdit", value = 10, version = 2)
+        val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = "1")
+        val serverItem = localItem.copy(name = "ServerEdit", value = 10, version = "2")
 
         val createResponse = wrapResponse(localItem.copy(serverId = "s1"))
         val syncDownResponse = wrapListResponse(listOf(serverItem))
@@ -533,7 +533,7 @@ class SyncDriverTest {
 
         // Queue a pending UPDATE
         localStore.updateLocalData(
-            data = localItem.copy(name = "LocalEdit", version = 2),
+            data = localItem.copy(name = "LocalEdit", version = "2"),
             idempotencyKey = "idem-update",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
                 endpoint = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}"),
@@ -563,7 +563,7 @@ class SyncDriverTest {
     @Test
     fun `syncUp marks request as attempted when acceptUploadResponseAsProcessed returns false`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val item = testItem(clientId = "c1", name = "Item", value = 10, version = 1)
+        val item = testItem(clientId = "c1", name = "Item", value = 10, version = "1")
 
         // Server returns 503 — acceptUploadResponseAsProcessed returns false for 5xx
         val mockEngine = MockEngine {
@@ -620,7 +620,7 @@ class SyncDriverTest {
     @Test
     fun `syncUp handles 429 rate limit by not accepting response`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val item = testItem(clientId = "c1", name = "Item", value = 10, version = 1)
+        val item = testItem(clientId = "c1", name = "Item", value = 10, version = "1")
 
         val mockEngine = MockEngine {
             respond(
@@ -672,7 +672,7 @@ class SyncDriverTest {
     @Test
     fun `syncUp handles 408 timeout by not accepting response`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val item = testItem(clientId = "c1", name = "Item", value = 10, version = 1)
+        val item = testItem(clientId = "c1", name = "Item", value = 10, version = "1")
 
         val mockEngine = MockEngine {
             respond(
@@ -729,8 +729,8 @@ class SyncDriverTest {
     fun `concurrent syncUp and syncDown on same clientId are serialized by withClientLock`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
         val status = DataBuoyStatus(db)
-        val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = 1)
-        val serverItem = localItem.copy(name = "ServerV2", version = 2)
+        val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = "1")
+        val serverItem = localItem.copy(name = "ServerV2", version = "2")
         val createResponse = wrapResponse(localItem.copy(serverId = "s1"))
 
         // Track the order of operations to verify serialization
@@ -765,7 +765,7 @@ class SyncDriverTest {
 
         // Now queue an update and run sync-down concurrently
         localStore.updateLocalData(
-            data = localItem.copy(name = "LocalEdit", version = 2),
+            data = localItem.copy(name = "LocalEdit", version = "2"),
             idempotencyKey = "idem-update",
             updateRequest = makeRequest(method = HttpRequest.HttpMethod.PUT,
                 endpoint = "https://api.test.com/items/s1"),

@@ -25,7 +25,7 @@ class ConvenienceApiTest {
         val response = buildJsonObject {
             put("item", buildJsonObject {
                 put("client_id", "c1")
-                put("version", 1)
+                put("version", "1")
                 put("name", "Test")
                 put("value", 42)
             })
@@ -45,7 +45,7 @@ class ConvenienceApiTest {
         val response = buildJsonObject {
             put("other", buildJsonObject {
                 put("client_id", "c1")
-                put("version", 1)
+                put("version", "1")
                 put("name", "Test")
                 put("value", 42)
             })
@@ -64,7 +64,7 @@ class ConvenienceApiTest {
         val response = buildJsonObject {
             put("item", buildJsonObject {
                 put("client_id", "c1")
-                put("version", 1)
+                put("version", "1")
                 put("name", "FromItem")
                 put("value", 10)
             })
@@ -82,13 +82,13 @@ class ConvenienceApiTest {
         val response = buildJsonObject {
             put("order", buildJsonObject {
                 put("client_id", "c1")
-                put("version", 1)
+                put("version", "1")
                 put("name", "FromOrder")
                 put("value", 20)
             })
             put("item", buildJsonObject {
                 put("client_id", "c2")
-                put("version", 1)
+                put("version", "1")
                 put("name", "FromItem")
                 put("value", 10)
             })
@@ -106,7 +106,7 @@ class ConvenienceApiTest {
         val response = buildJsonObject {
             put("something_else", buildJsonObject {
                 put("client_id", "c1")
-                put("version", 1)
+                put("version", "1")
                 put("name", "Test")
                 put("value", 42)
             })
@@ -127,7 +127,7 @@ class ConvenienceApiTest {
         val response = buildJsonObject {
             put("item", buildJsonObject {
                 put("client_id", "c1")
-                put("version", 1)
+                put("version", "1")
                 put("name", "Test")
                 put("value", 42)
             })

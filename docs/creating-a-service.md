@@ -47,7 +47,7 @@ Every `SyncableObject` must have:
 |-------|------|---------|
 | `serverId` | `String?` | Server's ID. `null` until first sync. |
 | `clientId` | `String` | Locally-generated UUID. Stable identifier regardless of sync state. |
-| `version` | `Int` | Incremented on each update. Used for optimistic concurrency. |
+| `version` | `String` | Opaque version token updated on each server-side write. Used for optimistic concurrency. |
 | `syncStatus` | `SyncStatus` | Tracks sync lifecycle (LocalOnly, PendingCreate, Synced, Conflict, etc.) |
 | `withSyncStatus(syncStatus)` | `fun` | Returns a copy of the object with the given sync status. |
 
@@ -76,7 +76,7 @@ import java.util.UUID
 data class YourModel(
     override val serverId: String? = null,
     override val clientId: String = UUID.randomUUID().toString(),
-    override val version: Int = 0,
+    override val version: String = "0",
     @Transient override val syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
     // Add your domain-specific fields here:
     val name: String,
@@ -94,7 +94,7 @@ data class YourModel(
 - The class must be annotated with `@Serializable` — data-buoy uses `kotlinx.serialization` via `SyncCodec` to serialize/deserialize objects.
 - `syncStatus` must be marked `@Transient` — data-buoy manages sync status separately from the JSON blob stored in SQLite.
 - `withSyncStatus()` must return a copy with the new status. For data classes, just delegate to `copy(syncStatus = syncStatus)`.
-- Default values for `serverId = null`, `clientId = UUID.randomUUID().toString()`, `version = 0`, and `syncStatus = LocalOnly` provide a convenient constructor for creating new local-only instances.
+- Default values for `serverId = null`, `clientId = UUID.randomUUID().toString()`, `version = "0"`, and `syncStatus = LocalOnly` provide a convenient constructor for creating new local-only instances.
 
 ---
 

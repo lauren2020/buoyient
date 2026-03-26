@@ -57,7 +57,7 @@ class CrossServicePlaceholderTest {
 
     @Test
     fun `versionOrPlaceholder returns version string when non-null`() {
-        assertEquals("5", HttpRequest.versionOrPlaceholder(5))
+        assertEquals("5", HttpRequest.versionOrPlaceholder("5"))
     }
 
     @Test
@@ -392,7 +392,7 @@ class CrossServicePlaceholderTest {
     private fun testItem(
         clientId: String,
         serverId: String? = null,
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,

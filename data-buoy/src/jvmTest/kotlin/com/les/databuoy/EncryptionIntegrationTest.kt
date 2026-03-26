@@ -56,7 +56,7 @@ class EncryptionIntegrationTest {
 
     private fun testItem(name: String = "item1", clientId: String = "c1") = TestItem(
         clientId = clientId,
-        version = 1,
+        version = "1",
         name = name,
         value = 42,
     )

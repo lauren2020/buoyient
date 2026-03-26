@@ -43,7 +43,7 @@ class ConflictResolutionTest {
     private fun testItem(
         clientId: String,
         serverId: String? = null,
-        version: Int = 1,
+        version: String = "1",
         name: String = "Test",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
@@ -93,7 +93,7 @@ class ConflictResolutionTest {
         val syncedItem = testItem(
             clientId = "c1",
             serverId = "srv-1",
-            version = 1,
+            version = "1",
             name = "Original",
             value = 10,
         )
@@ -122,7 +122,7 @@ class ConflictResolutionTest {
         )
 
         // Step 3: Simulate server changing the same field — triggers a conflict on rebase.
-        val serverUpdate = syncedItem.copy(name = "ServerEdit", version = 2)
+        val serverUpdate = syncedItem.copy(name = "ServerEdit", version = "2")
         val upsertResult = localStore.upsertSyncDownResponseData(
             clientId = "c1",
             lastSyncedTimestamp = "2000",
@@ -153,7 +153,7 @@ class ConflictResolutionTest {
         val resolvedData = testItem(
             clientId = "c1",
             serverId = "srv-1",
-            version = 2,
+            version = "2",
             name = "LocalEdit",
             value = 10,
         )
@@ -200,7 +200,7 @@ class ConflictResolutionTest {
         val syncedItem = testItem(
             clientId = "c1",
             serverId = "srv-1",
-            version = 1,
+            version = "1",
             name = "Original",
             value = 10,
         )
@@ -234,7 +234,7 @@ class ConflictResolutionTest {
         val syncedItem = testItem(
             clientId = "c1",
             serverId = "srv-1",
-            version = 1,
+            version = "1",
             name = "Original",
             value = 10,
         )
@@ -283,7 +283,7 @@ class ConflictResolutionTest {
         val syncedItem = testItem(
             clientId = "c1",
             serverId = "srv-1",
-            version = 1,
+            version = "1",
             name = "Original",
             value = 10,
         )
@@ -347,7 +347,7 @@ class ConflictResolutionTest {
         val syncedItem = testItem(
             clientId = "c1",
             serverId = "srv-1",
-            version = 1,
+            version = "1",
             name = "Original",
             value = 10,
         )
@@ -392,7 +392,7 @@ class ConflictResolutionTest {
         )
 
         // Simulate server changing `name` — conflicts with UPDATE 1.
-        val serverUpdate = syncedItem.copy(name = "ServerEdit", version = 2)
+        val serverUpdate = syncedItem.copy(name = "ServerEdit", version = "2")
         val upsertResult = localStore.upsertSyncDownResponseData(
             clientId = "c1",
             lastSyncedTimestamp = "2000",
@@ -410,7 +410,7 @@ class ConflictResolutionTest {
         val resolvedData = testItem(
             clientId = "c1",
             serverId = "srv-1",
-            version = 2,
+            version = "2",
             name = "LocalEdit1", // keep local name
             value = 10,
         )

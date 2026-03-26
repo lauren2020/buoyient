@@ -26,7 +26,7 @@ class TodoServiceTest {
                     put("item", buildJsonObject {
                         put("server_id", "srv-1")
                         put("client_id", request.body["client_id"]!!)
-                        put("version", 1)
+                        put("version", "1")
                         put("title", request.body["title"]!!)
                         put("completed", request.body["completed"]!!)
                     })
@@ -58,7 +58,7 @@ class TodoServiceTest {
                     put("item", buildJsonObject {
                         put("server_id", "srv-2")
                         put("client_id", request.body["client_id"]!!)
-                        put("version", 1)
+                        put("version", "1")
                         put("title", request.body["title"]!!)
                         put("completed", request.body["completed"]!!)
                     })

@@ -275,7 +275,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
         var request = row.request
         // Resolve all placeholders ({serverId}, {version}, {cross:…}) in one pass.
         val serverId = row.baseData?.serverId ?: row.data.serverId
-        val version = (row.baseData?.version ?: row.data.version).toString()
+        val version = row.baseData?.version ?: row.data.version
         when (val resolution = request.resolveAllPlaceholders(
             serverId = serverId,
             version = version,

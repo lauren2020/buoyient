@@ -274,7 +274,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     service_name = serviceName,
                     client_id = data.clientId,
                     server_id = data.serverId,
-                    version = data.version.toLong(),
+                    version = data.version,
                     data_blob = storageCodec.encodeForStorage(jsonData.toString()),
                     sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
                 )
@@ -316,7 +316,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 service_name = serviceName,
                 client_id = serverData.clientId,
                 server_id = serverData.serverId,
-                version = serverData.version.toLong(),
+                version = serverData.version,
                 last_synced_timestamp = responseTimestamp,
                 data_blob = encryptedServerDataJson,
                 sync_status = SyncableObject.SyncStatus.SYNCED,
@@ -341,7 +341,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         try {
             val result = transaction {
                 database.syncDataQueries.updateLocalData(
-                    version = data.version.toLong(),
+                    version = data.version,
                     data_blob = storageCodec.encodeForStorage(codec.encode(data).toString()),
                     sync_status = SyncableObject.SyncStatus.PENDING_UPDATE,
                     service_name = serviceName,
@@ -379,7 +379,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
             database.syncDataQueries.upsertFromServerResponse(
                 last_synced_timestamp = responseTimestamp,
-                version = serverData.version.toLong(),
+                version = serverData.version,
                 sync_status = SyncableObject.SyncStatus.SYNCED,
                 data_blob = encryptedServerDataJson,
                 last_synced_server_data = encryptedServerDataJson,
@@ -402,7 +402,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             service_name = serviceName,
             client_id = clientId,
             server_id = serverObj.serverId,
-            version = serverObj.version.toLong(),
+            version = serverObj.version,
             last_synced_timestamp = syncedAtTimestamp,
             data_blob = encryptedServerDataJson,
             sync_status = SyncableObject.SyncStatus.SYNCED,
@@ -451,7 +451,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
             database.syncDataQueries.upsertFromVoidServerResponse(
                 last_synced_timestamp = responseTimestamp,
-                version = serverData.version.toLong(),
+                version = serverData.version,
                 sync_status = SyncableObject.SyncStatus.SYNCED,
                 data_blob = encryptedServerDataJson,
                 last_synced_server_data = encryptedServerDataJson,
@@ -499,7 +499,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     database.syncDataQueries.updateAfterCreateOrUpdateUpload(
                         server_id = latestServerData.serverId,
                         last_synced_timestamp = lastSyncedTimestamp,
-                        version = latestServerData.version.toLong(),
+                        version = latestServerData.version,
                         sync_status = updatedSyncStatus,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLatestData)),
                         last_synced_server_data = resolvedDataJson,
@@ -510,7 +510,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     database.syncDataQueries.updateAfterCreateOrUpdateUploadWithoutData(
                         server_id = latestServerData.serverId,
                         last_synced_timestamp = lastSyncedTimestamp,
-                        version = latestServerData.version.toLong(),
+                        version = latestServerData.version,
                         sync_status = updatedSyncStatus,
                         last_synced_server_data = resolvedDataJson,
                         service_name = serviceName,
@@ -525,7 +525,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     sync_status = updatedSyncStatus,
                     data_blob = resolvedDataJson,
                     last_synced_server_data = resolvedDataJson,
-                    version = latestServerData.version.toLong(),
+                    version = latestServerData.version,
                     service_name = serviceName,
                     client_id = row.data.clientId,
                 )
@@ -692,7 +692,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 database.syncDataQueries.updateAfterCreateOrUpdateUpload(
                     server_id = updatedServerData.serverId,
                     last_synced_timestamp = lastSyncedTimestamp,
-                    version = updatedServerData.version.toLong(),
+                    version = updatedServerData.version,
                     sync_status = SyncableObject.SyncStatus.SYNCED,
                     data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLocalData)),
                     last_synced_server_data = storageCodec.encodeForStorage(codec.encodeToString(updatedServerData)),

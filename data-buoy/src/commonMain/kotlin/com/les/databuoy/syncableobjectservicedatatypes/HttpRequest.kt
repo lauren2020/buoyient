@@ -223,8 +223,8 @@ public class HttpRequest(
          * put("version", HttpRequest.versionOrPlaceholder(data.version))
          * ```
          */
-        public fun versionOrPlaceholder(version: Int?): String =
-            version?.toString() ?: VERSION_PLACEHOLDER
+        public fun versionOrPlaceholder(version: String?): String =
+            version ?: VERSION_PLACEHOLDER
 
         /**
          * Creates a cross-service placeholder that will be resolved at sync-up time
