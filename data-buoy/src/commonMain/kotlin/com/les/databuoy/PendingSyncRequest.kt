@@ -48,14 +48,4 @@ public data class PendingSyncRequest<O : SyncableObject<O>>(
             public fun fromValue(value: String): Type = entries.first { it.value == value }
         }
     }
-
-    public companion object {
-        private const val PENDING_REQUEST_ID_KEY = "pending_request_id"
-        private const val TYPE_KEY = "type"
-        private const val HTTP_REQUEST_KEY = "http_request"
-        private const val IDEMPOTENCY_KEY = "idempotency_key"
-        private const val SERVER_ATTEMPT_MADE_KEY = "server_attempt_made"
-        private const val DATA_KEY = "data"
-        private const val CONFLICT_INFO_KEY = "conflict_info"
-    }
 }
