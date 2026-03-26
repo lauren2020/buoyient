@@ -1,6 +1,10 @@
-package com.les.databuoy
+package com.les.databuoy.publicconfigs
 
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.SyncCodec
+import com.les.databuoy.SyncableObject
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -9,13 +13,13 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Encapsulates the 3-way merge logic used during [SyncDriver.syncDownFromServer]
+ * Encapsulates the 3-way merge logic used during [com.les.databuoy.SyncDriver.syncDownFromServer]
  * to reconcile local and server changes.
  *
  * This is an `open class` so that service implementations can subclass it to override
  * [handleMergeConflict] and/or [rebaseDataForPendingRequest] with custom merge policies.
  *
- * Provide a custom subclass to [SyncableObjectService] by overriding its
+ * Provide a custom subclass to [com.les.databuoy.SyncableObjectService] by overriding its
  * `mergeHandler` property.
  */
 public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
@@ -96,7 +100,7 @@ public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
     // region Logic
 
     /**
-     * Called during [SyncDriver.syncDownFromServer] when a 3-way merge detects
+     * Called during [com.les.databuoy.SyncDriver.syncDownFromServer] when a 3-way merge detects
      * field-level conflicts (both the local client and the server changed the same field
      * to different values).
      *
@@ -214,16 +218,16 @@ public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
     }
 
     /**
-     * If [baseVal], [localVal], and [serverVal] are all [JsonArray]s (or base is null)
+     * If [baseVal], [localVal], and [serverVal] are all [kotlinx.serialization.json.JsonArray]s (or base is null)
      * and both local and server are strict supersets of base (only additions, no removals),
      * returns a merged array containing base elements + local additions + server additions.
      *
      * Returns `null` if the values are not arrays or if either side removed elements.
      */
     private fun tryMergeArrayAdditions(
-        baseVal: kotlinx.serialization.json.JsonElement?,
-        localVal: kotlinx.serialization.json.JsonElement?,
-        serverVal: kotlinx.serialization.json.JsonElement?,
+        baseVal: JsonElement?,
+        localVal: JsonElement?,
+        serverVal: JsonElement?,
     ): JsonArray? {
         val localArray = localVal as? JsonArray ?: return null
         val serverArray = serverVal as? JsonArray ?: return null
@@ -239,7 +243,7 @@ public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
         val serverAdditions = serverArray.filter { it !in baseElements }
 
         // Preserve order: base elements (in local order) + server-only additions.
-        val merged = localArray + serverAdditions.filter { it !in localArray.toSet() }
+        val merged = localAdditions + serverAdditions.filter { it !in localArray.toSet() }
         return JsonArray(merged)
     }
 

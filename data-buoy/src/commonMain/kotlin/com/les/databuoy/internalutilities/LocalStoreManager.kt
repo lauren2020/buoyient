@@ -17,7 +17,7 @@ import com.les.databuoy.SyncCodec
 import com.les.databuoy.SyncLog
 import com.les.databuoy.SyncScheduleNotifier
 import com.les.databuoy.SyncableObject
-import com.les.databuoy.SyncableObjectRebaseHandler
+import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.UpsertResult
 import com.les.databuoy.createSyncDatabase
 import com.les.databuoy.db.SyncDatabase

@@ -3,6 +3,7 @@ package com.les.databuoy
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

@@ -1,5 +1,7 @@
 package com.les.databuoy
 
+import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
+
 /**
  * Represents a pending sync work item stored in the database. This
  * consolidates all the metadata needed to replay an offline operation

@@ -9,7 +9,7 @@ import com.les.databuoy.StorageCodec
 import com.les.databuoy.SyncCodec
 import com.les.databuoy.SyncLog
 import com.les.databuoy.SyncableObject
-import com.les.databuoy.SyncableObjectRebaseHandler
+import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.db.SyncDatabase
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject

@@ -4,6 +4,7 @@ import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.publicconfigs.createPlatformConnectivityChecker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +46,9 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
     encryptionProvider: EncryptionProvider? = null,
     queueStrategy: PendingRequestQueueStrategy =
         PendingRequestQueueStrategy.Queue,
-    protected val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(SyncCodec(serializer)),
+    protected val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(
+        SyncCodec(serializer)
+    ),
 ) : Service<O> {
 
     private val codec: SyncCodec<O> = SyncCodec(serializer)

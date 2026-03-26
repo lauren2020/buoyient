@@ -21,7 +21,7 @@ public sealed class SyncUpResult<O : SyncableObject<O>> {
      *   becomes the new local copy and the new server baseline.
      * - **Pending requests remain:** [data] becomes the new server baseline, and the
      *   remaining pending changes are **rebased** on top of it via the service's
-     *   [SyncableObjectRebaseHandler] (3-way merge). If the merge produces conflicts the
+     *   [com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler] (3-way merge). If the merge produces conflicts the
      *   object is marked [SyncableObject.SyncStatus.CONFLICT] for manual resolution.
      *
      * In either case the pending request that was just uploaded is removed from the queue.
