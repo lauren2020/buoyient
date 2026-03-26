@@ -2,6 +2,7 @@ package com.les.databuoy
 
 import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
+import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import io.ktor.client.HttpClient

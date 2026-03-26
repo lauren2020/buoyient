@@ -40,7 +40,7 @@ public object DataBuoy {
         set(value) { GlobalHeaderProviderRegistry.provider = value }
 
     /**
-     * Override the [HttpClient] used by all services. When set, every [ServerManager]
+     * Override the [HttpClient] used by all services. When set, every [com.les.databuoy.internalutilities.ServerManager]
      * created after this point uses this client instead of a real Ktor HTTP client.
      *
      * Use this for mock mode (manual testing without a real backend):

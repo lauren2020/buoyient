@@ -1,5 +1,10 @@
-package com.les.databuoy
+package com.les.databuoy.internalutilities
 
+import com.les.databuoy.GlobalHeaderProvider
+import com.les.databuoy.GlobalHeaderProviderRegistry
+import com.les.databuoy.HttpClientOverride
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.SyncLog
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
@@ -50,7 +55,7 @@ internal class ServerManager(
                 }
             }
             val responseBody = try {
-                Json.parseToJsonElement(httpResponse.bodyAsText()).jsonObject
+                Json.Default.parseToJsonElement(httpResponse.bodyAsText()).jsonObject
             } catch (e: Exception) {
                 JsonObject(emptyMap())
             }
