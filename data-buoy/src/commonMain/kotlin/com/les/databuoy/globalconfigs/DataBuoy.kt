@@ -2,14 +2,16 @@ package com.les.databuoy.globalconfigs
 
 import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.db.SyncDatabase
+import com.les.databuoy.sync.SyncRunner
 import io.ktor.client.HttpClient
 
 /**
  * Main entry point for configuring data-buoy.
  *
  * Consumers register their [com.les.databuoy.SyncableObjectService] instances for background sync via
- * [registerServices]. Platform-specific methods (e.g. `registerServiceProvider`
- * on Android, `syncNow` on iOS) are available as extension functions.
+ * [registerServices]. Call [syncNow] to trigger an immediate sync-up pass (e.g. on
+ * pull-to-refresh). Platform-specific methods (e.g. `registerServiceProvider`
+ * on Android) are available as extension functions.
  *
  * If using the `data-buoy-hilt` artifact on Android, registration is handled
  * automatically — just provide your services via Hilt's `@IntoSet` multibinding.
@@ -19,6 +21,8 @@ import io.ktor.client.HttpClient
  * reference, and conventions.
  */
 public object DataBuoy {
+
+    internal val registeredServices = mutableSetOf<SyncableObjectService<*, *>>()
 
     public val status: DataBuoyStatus
         get() = DataBuoyStatus.shared
@@ -66,7 +70,28 @@ public object DataBuoy {
      * Register a set of already-constructed services for background sync.
      */
     public fun registerServices(services: Set<SyncableObjectService<*, *>>) {
+        registeredServices.clear()
+        registeredServices.addAll(services)
         platformRegisterServices(services)
+    }
+
+    /**
+     * Trigger an immediate sync-up pass across all registered services.
+     *
+     * Use this for user-initiated sync triggers such as pull-to-refresh.
+     * The sync runs on a background coroutine; [completion] is called with
+     * `true` when the pending queue is fully drained (or only blocked by
+     * unresolved conflicts), `false` if requests remain or an error occurred.
+     *
+     * ```kotlin
+     * // Pull-to-refresh handler:
+     * DataBuoy.syncNow { success ->
+     *     swipeRefreshLayout.isRefreshing = false
+     * }
+     * ```
+     */
+    public fun syncNow(completion: (Boolean) -> Unit = {}) {
+        SyncRunner.launchSyncUp(completion)
     }
 }
 

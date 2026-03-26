@@ -196,6 +196,13 @@ After adding dependencies and registering at least one service, verify everythin
 3. **Create an item** — call `service.create(item)` and verify it returns a `SyncableObjectServiceResponse`
 4. **Check local persistence** — call `service.getAllFromLocalStore()` and confirm the item is stored
 5. **Check background sync** — if the device has network connectivity, the item should sync automatically within a few seconds
+6. **Trigger an on-demand sync** — call `DataBuoy.syncNow()` (e.g. from a pull-to-refresh handler) to force an immediate sync-up pass without waiting for the background scheduler:
+   ```kotlin
+   // In a pull-to-refresh handler:
+   DataBuoy.syncNow { success ->
+       swipeRefreshLayout.isRefreshing = false
+   }
+   ```
 
 ---
 

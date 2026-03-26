@@ -1,5 +1,6 @@
 package com.les.databuoy
 
+import com.les.databuoy.sync.SyncRunner
 import platform.BackgroundTasks.BGProcessingTaskRequest
 import platform.BackgroundTasks.BGTaskScheduler
 import platform.Foundation.NSLog
@@ -60,8 +61,7 @@ class IosSyncScheduleNotifier : SyncScheduleNotifier {
                 TASK_IDENTIFIER,
                 usingQueue = null,
             ) { task ->
-                val syncRunner = IosSyncRunner()
-                syncRunner.performSync { success ->
+                SyncRunner.launchSyncUp { success ->
                     task?.setTaskCompletedWithSuccess(success)
                     // Re-schedule for next time
                     IosSyncScheduleNotifier().scheduleSyncIfNeeded()
