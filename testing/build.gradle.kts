@@ -7,6 +7,10 @@ plugins {
 group = property("GROUP") as String
 version = property("VERSION_NAME") as String
 
+kotlin {
+    explicitApi()
+}
+
 dependencies {
     // Depend on the JVM variant of the KMP :data-buoy module.
     api(project(":data-buoy")) {

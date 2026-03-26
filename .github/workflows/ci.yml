@@ -34,8 +34,8 @@ jobs:
       - name: Run :testing tests
         run: ./gradlew :testing:test
 
-      - name: Build :data-buoy
-        run: ./gradlew :data-buoy:build
+      - name: Build all modules
+        run: ./gradlew build
 
-      - name: Build :testing
-        run: ./gradlew :testing:build
+      - name: Verify publication metadata
+        run: ./gradlew publishToMavenLocal

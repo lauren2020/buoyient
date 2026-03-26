@@ -11,6 +11,8 @@ group = property("GROUP") as String
 version = property("VERSION_NAME") as String
 
 kotlin {
+    explicitApi()
+
     androidTarget {
         compilations.all {
             kotlinOptions {
@@ -105,6 +107,7 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     compileOptions {

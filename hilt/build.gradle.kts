@@ -9,6 +9,10 @@ plugins {
 group = property("GROUP") as String
 version = property("VERSION_NAME") as String
 
+kotlin {
+    explicitApi()
+}
+
 ksp {
     arg("correctErrorTypes", "true")
 }
@@ -19,6 +23,7 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     compileOptions {

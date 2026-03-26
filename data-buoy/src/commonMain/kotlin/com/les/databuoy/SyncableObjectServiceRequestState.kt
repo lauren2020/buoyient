@@ -1,6 +1,23 @@
 package com.les.databuoy
 
-sealed class SyncableObjectServiceRequestState<O> {
-    class Loading<O> : SyncableObjectServiceRequestState<O>()
-    class Result<O>(val response: SyncableObjectServiceResponse<O>) : SyncableObjectServiceRequestState<O>()
+/**
+ * State emitted by the flow-based service operations
+ * ([SyncableObjectService.createWithFlow], [SyncableObjectService.updateWithFlow],
+ * [SyncableObjectService.voidWithFlow]).
+ *
+ * Collect the returned [kotlinx.coroutines.flow.Flow] to observe the request lifecycle:
+ * a [Loading] emission followed by a terminal [Result].
+ *
+ * @param O the domain model type that implements [SyncableObject].
+ */
+public sealed class SyncableObjectServiceRequestState<O> {
+    /** The request is in progress. */
+    public class Loading<O> : SyncableObjectServiceRequestState<O>()
+
+    /**
+     * The request completed (successfully or not).
+     *
+     * @property response the final [SyncableObjectServiceResponse] describing the outcome.
+     */
+    public class Result<O>(public val response: SyncableObjectServiceResponse<O>) : SyncableObjectServiceRequestState<O>()
 }
