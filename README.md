@@ -10,8 +10,7 @@ An offline first Kotlin Multiplatform SDK that keeps a local data store in sync 
 
 ## Agent Optimized
 This is intended to be an agent optimized SDK.
-- It optimizes for simple, documented API's.
-- We did several rounds of testing having agents attempt to implement this SDK in a project and gathering feedback from the agents about what would have made the process easier. That feedback was then incrementally applied to the SDK to improve its agentic compatibility.
+- This includes optimization through several rounds of testing having agents attempt to implement this SDK in a project and provide feedback. That feedback was then incrementally applied to the SDK to improve its agentic compatibility.
 - This SDK comes loaded with skills that should inform not only how to use the SDK, but also instruct agents regarding any concerns that should be considered to ensure the use is reliable and performant.
 
 **AI agents:** This repo includes agent instruction files with detailed integration instructions, key class reference, and conventions: [`CLAUDE.md`](CLAUDE.md), [`CODEX.md`](CODEX.md), [`.cursorrules`](.cursorrules), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md). If you are consuming data-buoy as a maven dependency, these are bundled in the published JAR under `META-INF/`. The [`docs/`](docs/) directory contains step-by-step guides for setup, service creation, testing, and mock mode.
