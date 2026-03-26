@@ -1,7 +1,16 @@
-package com.les.databuoy
+package com.les.databuoy.internalutilities
 
+import com.les.databuoy.DataBuoyStatus
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.PendingRequestQueueStrategy
+import com.les.databuoy.PendingSyncRequest
+import com.les.databuoy.ServiceRequestTag
+import com.les.databuoy.StorageCodec
+import com.les.databuoy.SyncCodec
+import com.les.databuoy.SyncLog
+import com.les.databuoy.SyncableObject
+import com.les.databuoy.SyncableObjectRebaseHandler
 import com.les.databuoy.db.SyncDatabase
-import com.les.databuoy.internalutilities.LocalStoreManager
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
@@ -255,12 +264,21 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
         pendingRequestId = pendingRequestId.toInt(),
         type = PendingSyncRequest.Type.fromValue(type),
         idempotencyKey = idempotencyKey,
-        request = HttpRequest.fromJson(Json.parseToJsonElement(storageCodec.decodeFromStorage(request)).jsonObject),
+        request = HttpRequest.Companion.fromJson(
+            Json.Default.parseToJsonElement(
+                storageCodec.decodeFromStorage(
+                    request
+                )
+            ).jsonObject
+        ),
         serverAttemptMade = serverAttemptMade != 0L,
-        data = codec.decode(storageCodec.decodeFromStorage(data), SyncableObject.SyncStatus.LocalOnly),
+        data = codec.decode(
+            storageCodec.decodeFromStorage(data),
+            SyncableObject.SyncStatus.LocalOnly
+        ),
         conflict = conflictInfo?.let {
             SyncableObjectRebaseHandler.FieldConflict.fromJson(
-                jsonObject = Json.parseToJsonElement(storageCodec.decodeFromStorage(it)).jsonObject,
+                jsonObject = Json.Default.parseToJsonElement(storageCodec.decodeFromStorage(it)).jsonObject,
                 codec = codec,
             )
         },
