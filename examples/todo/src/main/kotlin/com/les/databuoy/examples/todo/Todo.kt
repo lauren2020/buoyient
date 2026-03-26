@@ -10,7 +10,7 @@ import java.util.UUID
 data class Todo(
     @SerialName("server_id") override val serverId: String? = null,
     @SerialName("client_id") override val clientId: String = UUID.randomUUID().toString(),
-    override val version: String = "0",
+    override val version: String? = null,
     @Transient override val syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
     val title: String,
     val completed: Boolean = false,

@@ -15,7 +15,7 @@ import kotlinx.serialization.Transient
 data class TestItem(
     @SerialName("server_id") override val serverId: String? = null,
     @SerialName("client_id") override val clientId: String,
-    override val version: String,
+    override val version: String? = null,
     @Transient override val syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
     val name: String,
     val value: Int,

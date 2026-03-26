@@ -31,7 +31,7 @@ class LocalStoreManagerTest {
     private fun testItem(
         clientId: String = "client-1",
         serverId: String? = null,
-        version: String = "1",
+        version: String? = "1",
         name: String = "Test",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,

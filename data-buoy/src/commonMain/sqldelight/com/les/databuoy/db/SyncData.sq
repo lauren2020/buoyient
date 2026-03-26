@@ -2,7 +2,7 @@ CREATE TABLE sync_data (
     service_name TEXT NOT NULL,
     client_id TEXT NOT NULL,
     server_id TEXT,
-    version TEXT NOT NULL DEFAULT '1',
+    version TEXT,
     last_synced_timestamp TEXT,
     data_blob TEXT NOT NULL,
     sync_status TEXT NOT NULL,

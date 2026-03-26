@@ -19,7 +19,7 @@ public interface SyncableObject<O> {
      * The current version of this object. Any time an update is
      * submitted - on or offline - the version will be incremented.
      */
-    public val version: String
+    public val version: String?
 
     public val syncStatus: SyncStatus
 

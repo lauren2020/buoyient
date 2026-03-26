@@ -66,7 +66,7 @@ class SyncableObjectServiceTest {
     private fun testItem(
         clientId: String = "client-1",
         serverId: String? = null,
-        version: String = "1",
+        version: String? = "1",
         name: String = "Test Item",
         value: Int = 0,
         syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
@@ -328,7 +328,7 @@ class SyncableObjectServiceTest {
         clientId: String = "client-1",
         serverId: String = "server-1",
         name: String = "Test Item",
-        version: String = "1",
+        version: String? = "1",
     ): TestItem {
         val serverItem = testItem(clientId = clientId, serverId = serverId, version = version,
             name = name, syncStatus = SyncableObject.SyncStatus.Synced("1000"))
