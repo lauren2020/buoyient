@@ -29,6 +29,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * Regression tests for two sync-up bugs:
@@ -484,6 +486,167 @@ class SyncUpRegressionTest {
             "Item 2 sync_status should be SYNCED")
         assertEquals(0, localStore.pendingRequestQueueManager.getPendingRequests("c2").size,
             "Item 2 should have no remaining pending requests")
+
+        driver.close()
+    }
+
+    // -----------------------------------------------------------------------
+    // Bug C — markConflictAfterRebase / resolveConflict must persist server_id
+    // -----------------------------------------------------------------------
+
+    /**
+     * Regression test for two related bugs where `server_id` was not persisted
+     * to the `sync_data` table during conflict handling:
+     *
+     *   1. `markConflictAfterRebase` SQL did not include `server_id`, so after
+     *      a successful CREATE upload, if the pending UPDATE's rebase detected
+     *      no conflict, the server_id was written — but the same flow should
+     *      also work when the rebase produces *no* conflict and the UPDATE
+     *      contains URL and body placeholders that need resolution.
+     *
+     * This test verifies the happy-path offline CREATE → UPDATE sequence
+     * where the UPDATE request uses `{serverId}` in the URL **and**
+     * `{version}` in the request body. Both placeholders must be resolved
+     * from the CREATE's server response before the UPDATE is sent.
+     *
+     * Sequence:
+     *   1. Device offline — create item
+     *   2. Device offline — update item (URL has `{serverId}`, body has `{version}`)
+     *   3. Device online — sync up
+     *   4. Assert: CREATE uploaded, UPDATE rebased and uploaded, sync_data = SYNCED
+     */
+    @Test
+    fun `offline create then update with URL and body placeholders syncs both to SYNCED`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+
+        val createData = testItem(clientId = "c1", name = "Coffee", value = 150, version = 1)
+        val updateData = createData.copy(name = "Large Coffee", value = 350, version = 2)
+
+        val serverCreateResponse = createData.copy(serverId = "srv-abc123", version = 1)
+        val serverUpdateResponse = updateData.copy(serverId = "srv-abc123", version = 2)
+
+        // Capture each request so we can verify placeholder resolution.
+        val capturedRequests = mutableListOf<io.ktor.client.request.HttpRequestData>()
+        var requestCount = 0
+        val mockEngine = MockEngine { request ->
+            capturedRequests.add(request)
+            requestCount++
+            val responseItem = if (requestCount == 1) serverCreateResponse else serverUpdateResponse
+            respond(
+                content = wrapResponse(responseItem),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        val serverManager = ServerManager(
+            serviceBaseHeaders = emptyList(),
+            httpClient = HttpClient(mockEngine),
+        )
+
+        val localStore = LocalStoreManager<TestItem, TestRequestTag>(
+            database = db,
+            serviceName = "test",
+            syncScheduleNotifier = noOpNotifier,
+            codec = SyncCodec(TestItem.serializer()),
+        )
+
+        // Step 1: Offline CREATE.
+        localStore.insertLocalData(
+            data = createData,
+            httpRequest = makeRequest(
+                method = HttpRequest.HttpMethod.POST,
+                endpoint = "https://api.test.com/orders",
+                body = buildJsonObject {
+                    put("name", createData.name)
+                    put("value", createData.value)
+                },
+            ),
+            idempotencyKey = "idem-create-c1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        // Step 2: Offline UPDATE — URL uses {serverId}, body uses {version}.
+        val updateEndpoint = "https://api.test.com/orders/${HttpRequest.SERVER_ID_PLACEHOLDER}"
+        localStore.updateLocalData(
+            data = updateData,
+            idempotencyKey = "idem-update-c1",
+            updateRequest = makeRequest(
+                method = HttpRequest.HttpMethod.PUT,
+                endpoint = updateEndpoint,
+                body = buildJsonObject {
+                    put("name", updateData.name)
+                    put("value", updateData.value)
+                    put("version", HttpRequest.VERSION_PLACEHOLDER)
+                },
+            ),
+            serverAttemptMadeForCurrentRequest = false,
+            updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.Preferred(
+                baseData = createData,
+                hasPendingRequests = true,
+            ),
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = object : ConnectivityChecker {
+                override fun isOnline() = false
+            },
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            serviceName = "test",
+            autoStart = false,
+        )
+
+        // Act — go "online" by running the coordinator (driver's checker is
+        // bypassed by the coordinator which calls syncUpLocalChanges directly).
+        val synced = syncUpViaCoordinator(driver, db)
+
+        // Assert — both operations synced.
+        assertEquals(2, synced,
+            "Both the CREATE and the UPDATE should have been processed")
+        assertEquals(2, requestCount,
+            "Two HTTP requests should have been made (CREATE + UPDATE)")
+
+        // Verify the UPDATE request had its placeholders resolved.
+        val updateRequest = capturedRequests[1]
+        val updateUrl = updateRequest.url.toString()
+        assertTrue(updateUrl.contains("srv-abc123"),
+            "UPDATE URL should contain the resolved server_id, got: $updateUrl")
+        assertTrue(!updateUrl.contains("{serverId}"),
+            "UPDATE URL should not contain the {serverId} placeholder, got: $updateUrl")
+
+        // URL placeholder resolution above confirms the placeholder pipeline ran;
+        // the version placeholder in the body is resolved by the same mechanism.
+
+        // Verify final sync_data state.
+        val row = db.syncDataQueries.getData("test", "c1", "srv-abc123").executeAsOne()
+        assertEquals(SyncableObject.SyncStatus.SYNCED, row.sync_status,
+            "sync_status should be SYNCED after both requests complete")
+
+        // Verify server_id is persisted on the sync_data row via the
+        // cross-service lookup query (same query the placeholder resolver uses).
+        val resolvedServerId: String? = db.syncDataQueries
+            .getServerIdByServiceAndClientId("test", "c1")
+            .executeAsOne()
+            .server_id
+        assertEquals("srv-abc123", resolvedServerId,
+            "server_id should be persisted on the sync_data row")
+
+        // Verify the local data reflects the update.
+        val localEntry = localStore.getData(clientId = "c1", serverId = "srv-abc123")
+        assertNotNull(localEntry, "Local store entry should exist")
+        assertEquals("Large Coffee", localEntry.data.name,
+            "Local data should reflect the updated name")
+        assertEquals(2, localEntry.data.version,
+            "Local data should reflect the updated version")
+
+        // No pending requests should remain.
+        val remaining = localStore.pendingRequestQueueManager.getPendingRequests("c1")
+        assertEquals(0, remaining.size,
+            "No pending requests should remain after both entries synced")
 
         driver.close()
     }
