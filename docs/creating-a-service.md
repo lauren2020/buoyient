@@ -215,6 +215,7 @@ If different request types need different parsing, use `syncUp { requestTag, res
 ### Key rules
 
 - `fromResponseBody()` receives the raw server response body and a `requestTag` string (from your `ServiceRequestTag` enum). Return `SyncUpResult.Success(data)` on success, `SyncUpResult.Failed.Retry` to re-queue the request, or `SyncUpResult.Failed.RemovePendingRequest` to drop it from the queue. Use the tag to handle different response shapes per request type if needed.
+- **Data flow for `SyncUpResult.Success`:** The object you return is treated as authoritative server state. If no more pending requests are queued for this object, it **replaces** the local entry entirely. If pending requests remain, it becomes the new server baseline and remaining changes are **rebased** on top of it (3-way merge via your `SyncableObjectRebaseHandler`). Conflicts are surfaced as `SyncStatus.CONFLICT`.
 - The `transformResponse` lambda receives the full response body. You need to extract the array of items from whatever key your API nests them under.
 - Override `SyncUpConfig.acceptUploadResponseAsProcessed()` only if you need custom retry logic. The default retries on 408 (timeout), 429 (rate limit), and 5xx errors.
 

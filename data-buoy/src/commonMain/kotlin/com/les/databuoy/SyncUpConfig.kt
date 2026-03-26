@@ -2,16 +2,41 @@ package com.les.databuoy
 
 import kotlinx.serialization.json.JsonObject
 
+/**
+ * The result of parsing a server response in [SyncUpConfig.fromResponseBody].
+ *
+ * Determines what the sync engine does with the pending request and local data after
+ * a sync-up upload completes. See each subclass for details on the data flow.
+ */
 public sealed class SyncUpResult<O : SyncableObject<O>> {
     public abstract val data: O?
 
+    /**
+     * The server accepted the request and returned valid data.
+     *
+     * [data] is treated as the **authoritative server state** for this object. What happens
+     * next depends on whether more pending requests remain in the queue for this object:
+     *
+     * - **No pending requests remain:** [data] **replaces** the local entry entirely — it
+     *   becomes the new local copy and the new server baseline.
+     * - **Pending requests remain:** [data] becomes the new server baseline, and the
+     *   remaining pending changes are **rebased** on top of it via the service's
+     *   [SyncableObjectRebaseHandler] (3-way merge). If the merge produces conflicts the
+     *   object is marked [SyncableObject.SyncStatus.CONFLICT] for manual resolution.
+     *
+     * In either case the pending request that was just uploaded is removed from the queue.
+     */
     public class Success<O : SyncableObject<O>>(override val data: O) : SyncUpResult<O>()
     public sealed class Failed<O : SyncableObject<O>> : SyncUpResult<O>() {
         override val data: O? = null
 
         /** The pending request should be retried on the next sync cycle. */
         public class Retry<O : SyncableObject<O>> : Failed<O>()
-        /** The pending request should be removed from the queue (e.g., permanently rejected by the server). */
+
+        /**
+         * The pending request should be removed from the queue (e.g., permanently rejected
+         * by the server). The local entry is kept as-is since no server data was returned.
+         */
         public class RemovePendingRequest<O : SyncableObject<O>> : Failed<O>()
     }
 }
@@ -38,6 +63,11 @@ public abstract class SyncUpConfig<O : SyncableObject<O>> {
      *
      * Different request types may return data in different response shapes. Use [requestTag]
      * to determine how to navigate the response body for the given request type.
+     *
+     * The object returned inside [SyncUpResult.Success] is treated as **authoritative server
+     * state** — it either replaces the local entry outright (when no further pending requests
+     * remain) or serves as the new baseline for rebasing remaining pending changes. See
+     * [SyncUpResult.Success] for the full data-flow contract.
      *
      * @param requestTag the tag associated with the request, identifying the request type.
      * @param responseBody the raw JSON response body from the server.
