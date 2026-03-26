@@ -21,7 +21,7 @@ class IosSyncRunner {
      *   drained (or only blocked by conflicts), `false` otherwise.
      */
     fun performSync(completion: (Boolean) -> Unit) {
-        val services = DataBuoy.registeredServices
+        val services = registeredServices
         if (services.isEmpty()) {
             NSLog("$TAG: No services registered — skipping sync")
             completion(true)
