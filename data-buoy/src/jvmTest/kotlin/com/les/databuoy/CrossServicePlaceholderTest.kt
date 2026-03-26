@@ -12,6 +12,7 @@ import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.sync.SyncUpCoordinator
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.utils.SyncCodec
@@ -36,8 +37,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Tests for cross-service placeholder resolution: [HttpRequest.crossServiceServerIdPlaceholder],
- * [HttpRequest.containsCrossServicePlaceholders], [HttpRequest.resolveCrossServicePlaceholders],
+ * Tests for cross-service placeholder resolution: [com.les.databuoy.syncableobjectservicedatatypes.HttpRequest.crossServiceServerIdPlaceholder],
+ * [com.les.databuoy.syncableobjectservicedatatypes.HttpRequest.containsCrossServicePlaceholders], [com.les.databuoy.syncableobjectservicedatatypes.HttpRequest.resolveCrossServicePlaceholders],
  * and end-to-end resolution through [com.les.databuoy.sync.SyncUpCoordinator].
  */
 class CrossServicePlaceholderTest {
@@ -508,7 +509,10 @@ class CrossServicePlaceholderTest {
                 endpointUrl = "https://api.test.com/payments",
                 requestBody = buildJsonObject {
                     put("client_id", "payment-1")
-                    put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+                    put(
+                        "order_id",
+                        HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1")
+                    )
                     put("amount", 5000)
                 },
             ),
@@ -567,7 +571,10 @@ class CrossServicePlaceholderTest {
                 endpointUrl = "https://api.test.com/payments",
                 requestBody = buildJsonObject {
                     put("client_id", "payment-1")
-                    put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+                    put(
+                        "order_id",
+                        HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1")
+                    )
                 },
             ),
             idempotencyKey = "idem-payment-1",

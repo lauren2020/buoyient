@@ -9,6 +9,7 @@ import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
 import com.les.databuoy.serviceconfigs.SyncUpConfig
 import com.les.databuoy.serviceconfigs.SyncUpResult
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
 import com.les.databuoy.testing.TestServiceEnvironment
 import com.les.databuoy.testing.registerCrudHandlers
@@ -227,7 +228,8 @@ class SquashStrategyTest {
         squashQueueManager.queueUpdateRequest(
             data = item2,
             idempotencyKey = "idem-u1",
-            updateRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
+            updateRequest = HttpRequest(
+                HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
                 buildJsonObject { put("name", "V2") }),
             serverAttemptMadeForCurrentRequest = false,
             updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
@@ -247,7 +249,8 @@ class SquashStrategyTest {
         squashQueueManager.queueUpdateRequest(
             data = item3,
             idempotencyKey = "idem-u2",
-            updateRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
+            updateRequest = HttpRequest(
+                HttpRequest.HttpMethod.PUT, "https://api.test.com/items/s1",
                 buildJsonObject { put("name", "V3") }),
             serverAttemptMadeForCurrentRequest = false,
             updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Squash(
@@ -298,7 +301,8 @@ class SquashStrategyTest {
         // Queue a CREATE with serverAttemptMade = true (e.g., timed out)
         squashQueueManager.queueCreateRequest(
             data = item,
-            httpRequest = HttpRequest(HttpRequest.HttpMethod.POST, "https://api.test.com/items",
+            httpRequest = HttpRequest(
+                HttpRequest.HttpMethod.POST, "https://api.test.com/items",
                 buildJsonObject { put("name", "Original") }),
             idempotencyKey = "idem-create",
             serverAttemptMade = true,
@@ -310,7 +314,8 @@ class SquashStrategyTest {
         squashQueueManager.queueUpdateRequest(
             data = updatedItem,
             idempotencyKey = "idem-update",
-            updateRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
+            updateRequest = HttpRequest(
+                HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
                 buildJsonObject { put("name", "Updated") }),
             serverAttemptMadeForCurrentRequest = true,
             updateContext = LocalStoreManager.UpdateContext.ValidUpdate.Queue.ForcedAfterServerAttempt(
@@ -368,7 +373,8 @@ class SquashStrategyTest {
         // Queue CREATE
         squashQueueManager.queueCreateRequest(
             data = item,
-            httpRequest = HttpRequest(HttpRequest.HttpMethod.POST, "https://api.test.com/items",
+            httpRequest = HttpRequest(
+                HttpRequest.HttpMethod.POST, "https://api.test.com/items",
                 buildJsonObject {
                     put("client_id", "c1")
                     put("name", "Original")
@@ -383,7 +389,8 @@ class SquashStrategyTest {
         squashQueueManager.queueUpdateRequest(
             data = item.copy(name = "Final Name", value = 42, version = 2),
             idempotencyKey = "idem-update",
-            updateRequest = HttpRequest(HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
+            updateRequest = HttpRequest(
+                HttpRequest.HttpMethod.PUT, "https://api.test.com/items/{serverId}",
                 buildJsonObject {
                     put("client_id", "c1")
                     put("name", "Final Name")

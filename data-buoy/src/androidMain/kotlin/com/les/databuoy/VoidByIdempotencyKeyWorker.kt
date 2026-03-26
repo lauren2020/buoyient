@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry
 import com.les.databuoy.internalutilities.ServerManager
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -20,7 +21,7 @@ import kotlinx.serialization.json.put
  *
  * Unlike [SyncWorker], this worker does not interact with the local SQLite
  * database or the pending request queue. It receives a fully-constructed
- * [HttpRequest] (plus global headers) via [inputData] and simply executes it.
+ * [com.les.databuoy.syncableobjectservicedatatypes.HttpRequest] (plus global headers) via [inputData] and simply executes it.
  *
  * Scheduled by [AndroidBackgroundRequestScheduler].
  */

@@ -113,7 +113,7 @@ public interface ServerProcessingConfig<O : SyncableObject<O>> {
          *
          * At request time, headers are concatenated in order: global headers
          * ([com.les.databuoy.globalconfigs.DataBuoy.globalHeaderProvider]), then these service headers, then per-request
-         * headers ([com.les.databuoy.HttpRequest.additionalHeaders]). If the same header name appears in
+         * headers ([com.les.databuoy.syncableobjectservicedatatypes.HttpRequest.additionalHeaders]). If the same header name appears in
          * multiple lists, both values are sent — they are not deduplicated. Avoid setting
          * the same header name here and in the global provider.
          */

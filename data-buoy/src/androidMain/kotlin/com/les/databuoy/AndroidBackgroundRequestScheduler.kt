@@ -8,6 +8,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import java.util.concurrent.TimeUnit
 
 public actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler =

@@ -2,6 +2,7 @@ package com.les.databuoy
 
 import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry
 import com.les.databuoy.internalutilities.ServerManager
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

@@ -5,10 +5,9 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.globalconfigs.DatabaseOverride
 import com.les.databuoy.serviceconfigs.EncryptionProvider
-import com.les.databuoy.HttpRequest
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
-import com.les.databuoy.internalutilities.PendingSyncRequest
-import com.les.databuoy.ResolveConflictResult
+import com.les.databuoy.syncableobjectservicedatatypes.ResolveConflictResult
 import com.les.databuoy.ServiceRequestTag
 import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
 import com.les.databuoy.utils.StorageCodec

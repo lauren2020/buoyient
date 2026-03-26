@@ -1,6 +1,6 @@
 package com.les.databuoy.internalutilities
 
-import com.les.databuoy.HttpRequest
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 
@@ -17,7 +17,7 @@ import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
  * @property pendingRequestId database row ID for this pending request, or `-1` if not yet persisted.
  * @property type the operation type ([Type.CREATE], [Type.UPDATE], or [Type.VOID]).
  * @property idempotencyKey unique key used to deduplicate retries of the same operation on the server.
- * @property request the [com.les.databuoy.HttpRequest] to replay when connectivity returns.
+ * @property request the [HttpRequest] to replay when connectivity returns.
  * @property serverAttemptMade whether a sync-up attempt has been attempted for this request. If
  *  a sync-up attempt was sent and was accepted as completed this row would just be removed, but
  *  if a sync-up attempt was sent and failed as being unconfirmed if it processed

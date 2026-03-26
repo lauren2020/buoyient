@@ -1,5 +1,6 @@
-package com.les.databuoy
+package com.les.databuoy.syncableobjectservicedatatypes
 
+import com.les.databuoy.SyncableObject
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 
 public sealed class ResolveConflictResult<O : SyncableObject<O>> {

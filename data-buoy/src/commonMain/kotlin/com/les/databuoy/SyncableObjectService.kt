@@ -13,6 +13,8 @@ import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.createPlatformSyncScheduleNotifier
 import com.les.databuoy.syncableobjectservicedatatypes.CreateRequestBuilder
 import com.les.databuoy.syncableobjectservicedatatypes.GetResponse
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.syncableobjectservicedatatypes.ResolveConflictResult
 import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
 import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceRequestState
 import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceResponse

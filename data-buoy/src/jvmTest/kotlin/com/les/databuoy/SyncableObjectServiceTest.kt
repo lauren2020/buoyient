@@ -8,6 +8,7 @@ import com.les.databuoy.serviceconfigs.SyncUpConfig
 import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.syncableobjectservicedatatypes.CreateRequestBuilder
 import com.les.databuoy.syncableobjectservicedatatypes.GetResponse
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
 import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
 import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceRequestState
@@ -179,9 +180,11 @@ class SyncableObjectServiceTest {
         suspend fun testGet(clientId: String, serverId: String?) = get(
             clientId = clientId,
             serverId = serverId,
-            request = HttpRequest(HttpRequest.HttpMethod.GET,
+            request = HttpRequest(
+                HttpRequest.HttpMethod.GET,
                 "https://api.test.com/items/${serverId ?: "unknown"}",
-                JsonObject(emptyMap())),
+                JsonObject(emptyMap())
+            ),
             unpackData = ResponseUnpacker { body, _, syncStatus ->
                 body["data"]?.jsonObject?.let {
                     Json.decodeFromJsonElement(TestItem.serializer(), it).withSyncStatus(syncStatus)

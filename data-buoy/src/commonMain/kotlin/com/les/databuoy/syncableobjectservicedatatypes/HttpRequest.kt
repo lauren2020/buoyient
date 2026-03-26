@@ -1,6 +1,5 @@
-package com.les.databuoy
+package com.les.databuoy.syncableobjectservicedatatypes
 
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -10,6 +9,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import kotlin.collections.iterator
 
 public class HttpRequest(
     public val method: HttpMethod,
@@ -242,8 +242,8 @@ public class HttpRequest(
          * The placeholder is resolved automatically during sync-up. If the referenced
          * object hasn't synced yet, the request is skipped and retried on the next cycle.
          *
-         * @param serviceName the [SyncableObjectService.serviceName] of the dependency
-         * @param clientId the [SyncableObject.clientId] of the referenced object
+         * @param serviceName the [com.les.databuoy.SyncableObjectService.serviceName] of the dependency
+         * @param clientId the [com.les.databuoy.SyncableObject.clientId] of the referenced object
          */
         public fun crossServiceServerIdPlaceholder(serviceName: String, clientId: String): String =
             "{cross:$serviceName:$clientId}"

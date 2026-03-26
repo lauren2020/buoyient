@@ -1,6 +1,6 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.HttpRequest
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import kotlinx.serialization.json.JsonObject
 
 /**

@@ -13,6 +13,7 @@ import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.sync.SyncUpCoordinator
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.utils.SyncCodec

@@ -2,6 +2,7 @@ package com.les.databuoy
 
 import com.les.databuoy.globalconfigs.GlobalHeaderProvider
 import com.les.databuoy.internalutilities.ServerManager
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond

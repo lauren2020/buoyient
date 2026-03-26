@@ -7,6 +7,7 @@ import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.internalutilities.PendingSyncRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.utils.SyncCodec

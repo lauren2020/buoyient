@@ -1,5 +1,7 @@
 package com.les.databuoy
 
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+
 /**
  * Platform-agnostic interface for scheduling fire-and-forget HTTP requests
  * that should be executed in the background with retry capabilities.
