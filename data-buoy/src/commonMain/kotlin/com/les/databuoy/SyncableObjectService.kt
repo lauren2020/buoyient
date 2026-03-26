@@ -508,7 +508,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         }
 
         val idempotencyKey = IdGenerator.generateId()
-        val httpRequest = request.buildRequest(data, serverAttemptedPendingRequests)
+        val httpRequest = request.buildRequest(data, idempotencyKey, serverAttemptedPendingRequests)
 
         // Object exists on server — use the online/offline dual-path.
         if (

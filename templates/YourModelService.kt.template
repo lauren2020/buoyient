@@ -85,7 +85,7 @@ class YourModelService(
     suspend fun removeYourModel(data: YourModel): SyncableObjectServiceResponse<YourModel> = void(
         data = data,
         requestTag = YourModelRequestTag.VOID,
-        request = VoidRequestBuilder { current, _ ->
+        request = VoidRequestBuilder { current, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.DELETE,
                 endpointUrl = "$BASE_ENDPOINT/${current.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",

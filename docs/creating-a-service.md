@@ -398,14 +398,14 @@ suspend fun updateItem(item: YourModel, newName: String): SyncableObjectServiceR
 
 Use the protected `void()` method. If the object was never synced to the server (serverId is null and no server attempt was made), data-buoy skips the server call and just marks it voided locally.
 
-The `VoidRequestBuilder` receives the data and a list of any pending requests that have already been attempted on the server.
+The `VoidRequestBuilder` receives the data, an idempotency key, and a list of any pending requests that have already been attempted on the server.
 
 ```kotlin
 suspend fun deleteItem(item: YourModel): SyncableObjectServiceResponse<YourModel> {
     return void(
         data = item,
         requestTag = YourModelRequestTag.VOID,
-        request = VoidRequestBuilder { data, serverAttemptedPendingRequests ->
+        request = VoidRequestBuilder { data, idempotencyKey, serverAttemptedPendingRequests ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.POST,
                 endpointUrl = "https://api.example.com/v2/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/cancel",

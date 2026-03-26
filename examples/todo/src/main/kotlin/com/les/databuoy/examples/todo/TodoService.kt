@@ -79,7 +79,7 @@ class TodoService(
     suspend fun removeTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = void(
         data = todo,
         requestTag = TodoRequestTag.VOID_TODO,
-        request = VoidRequestBuilder { data, _ ->
+        request = VoidRequestBuilder { data, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.DELETE,
                 endpointUrl = "$BASE_ENDPOINT/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",

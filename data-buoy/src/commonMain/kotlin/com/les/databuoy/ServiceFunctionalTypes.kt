@@ -49,6 +49,7 @@ public fun interface UpdateRequestBuilder<O : SyncableObject<O>> {
  * Builds the HTTP request for a void (delete) operation.
  *
  * @param data the object being voided.
+ * @param idempotencyKey a unique key to ensure the request is idempotent.
  * @param serverAttemptedPendingRequests pending requests for this object that have already
  *  been attempted on the server — useful for building requests that account for partial
  *  server-side state.
@@ -56,6 +57,7 @@ public fun interface UpdateRequestBuilder<O : SyncableObject<O>> {
 public fun interface VoidRequestBuilder<O : SyncableObject<O>> {
     public fun buildRequest(
         data: O,
+        idempotencyKey: String,
         serverAttemptedPendingRequests: List<PendingSyncRequest<O>>,
     ): HttpRequest
 }

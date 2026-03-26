@@ -119,7 +119,7 @@ class SyncableObjectServiceTest {
         suspend fun testVoid(item: TestItem) = void(
             data = item,
             requestTag = TestRequestTag.VOID,
-            request = VoidRequestBuilder { data, _ ->
+            request = VoidRequestBuilder { data, _, _ ->
                 HttpRequest(HttpRequest.HttpMethod.DELETE,
                     "https://api.test.com/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
                     JsonObject(emptyMap()))
@@ -184,7 +184,7 @@ class SyncableObjectServiceTest {
         fun testVoidWithFlow(item: TestItem) = voidWithFlow(
             data = item,
             requestTag = TestRequestTag.VOID,
-            request = VoidRequestBuilder { data, _ ->
+            request = VoidRequestBuilder { data, _, _ ->
                 HttpRequest(HttpRequest.HttpMethod.DELETE,
                     "https://api.test.com/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
                     JsonObject(emptyMap()))
