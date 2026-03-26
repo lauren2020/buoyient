@@ -87,7 +87,7 @@ AppInitializer.getInstance(this)
 
 ## Step 3: Register Services
 
-Before data-buoy can sync anything, you need to register your services' `SyncDriver<*, *>` instances for background sync. Choose the approach that fits your app:
+Before data-buoy can sync anything, you need to register your services for background sync. Choose the approach that fits your app:
 
 > **Import note:** `DataBuoy`, `GlobalHeaderProvider`, and other project-level configuration classes live in the `com.les.databuoy.globalconfigs` package.
 

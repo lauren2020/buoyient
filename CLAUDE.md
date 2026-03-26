@@ -39,7 +39,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `ServerProcessingConfig<O>` | `serviceconfigs` | Tells the sync engine how to talk to your API |
 | `SyncFetchConfig<O>` | `serviceconfigs` | Configures periodic sync-down (GET or POST) |
 | `SyncUpConfig<O>` | `serviceconfigs` | Controls sync-up retry logic and response parsing via `fromResponseBody()` |
-| `SyncUpResult<O>` | `serviceconfigs` | Sealed return type for `fromResponseBody()`: `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest` |
+| `SyncUpResult<O>` | `serviceconfigs` | Sealed return type for `fromResponseBody()`: `Success(data)`, `Failed.Retry()`, or `Failed.RemovePendingRequest()` |
 | `PendingRequestQueueStrategy` | `serviceconfigs` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
 | `SyncableObjectRebaseHandler<O>` | `serviceconfigs` | 3-way merge conflict detection and resolution |
 | `EncryptionProvider` | `serviceconfigs` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
@@ -78,7 +78,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 - The `SyncableObjectService` constructor requires only three arguments: `serializer` (`KSerializer<O>`), `serverProcessingConfig`, and `serviceName`. Internal dependencies are constructed automatically — do not pass them. Optional params (from `serviceconfigs`): `connectivityChecker` (for per-service online/offline control in tests), `encryptionProvider` (encryption at rest), `queueStrategy` (pending request queue behavior), `rebaseHandler` (custom 3-way merge conflict resolution). For mock mode and integration testing, use `DataBuoy.httpClient` and `DataBuoy.database` (or `TestServiceEnvironment` which sets them automatically).
 - `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.
 - Every operation (`create`, `update`, `void`) requires a `ServiceRequestTag` and uses functional interfaces: `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`.
-- `SyncUpConfig.fromResponseBody(requestTag, responseBody)` returns `SyncUpResult<O>`: `Success(data)`, `Failed.Retry` (re-queue), or `Failed.RemovePendingRequest` (drop from queue).
+- `SyncUpConfig.fromResponseBody(requestTag, responseBody)` returns `SyncUpResult<O>`: `Success(data)`, `Failed.Retry()` (re-queue), or `Failed.RemovePendingRequest()` (drop from queue).
 - `getAllFromLocalStore(limit)` retrieves all items from the local database. `getFromLocalStore(syncStatus, includeVoided, limit)` filters at the SQL level by sync status string and/or voided flag. `getFromLocalStore(predicate, limit)` filters in memory via a lambda. All have `AsFlow` variants.
 - `SyncableObjectService` accepts an optional `queueStrategy` parameter (defaults to `Queue`). Use `Squash` when the API uses PUT/replace semantics and intermediate offline states don't matter; use `Queue` when request order matters or each write has side effects. See `docs/creating-a-service.md` § "Pending request queue strategy" for full guidance.
 - Registration for background sync: use Hilt `@IntoSet` multibinding with `:hilt`, or `DataBuoy.registerServices()` / `DataBuoy.registerServiceProvider()` without Hilt.

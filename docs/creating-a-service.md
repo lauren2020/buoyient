@@ -127,7 +127,7 @@ Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch dat
 | Member | Type | Purpose |
 |--------|------|---------|
 | `syncFetchConfig` | `SyncFetchConfig<YourModel>` | How to periodically pull data from the server (GET or POST). |
-| `syncUpConfig` | `SyncUpConfig<YourModel>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromResponseBody(requestTag, responseBody)` returning `SyncUpResult<YourModel>` — `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest`. |
+| `syncUpConfig` | `SyncUpConfig<YourModel>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromResponseBody(requestTag, responseBody)` returning `SyncUpResult<YourModel>` — `Success(data)`, `Failed.Retry()`, or `Failed.RemovePendingRequest()`. |
 | `serviceHeaders` | `List<Pair<String, String>>` | HTTP headers specific to this service, sent with every request it makes. At request time, global headers, service headers, and per-request headers are concatenated in that order — if the same name appears in multiple lists, both values are sent (no deduplication). Use `DataBuoy.globalHeaderProvider` for auth headers shared across all services; use `serviceHeaders` only for headers unique to this service. See `docs/setup.md` § "Configure Global Auth Headers" for full details. |
 
 ### SyncFetchConfig variants
@@ -179,7 +179,7 @@ class YourModelServerProcessingConfig : ServerProcessingConfig<YourModel> {
 
     override val syncUpConfig = object : SyncUpConfig<YourModel>() {
         override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<YourModel> {
-            val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest
+            val item = responseBody["item"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
             return SyncUpResult.Success(json.decodeFromJsonElement(YourModel.serializer(), item))
         }
     }
@@ -216,7 +216,7 @@ If different request types need different parsing, use `syncUp { requestTag, res
 
 ### Key rules
 
-- `fromResponseBody()` receives the raw server response body and a `requestTag` string (from your `ServiceRequestTag` enum). Return `SyncUpResult.Success(data)` on success, `SyncUpResult.Failed.Retry` to re-queue the request, or `SyncUpResult.Failed.RemovePendingRequest` to drop it from the queue. Use the tag to handle different response shapes per request type if needed.
+- `fromResponseBody()` receives the raw server response body and a `requestTag` string (from your `ServiceRequestTag` enum). Return `SyncUpResult.Success(data)` on success, `SyncUpResult.Failed.Retry()` to re-queue the request, or `SyncUpResult.Failed.RemovePendingRequest()` to drop it from the queue. Use the tag to handle different response shapes per request type if needed.
 - **Data flow for `SyncUpResult.Success`:** The object you return is treated as authoritative server state. If no more pending requests are queued for this object, it **replaces** the local entry entirely. If pending requests remain, it becomes the new server baseline and remaining changes are **rebased** on top of it (3-way merge via your `SyncableObjectRebaseHandler`). Conflicts are surfaced as `SyncStatus.CONFLICT`.
 - The `transformResponse` lambda receives the full response body. You need to extract the array of items from whatever key your API nests them under.
 - Override `SyncUpConfig.acceptUploadResponseAsProcessed()` only if you need custom retry logic. The default retries on 408 (timeout), 429 (rate limit), and 5xx errors.
@@ -703,6 +703,21 @@ Synced  ──void()──>  PendingVoid  ──background sync──>  (removed
                                                                   │
                               (server changed during pending)──>  Conflict
 ```
+
+### Filtering by sync status
+
+Use `getFromLocalStore(syncStatus, includeVoided, limit)` to query objects in a specific state. The `syncStatus` parameter takes one of these string constants from `SyncableObject.SyncStatus`:
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `LOCAL_ONLY` | `"LOCAL_ONLY"` | Created locally, never synced |
+| `PENDING_CREATE` | `"PENDING_CREATE"` | Queued for first sync-up |
+| `PENDING_UPDATE` | `"PENDING_UPDATE"` | Local edits queued for sync-up |
+| `PENDING_VOID` | `"PENDING_VOID"` | Void queued for sync-up |
+| `SYNCED` | `"SYNCED"` | In sync with server |
+| `CONFLICT` | `"CONFLICT"` | Server and local changes conflict — needs resolution |
+
+For UI that shows sync state, remember to account for all three pending states (`PendingCreate`, `PendingUpdate`, `PendingVoid`) — it's easy to forget `PendingVoid` when building a "syncing" indicator.
 
 ---
 

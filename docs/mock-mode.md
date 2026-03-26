@@ -140,7 +140,7 @@ class MockServerFixtures {
 
 - **Echo request data back** in create/update responses so the app sees its own data reflected.
 - **Generate unique server IDs** with an `AtomicInteger` counter so each create returns a distinct ID.
-- **Include all fields** the `SyncUpConfig.fromResponseBody()` expects -- missing fields will cause deserialization to return `SyncUpResult.Failed.RemovePendingRequest` and the service will drop the pending request.
+- **Include all fields** the `SyncUpConfig.fromResponseBody()` expects -- missing fields will cause deserialization to return `SyncUpResult.Failed.RemovePendingRequest()` and the service will drop the pending request.
 - **Match your real API's response shape exactly** -- the same `transformResponse` and `fromResponseBody` lambdas parse both real and mock responses.
 
 ---

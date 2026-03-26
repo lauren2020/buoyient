@@ -825,14 +825,10 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
      * re-rebases any subsequent pending requests, and transitions the sync_data
      * entry back to a pending state so sync-up can proceed.
      *
-     * This function is protected because it is intended that the implementing service define its
-     * own public facing api for the app to interface with and this is only used by the
-     * service implementation internally.
-     *
      * @param resolution - a [SyncableObjectRebaseHandler.ConflictResolution.Resolved] containing the
      *  consumer's resolved data and the rebuilt HTTP request to use for the pending upload.
      */
-    protected fun resolveConflict(
+    public fun resolveConflict(
         resolution: SyncableObjectRebaseHandler.ConflictResolution.Resolved<O>,
     ): ResolveConflictResult<O> {
         val clientId = resolution.resolvedData.clientId
