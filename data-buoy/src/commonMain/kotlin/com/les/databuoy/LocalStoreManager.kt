@@ -555,30 +555,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             service_name = serviceName,
             limit = limit.toLong(),
         ).executeAsList()
-
-        return rows.map { row ->
-            val statusValue = row.sync_status
-            val lastSyncedTimestamp = row.last_synced_timestamp
-            val latestSyncStatus = SyncableObject.SyncStatus.buildFromDbContext(
-                status = statusValue,
-                lastSyncedTimestamp = lastSyncedTimestamp,
-                conflictInfo = if (statusValue == SyncableObject.SyncStatus.CONFLICT) {
-                    pendingRequestQueueManager.getConflicts(clientId = row.client_id).toFieldConflictInfo()
-                } else {
-                    emptyList()
-                },
-            )
-            val data = codec.decode(storageCodec.decodeFromStorage(row.data_blob), latestSyncStatus)
-            val latestServerData = row.last_synced_server_data?.let {
-                codec.decode(storageCodec.decodeFromStorage(it), SyncableObject.SyncStatus.Synced(lastSyncedTimestamp!!))
-            }
-            LocalStoreEntry(
-                data = data,
-                latestServerData = latestServerData,
-                lastSyncedTimestamp = lastSyncedTimestamp,
-                syncStatus = latestSyncStatus,
-            )
-        }
+        return rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
     }
 
     /**
@@ -591,30 +568,90 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             service_name = serviceName,
             limit = limit.toLong(),
         ).asFlow().mapToList(Dispatchers.IO).map { rows ->
-            rows.map { row ->
-                val statusValue = row.sync_status
-                val lastSyncedTimestamp = row.last_synced_timestamp
-                val latestSyncStatus = SyncableObject.SyncStatus.buildFromDbContext(
-                    status = statusValue,
-                    lastSyncedTimestamp = lastSyncedTimestamp,
-                    conflictInfo = if (statusValue == SyncableObject.SyncStatus.CONFLICT) {
-                        pendingRequestQueueManager.getConflicts(clientId = row.client_id).toFieldConflictInfo()
-                    } else {
-                        emptyList()
-                    },
-                )
-                val data = codec.decode(storageCodec.decodeFromStorage(row.data_blob), latestSyncStatus)
-                val latestServerData = row.last_synced_server_data?.let {
-                    codec.decode(storageCodec.decodeFromStorage(it), SyncableObject.SyncStatus.Synced(lastSyncedTimestamp!!))
-                }
-                LocalStoreEntry(
-                    data = data,
-                    latestServerData = latestServerData,
-                    lastSyncedTimestamp = lastSyncedTimestamp,
-                    syncStatus = latestSyncStatus,
-                )
-            }
+            rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
         }
+    }
+
+    internal fun getFilteredData(
+        syncStatus: String?,
+        includeVoided: Boolean,
+        limit: Int,
+    ): List<LocalStoreEntry<O>> {
+        val q = database.syncDataQueries
+        val l = limit.toLong()
+        return when {
+            syncStatus != null && !includeVoided ->
+                q.getDataBySyncStatusExcludingVoided(serviceName, syncStatus, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            syncStatus != null ->
+                q.getDataBySyncStatus(serviceName, syncStatus, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            !includeVoided ->
+                q.getDataExcludingVoided(serviceName, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            else ->
+                q.getAllData(serviceName, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+        }
+    }
+
+    internal fun getFilteredDataAsFlow(
+        syncStatus: String?,
+        includeVoided: Boolean,
+        limit: Int,
+    ): Flow<List<LocalStoreEntry<O>>> {
+        val q = database.syncDataQueries
+        val l = limit.toLong()
+        return when {
+            syncStatus != null && !includeVoided ->
+                q.getDataBySyncStatusExcludingVoided(serviceName, syncStatus, l)
+                    .asFlow().mapToList(Dispatchers.IO).map { rows ->
+                        rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+                    }
+            syncStatus != null ->
+                q.getDataBySyncStatus(serviceName, syncStatus, l)
+                    .asFlow().mapToList(Dispatchers.IO).map { rows ->
+                        rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+                    }
+            !includeVoided ->
+                q.getDataExcludingVoided(serviceName, l)
+                    .asFlow().mapToList(Dispatchers.IO).map { rows ->
+                        rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+                    }
+            else ->
+                q.getAllData(serviceName, l)
+                    .asFlow().mapToList(Dispatchers.IO).map { rows ->
+                        rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+                    }
+        }
+    }
+
+    private fun mapRowToEntry(
+        dataBlob: String,
+        syncStatusValue: String,
+        lastSyncedTimestamp: String?,
+        clientId: String,
+        lastSyncedServerData: String?,
+    ): LocalStoreEntry<O> {
+        val latestSyncStatus = SyncableObject.SyncStatus.buildFromDbContext(
+            status = syncStatusValue,
+            lastSyncedTimestamp = lastSyncedTimestamp,
+            conflictInfo = if (syncStatusValue == SyncableObject.SyncStatus.CONFLICT) {
+                pendingRequestQueueManager.getConflicts(clientId = clientId).toFieldConflictInfo()
+            } else {
+                emptyList()
+            },
+        )
+        val data = codec.decode(storageCodec.decodeFromStorage(dataBlob), latestSyncStatus)
+        val latestServerData = lastSyncedServerData?.let {
+            codec.decode(storageCodec.decodeFromStorage(it), SyncableObject.SyncStatus.Synced(lastSyncedTimestamp!!))
+        }
+        return LocalStoreEntry(
+            data = data,
+            latestServerData = latestServerData,
+            lastSyncedTimestamp = lastSyncedTimestamp,
+            syncStatus = latestSyncStatus,
+        )
     }
 
     /**

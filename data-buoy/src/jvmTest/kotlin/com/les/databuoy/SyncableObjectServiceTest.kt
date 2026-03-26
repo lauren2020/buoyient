@@ -1017,4 +1017,122 @@ class SyncableObjectServiceTest {
     }
 
     // endregion
+
+    // region getFromLocalStore (filtering)
+
+    @Test
+    fun `getFromLocalStore with syncStatus filter returns only matching items`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        // Seed a synced item
+        seedSyncedItem(service, env, clientId = "client-1", serverId = "server-1", name = "Synced Item")
+
+        // Create an offline-only item
+        env.connectivityChecker.online = false
+        service.testCreate(testItem(clientId = "client-2", name = "Offline Item"))
+
+        val syncedOnly = service.getFromLocalStore(syncStatus = SyncableObject.SyncStatus.SYNCED)
+        assertEquals(1, syncedOnly.size)
+        assertEquals("Synced Item", syncedOnly[0].name)
+
+        val pendingCreateOnly = service.getFromLocalStore(syncStatus = SyncableObject.SyncStatus.PENDING_CREATE)
+        assertEquals(1, pendingCreateOnly.size)
+        assertEquals("Offline Item", pendingCreateOnly[0].name)
+
+        service.close()
+    }
+
+    @Test
+    fun `getFromLocalStore with includeVoided false excludes voided items`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+
+        val activeItem = testItem(clientId = "client-1", serverId = "server-1", name = "Active",
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+        val voidedItem = testItem(clientId = "client-2", serverId = "server-2", name = "Voided",
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+
+        env.mockRouter.onPost("https://api.test.com/items") { request ->
+            val clientId = request.body["client_id"]?.toString()?.trim('"') ?: ""
+            val item = if (clientId == "client-1") activeItem else voidedItem
+            MockResponse(201, wrapResponse(item))
+        }
+        service.testCreate(testItem(clientId = "client-1", name = "Active"))
+        service.testCreate(testItem(clientId = "client-2", name = "Voided"))
+
+        env.mockRouter.onDelete("https://api.test.com/items/*") { _ ->
+            MockResponse(200, wrapResponse(voidedItem.copy(version = 2)))
+        }
+        service.testVoid(voidedItem)
+
+        val nonVoided = service.getFromLocalStore(includeVoided = false)
+        assertEquals(1, nonVoided.size)
+        assertEquals("Active", nonVoided[0].name)
+
+        val all = service.getFromLocalStore(includeVoided = true)
+        assertEquals(2, all.size)
+
+        service.close()
+    }
+
+    @Test
+    fun `getFromLocalStore with predicate filters by domain field`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val item1 = testItem(clientId = "client-1", serverId = "server-1", name = "Alpha", value = 10,
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+        val item2 = testItem(clientId = "client-2", serverId = "server-2", name = "Beta", value = 20,
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+
+        env.mockRouter.onPost("https://api.test.com/items") { request ->
+            val clientId = request.body["client_id"]?.toString()?.trim('"') ?: ""
+            val item = if (clientId == "client-1") item1 else item2
+            MockResponse(201, wrapResponse(item))
+        }
+        service.testCreate(testItem(clientId = "client-1", name = "Alpha", value = 10))
+        service.testCreate(testItem(clientId = "client-2", name = "Beta", value = 20))
+
+        val highValue = service.getFromLocalStore(predicate = { it.value >= 15 })
+        assertEquals(1, highValue.size)
+        assertEquals("Beta", highValue[0].name)
+
+        service.close()
+    }
+
+    @Test
+    fun `getFromLocalStoreAsFlow with syncStatus filter emits filtered list`() = runBlocking {
+        val (service, _) = createServiceAndEnv(online = false)
+        service.testCreate(testItem(clientId = "client-1", name = "Offline"))
+
+        val items = service.getFromLocalStoreAsFlow(syncStatus = SyncableObject.SyncStatus.PENDING_CREATE).first()
+        assertEquals(1, items.size)
+        assertEquals("Offline", items[0].name)
+
+        val syncedItems = service.getFromLocalStoreAsFlow(syncStatus = SyncableObject.SyncStatus.SYNCED).first()
+        assertEquals(0, syncedItems.size)
+
+        service.close()
+    }
+
+    @Test
+    fun `getFromLocalStoreAsFlow with predicate filters reactively`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val item1 = testItem(clientId = "client-1", serverId = "server-1", name = "Keep", value = 100,
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+        val item2 = testItem(clientId = "client-2", serverId = "server-2", name = "Skip", value = 1,
+            syncStatus = SyncableObject.SyncStatus.Synced("1000"))
+
+        env.mockRouter.onPost("https://api.test.com/items") { request ->
+            val clientId = request.body["client_id"]?.toString()?.trim('"') ?: ""
+            val item = if (clientId == "client-1") item1 else item2
+            MockResponse(201, wrapResponse(item))
+        }
+        service.testCreate(testItem(clientId = "client-1", name = "Keep", value = 100))
+        service.testCreate(testItem(clientId = "client-2", name = "Skip", value = 1))
+
+        val items = service.getFromLocalStoreAsFlow(predicate = { it.value > 50 }).first()
+        assertEquals(1, items.size)
+        assertEquals("Keep", items[0].name)
+
+        service.close()
+    }
+
+    // endregion
 }

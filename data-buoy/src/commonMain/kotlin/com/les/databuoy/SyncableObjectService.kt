@@ -794,6 +794,58 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         localStoreManager.getAllDataAsFlow(limit = limit).map { entries -> entries.map { it.data } }
 
     /**
+     * Retrieve [O] items from the local store filtered by sync metadata.
+     *
+     * @param syncStatus if non-null, only items whose sync status matches this value are returned.
+     *   Use the string constants from [SyncableObject.SyncStatus] (e.g. [SyncableObject.SyncStatus.SYNCED],
+     *   [SyncableObject.SyncStatus.PENDING_UPDATE]).
+     * @param includeVoided when `false` (default), voided items are excluded.
+     * @param limit maximum number of rows to return from the database.
+     */
+    public fun getFromLocalStore(
+        syncStatus: String? = null,
+        includeVoided: Boolean = false,
+        limit: Int = 100,
+    ): List<O> =
+        localStoreManager.getFilteredData(syncStatus = syncStatus, includeVoided = includeVoided, limit = limit)
+            .map { it.data }
+
+    /**
+     * Returns a [Flow] that emits filtered [O] items from the local store whenever the
+     * underlying data changes. See [getFromLocalStore] for parameter details.
+     */
+    public fun getFromLocalStoreAsFlow(
+        syncStatus: String? = null,
+        includeVoided: Boolean = false,
+        limit: Int = 100,
+    ): Flow<List<O>> =
+        localStoreManager.getFilteredDataAsFlow(syncStatus = syncStatus, includeVoided = includeVoided, limit = limit)
+            .map { entries -> entries.map { it.data } }
+
+    /**
+     * Retrieve [O] items from the local store that match the given [predicate].
+     *
+     * This loads all items up to [limit] from SQLite, then filters in memory.
+     * Suitable for small-to-medium datasets; for large datasets consider
+     * the metadata-filter overload instead.
+     */
+    public fun getFromLocalStore(
+        predicate: (O) -> Boolean,
+        limit: Int = 100,
+    ): List<O> = getAllFromLocalStore(limit).filter(predicate)
+
+    /**
+     * Returns a [Flow] that emits [O] items matching [predicate] from the local store
+     * whenever the underlying data changes. Filtering is applied in memory after
+     * each emission.
+     */
+    public fun getFromLocalStoreAsFlow(
+        predicate: (O) -> Boolean,
+        limit: Int = 100,
+    ): Flow<List<O>> =
+        getAllFromLocalStoreAsFlow(limit).map { items -> items.filter(predicate) }
+
+    /**
      * Fires a background HTTP request to void a previous server request by its idempotency key.
      *
      * Unlike [void], this method does NOT modify the local SQLite store. It is a fire-and-forget

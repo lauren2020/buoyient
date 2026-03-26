@@ -20,6 +20,7 @@ These guides contain complete templates, required field tables, and common patte
 | `SyncableObject<O>` | Interface for your domain model (`@Serializable` data class) |
 | `SyncableObjectService<O, T>` | Base class for services — exposes `create()`, `update()`, `void()`, `get()` and flow-based variants `createWithFlow()`, `updateWithFlow()`, `voidWithFlow()` |
 | `SyncableObjectServiceRequestState<O>` | Sealed state type for flow-based operations: `Loading` or `Result(response)` |
+| `getFromLocalStore()` | Overloaded query methods on `SyncableObjectService` — filter by `syncStatus` string / `includeVoided` flag (SQL-level), or by `(O) -> Boolean` predicate (in-memory) |
 | `ServiceRequestTag` | Interface for request type enums — passed to every operation |
 | `ServerProcessingConfig<O>` | Tells the sync engine how to talk to your API |
 | `SyncFetchConfig<O>` | Configures periodic sync-down (GET or POST) |
@@ -55,6 +56,6 @@ These guides contain complete templates, required field tables, and common patte
 - `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.
 - Every operation (`create`, `update`, `void`) requires a `ServiceRequestTag` and uses functional interfaces: `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`.
 - `SyncUpConfig.fromResponseBody(requestTag, responseBody)` returns `SyncUpResult<O>`: `Success(data)`, `Failed.Retry` (re-queue), or `Failed.RemovePendingRequest` (drop from queue).
-- `getAllFromLocalStore(limit)` retrieves all items from the local database.
+- `getAllFromLocalStore(limit)` retrieves all items from the local database. `getFromLocalStore(syncStatus, includeVoided, limit)` filters at the SQL level by sync status string and/or voided flag. `getFromLocalStore(predicate, limit)` filters in memory via a lambda. All have `AsFlow` variants.
 - `SyncableObjectService` accepts an optional `queueStrategy` parameter (defaults to `Queue`). Use `Squash` when the API uses PUT/replace semantics and intermediate offline states don't matter; use `Queue` when request order matters or each write has side effects. See `docs/creating-a-service.md` § "Pending request queue strategy" for full guidance.
 - Registration for background sync: use Hilt `@IntoSet` multibinding with `:hilt`, or `DataBuoy.registerServices()` / `DataBuoy.registerServiceProvider()` without Hilt.

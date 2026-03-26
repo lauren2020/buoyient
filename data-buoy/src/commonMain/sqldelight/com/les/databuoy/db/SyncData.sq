@@ -157,3 +157,24 @@ SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_ser
 FROM sync_data
 WHERE service_name = :service_name
 LIMIT :limit;
+
+-- Fetch entries filtered by sync status.
+getDataBySyncStatus:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status
+LIMIT :limit;
+
+-- Fetch entries excluding voided rows.
+getDataExcludingVoided:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND voided = 0
+LIMIT :limit;
+
+-- Fetch entries filtered by sync status, excluding voided rows.
+getDataBySyncStatusExcludingVoided:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+LIMIT :limit;
