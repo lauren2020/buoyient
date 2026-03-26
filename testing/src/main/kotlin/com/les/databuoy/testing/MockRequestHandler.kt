@@ -42,8 +42,7 @@ public fun interface MockRequestHandler {
 
 /**
  * Throw this from a [MockRequestHandler] to simulate a network connection error.
- * The [MockEndpointRouter] will translate this into a
- * [ServerManager.ServerManagerResponse.ConnectionError].
+ * The [MockEndpointRouter] will translate this into an [java.io.IOException].
  */
 public class MockConnectionException(
     message: String = "Simulated connection error",
@@ -51,8 +50,8 @@ public class MockConnectionException(
 
 /**
  * Throw this from a [MockRequestHandler] to simulate a request timeout.
- * The [MockEndpointRouter] will translate this into a
- * [ServerManager.ServerManagerResponse.RequestTimedOut].
+ * The [MockEndpointRouter] will translate this into an
+ * [io.ktor.client.plugins.HttpRequestTimeoutException].
  */
 public class MockTimeoutException(
     message: String = "Simulated request timeout",

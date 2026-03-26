@@ -1,7 +1,6 @@
 package com.les.databuoy.testing
 
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.ServerManager
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -146,18 +145,6 @@ public class MockEndpointRouter {
         }
         return HttpClient(engine)
     }
-
-    /**
-     * Creates a [ServerManager] backed by this router's mock handlers.
-     * This is the most common entry point: pass the result directly to
-     * a [SyncableObjectService] constructor.
-     */
-    public fun buildServerManager(
-        serviceBaseHeaders: List<Pair<String, String>> = emptyList(),
-    ): ServerManager = ServerManager(
-        serviceBaseHeaders = serviceBaseHeaders,
-        httpClient = buildHttpClient(),
-    )
 
     // -- Internal --
 

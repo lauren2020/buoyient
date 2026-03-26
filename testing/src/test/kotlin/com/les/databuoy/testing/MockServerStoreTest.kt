@@ -1,7 +1,15 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.HttpRequest
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
@@ -440,18 +448,14 @@ class MockServerStoreTest {
         val todos = store.collection("todos")
         val router = MockEndpointRouter()
         router.registerCrudHandlers(todos, "https://api.test.com/todos")
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.POST,
-                endpointUrl = "https://api.test.com/todos",
-                requestBody = buildJsonObject { put("title", "New todo") },
-            ),
-        )
+        val response = client.post("https://api.test.com/todos") {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject { put("title", "New todo") }.toString())
+        }
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
-        assertEquals(201, response.statusCode)
+        assertEquals(201, response.status.value)
         // Record is in the store
         assertEquals(1, todos.count())
         assertEquals("New todo", todos.get("server-1")?.data?.get("title")?.jsonPrimitive?.content)
@@ -465,18 +469,14 @@ class MockServerStoreTest {
 
         val router = MockEndpointRouter()
         router.registerCrudHandlers(todos, "https://api.test.com/todos")
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.PUT,
-                endpointUrl = "https://api.test.com/todos/srv-1",
-                requestBody = buildJsonObject { put("title", "Updated") },
-            ),
-        )
+        val response = client.put("https://api.test.com/todos/srv-1") {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject { put("title", "Updated") }.toString())
+        }
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
+        assertEquals(200, response.status.value)
         assertEquals("Updated", todos.get("srv-1")?.data?.get("title")?.jsonPrimitive?.content)
         assertEquals(2, todos.get("srv-1")?.version)
     }
@@ -489,19 +489,13 @@ class MockServerStoreTest {
 
         val router = MockEndpointRouter()
         router.registerCrudHandlers(todos, "https://api.test.com/todos")
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.GET,
-                endpointUrl = "https://api.test.com/todos/srv-1",
-                requestBody = JsonObject(emptyMap()),
-            ),
-        )
+        val response = client.get("https://api.test.com/todos/srv-1")
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
-        val data = response.responseBody["data"]?.jsonObject
+        assertEquals(200, response.status.value)
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        val data = body["data"]?.jsonObject
         assertNotNull(data)
         assertEquals("Existing", data["title"]?.jsonPrimitive?.content)
     }
@@ -513,18 +507,11 @@ class MockServerStoreTest {
 
         val router = MockEndpointRouter()
         router.registerCrudHandlers(todos, "https://api.test.com/todos")
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.GET,
-                endpointUrl = "https://api.test.com/todos/nonexistent",
-                requestBody = JsonObject(emptyMap()),
-            ),
-        )
+        val response = client.get("https://api.test.com/todos/nonexistent")
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Failed)
-        assertEquals(404, response.statusCode)
+        assertEquals(404, response.status.value)
     }
 
     @Test
@@ -536,18 +523,11 @@ class MockServerStoreTest {
 
         val router = MockEndpointRouter()
         router.registerCrudHandlers(todos, "https://api.test.com/todos")
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.GET,
-                endpointUrl = "https://api.test.com/todos",
-                requestBody = JsonObject(emptyMap()),
-            ),
-        )
+        val response = client.get("https://api.test.com/todos")
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
+        assertEquals(200, response.status.value)
     }
 
     @Test
@@ -558,18 +538,11 @@ class MockServerStoreTest {
 
         val router = MockEndpointRouter()
         router.registerCrudHandlers(todos, "https://api.test.com/todos")
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.DELETE,
-                endpointUrl = "https://api.test.com/todos/srv-1",
-                requestBody = JsonObject(emptyMap()),
-            ),
-        )
+        val response = client.delete("https://api.test.com/todos/srv-1")
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
+        assertEquals(200, response.status.value)
         assertTrue(todos.get("srv-1")!!.voided)
     }
 
@@ -586,20 +559,18 @@ class MockServerStoreTest {
                 buildJsonObject { put("item", record.toJsonObject()) }
             },
         )
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.POST,
-                endpointUrl = "https://api.test.com/todos",
-                requestBody = buildJsonObject { put("title", "Test") },
-            ),
-        )
+        val response = client.post("https://api.test.com/todos") {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject { put("title", "Test") }.toString())
+        }
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
+        assertEquals(201, response.status.value)
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         // Response uses "item" key instead of default "data"
-        assertNotNull(response.responseBody["item"])
-        assertNull(response.responseBody["data"])
+        assertNotNull(body["item"])
+        assertNull(body["data"])
     }
 
     // -------------------------------------------------------------------------
@@ -618,18 +589,14 @@ class MockServerStoreTest {
             collection = todos,
             urlPattern = "https://api.test.com/todos/sync",
         )
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.POST,
-                endpointUrl = "https://api.test.com/todos/sync",
-                requestBody = JsonObject(emptyMap()),
-            ),
-        )
+        val response = client.post("https://api.test.com/todos/sync") {
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(emptyMap()).toString())
+        }
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
+        assertEquals(200, response.status.value)
     }
 
     @Test
@@ -652,20 +619,16 @@ class MockServerStoreTest {
                 request.body["last_synced_timestamp"]?.jsonPrimitive?.content?.toLongOrNull()
             },
         )
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.POST,
-                endpointUrl = "https://api.test.com/todos/sync",
-                requestBody = buildJsonObject { put("last_synced_timestamp", cutoff.toString()) },
-            ),
-        )
+        val response = client.post("https://api.test.com/todos/sync") {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject { put("last_synced_timestamp", cutoff.toString()) }.toString())
+        }
 
-        assertTrue(response is com.les.databuoy.ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
+        assertEquals(200, response.status.value)
         // Only the "New" record should be in the response (created at t=2000, cutoff=1000)
-        val body = response.responseBody
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         val records = body["data"]?.jsonArray
         assertNotNull(records, "Response should contain a 'data' array")
         assertEquals(1, records.size, "Only the record created after the cutoff should be returned")

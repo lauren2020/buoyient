@@ -1,10 +1,18 @@
 package com.les.databuoy.testing
 
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.ServerManager
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -52,18 +60,15 @@ class MockEndpointRouterTest {
         val responseBody = buildJsonObject { put("id", "srv-1") }
         router.onPost("https://api.test.com/items") { MockResponse(201, responseBody) }
 
-        val serverManager = router.buildServerManager()
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.POST,
-                endpointUrl = "https://api.test.com/items",
-                requestBody = buildJsonObject { put("name", "Test") },
-            )
-        )
+        val client = router.buildHttpClient()
+        val response = client.post("https://api.test.com/items") {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject { put("name", "Test") }.toString())
+        }
 
-        assertTrue(response is ServerManager.ServerManagerResponse.Success)
-        assertEquals(201, response.statusCode)
-        assertEquals(responseBody, response.responseBody)
+        assertEquals(201, response.status.value)
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals(responseBody, body)
     }
 
     @Test
@@ -72,34 +77,20 @@ class MockEndpointRouterTest {
         val responseBody = buildJsonObject { put("items", "[]") }
         router.onGet("https://api.test.com/items") { MockResponse(200, responseBody) }
 
-        val serverManager = router.buildServerManager()
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.GET,
-                endpointUrl = "https://api.test.com/items",
-                requestBody = JsonObject(emptyMap()),
-            )
-        )
+        val client = router.buildHttpClient()
+        val response = client.get("https://api.test.com/items")
 
-        assertTrue(response is ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
+        assertEquals(200, response.status.value)
     }
 
     @Test
     fun `unmatched request returns 404`() = runBlocking {
         val router = MockEndpointRouter()
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.GET,
-                endpointUrl = "https://api.test.com/unknown",
-                requestBody = JsonObject(emptyMap()),
-            )
-        )
+        val response = client.get("https://api.test.com/unknown")
 
-        assertTrue(response is ServerManager.ServerManagerResponse.Failed)
-        assertEquals(404, response.statusCode)
+        assertEquals(404, response.status.value)
     }
 
     @Test
@@ -107,35 +98,24 @@ class MockEndpointRouterTest {
         val router = MockEndpointRouter()
         router.onPost("https://api.test.com/items") { MockResponse(201, JsonObject(emptyMap())) }
 
-        val serverManager = router.buildServerManager()
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.GET,
-                endpointUrl = "https://api.test.com/items",
-                requestBody = JsonObject(emptyMap()),
-            )
-        )
+        val client = router.buildHttpClient()
+        val response = client.get("https://api.test.com/items")
 
-        assertTrue(response is ServerManager.ServerManagerResponse.Failed)
-        assertEquals(404, response.statusCode)
+        assertEquals(404, response.status.value)
     }
 
     @Test
-    fun `wildcard URL matching works through ServerManager`() = runBlocking {
+    fun `wildcard URL matching works through HttpClient`() = runBlocking {
         val router = MockEndpointRouter()
         router.onPut("https://api.test.com/items/*") { MockResponse(200, buildJsonObject { put("ok", true) }) }
 
-        val serverManager = router.buildServerManager()
-        val response = serverManager.sendRequest(
-            HttpRequest(
-                method = HttpRequest.HttpMethod.PUT,
-                endpointUrl = "https://api.test.com/items/abc-123",
-                requestBody = buildJsonObject { put("name", "Updated") },
-            )
-        )
+        val client = router.buildHttpClient()
+        val response = client.put("https://api.test.com/items/abc-123") {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject { put("name", "Updated") }.toString())
+        }
 
-        assertTrue(response is ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
+        assertEquals(200, response.status.value)
     }
 
     // -- Request recording --
@@ -146,14 +126,13 @@ class MockEndpointRouterTest {
         router.onPost("https://api.test.com/items") { MockResponse(201, JsonObject(emptyMap())) }
         router.onGet("https://api.test.com/items") { MockResponse(200, JsonObject(emptyMap())) }
 
-        val serverManager = router.buildServerManager()
+        val client = router.buildHttpClient()
 
-        serverManager.sendRequest(
-            HttpRequest(HttpRequest.HttpMethod.POST, "https://api.test.com/items", buildJsonObject { put("a", 1) })
-        )
-        serverManager.sendRequest(
-            HttpRequest(HttpRequest.HttpMethod.GET, "https://api.test.com/items", JsonObject(emptyMap()))
-        )
+        client.post("https://api.test.com/items") {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject { put("a", 1) }.toString())
+        }
+        client.get("https://api.test.com/items")
 
         assertEquals(2, router.requestLog.size)
         assertEquals(HttpRequest.HttpMethod.POST, router.requestLog[0].method)
@@ -165,10 +144,8 @@ class MockEndpointRouterTest {
         val router = MockEndpointRouter()
         router.onGet("https://api.test.com/items") { MockResponse(200, JsonObject(emptyMap())) }
 
-        val serverManager = router.buildServerManager()
-        serverManager.sendRequest(
-            HttpRequest(HttpRequest.HttpMethod.GET, "https://api.test.com/items", JsonObject(emptyMap()))
-        )
+        val client = router.buildHttpClient()
+        client.get("https://api.test.com/items")
 
         assertEquals(1, router.requestLog.size)
         router.clearRequestLog()
@@ -178,16 +155,22 @@ class MockEndpointRouterTest {
     // -- Connection error simulation --
 
     @Test
-    fun `MockConnectionException produces ConnectionError`() = runBlocking {
+    fun `MockConnectionException produces IOException`() = runBlocking {
         val router = MockEndpointRouter()
         router.onPost("https://api.test.com/items") { throw MockConnectionException() }
 
-        val serverManager = router.buildServerManager()
-        val response = serverManager.sendRequest(
-            HttpRequest(HttpRequest.HttpMethod.POST, "https://api.test.com/items", JsonObject(emptyMap()))
-        )
+        val client = router.buildHttpClient()
+        val threw = try {
+            client.post("https://api.test.com/items") {
+                contentType(ContentType.Application.Json)
+                setBody(JsonObject(emptyMap()).toString())
+            }
+            false
+        } catch (e: java.io.IOException) {
+            true
+        }
 
-        assertTrue(response is ServerManager.ServerManagerResponse.ConnectionError)
+        assertTrue(threw, "Expected IOException from MockConnectionException")
     }
 
     // -- Static response convenience --
@@ -198,14 +181,12 @@ class MockEndpointRouterTest {
         val body = buildJsonObject { put("status", "ok") }
         router.on(HttpRequest.HttpMethod.GET, "https://api.test.com/health", 200, body)
 
-        val serverManager = router.buildServerManager()
-        val response = serverManager.sendRequest(
-            HttpRequest(HttpRequest.HttpMethod.GET, "https://api.test.com/health", JsonObject(emptyMap()))
-        )
+        val client = router.buildHttpClient()
+        val response = client.get("https://api.test.com/health")
 
-        assertTrue(response is ServerManager.ServerManagerResponse.Success)
-        assertEquals(200, response.statusCode)
-        assertEquals(body, response.responseBody)
+        assertEquals(200, response.status.value)
+        val responseBody = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals(body, responseBody)
     }
 
     // -- Handler receives request body --
@@ -220,10 +201,11 @@ class MockEndpointRouterTest {
         }
 
         val sentBody = buildJsonObject { put("name", "Test Item") }
-        val serverManager = router.buildServerManager()
-        serverManager.sendRequest(
-            HttpRequest(HttpRequest.HttpMethod.POST, "https://api.test.com/items", sentBody)
-        )
+        val client = router.buildHttpClient()
+        client.post("https://api.test.com/items") {
+            contentType(ContentType.Application.Json)
+            setBody(sentBody.toString())
+        }
 
         assertEquals(sentBody, receivedBody)
     }
@@ -236,12 +218,11 @@ class MockEndpointRouterTest {
         router.onGet("https://api.test.com/items") { MockResponse(200, buildJsonObject { put("from", "first") }) }
         router.onGet("https://api.test.com/items") { MockResponse(200, buildJsonObject { put("from", "second") }) }
 
-        val serverManager = router.buildServerManager()
-        val response = serverManager.sendRequest(
-            HttpRequest(HttpRequest.HttpMethod.GET, "https://api.test.com/items", JsonObject(emptyMap()))
-        )
+        val client = router.buildHttpClient()
+        val response = client.get("https://api.test.com/items")
 
-        assertTrue(response is ServerManager.ServerManagerResponse.Success)
-        assertEquals("first", response.responseBody["from"].toString().trim('"'))
+        assertEquals(200, response.status.value)
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals("first", body["from"].toString().trim('"'))
     }
 }

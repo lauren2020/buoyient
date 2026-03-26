@@ -23,7 +23,7 @@ import kotlinx.serialization.json.put
  * )
  *
  * // Now POST /todos creates a record, GET /todos lists all, etc.
- * val serverManager = router.buildServerManager()
+ * val client = router.buildHttpClient()
  * ```
  *
  * The [responseWrapper] and [listResponseWrapper] parameters control the JSON
