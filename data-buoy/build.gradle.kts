@@ -4,10 +4,11 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.sqldelight)
     id("maven-publish")
+    id("signing")
 }
 
-group = "com.les.databuoy"
-version = "0.1.0-SNAPSHOT"
+group = property("GROUP") as String
+version = property("VERSION_NAME") as String
 
 kotlin {
     androidTarget {
@@ -112,35 +113,50 @@ android {
     }
 }
 
+signing {
+    // Only sign when credentials are available (CI or release builds).
+    isRequired = !version.toString().endsWith("SNAPSHOT")
+    sign(publishing.publications)
+}
+
 publishing {
     repositories {
         mavenLocal()
-
-        // Uncomment and configure when ready for remote publication:
-        // maven {
-        //     name = "GitHubPackages"
-        //     url = uri("https://maven.pkg.github.com/OWNER/data-buoy")
-        //     credentials {
-        //         username = project.findProperty("gpr.user") as String?
-        //             ?: System.getenv("GITHUB_ACTOR")
-        //         password = project.findProperty("gpr.key") as String?
-        //             ?: System.getenv("GITHUB_TOKEN")
-        //     }
-        // }
+        maven {
+            name = "mavenCentral"
+            url = if (version.toString().endsWith("SNAPSHOT")) {
+                uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            } else {
+                uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            }
+            credentials {
+                username = findProperty("mavenCentralUsername") as String? ?: ""
+                password = findProperty("mavenCentralPassword") as String? ?: ""
+            }
+        }
     }
     publications.withType<MavenPublication> {
         pom {
             name.set("data-buoy")
             description.set("Kotlin Multiplatform offline-first sync library with bidirectional sync, conflict resolution, and automatic retries.")
-            url.set("https://github.com/les-corp/data-buoy")
+            url.set("https://github.com/lauren2020/data-buoy")
             licenses {
                 license {
                     name.set("The Apache License, Version 2.0")
                     url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
                 }
             }
+            developers {
+                developer {
+                    id.set("lauren2020")
+                    name.set("Lauren Shultz")
+                    email.set("lauren@elizabethvaildev.com")
+                }
+            }
             scm {
-                url.set("https://github.com/les-corp/data-buoy")
+                connection.set("scm:git:git://github.com/lauren2020/data-buoy.git")
+                developerConnection.set("scm:git:ssh://github.com:lauren2020/data-buoy.git")
+                url.set("https://github.com/lauren2020/data-buoy")
             }
         }
     }

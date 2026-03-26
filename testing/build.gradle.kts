@@ -1,10 +1,11 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     id("maven-publish")
+    id("signing")
 }
 
-group = "com.les.databuoy"
-version = "0.1.0-SNAPSHOT"
+group = property("GROUP") as String
+version = property("VERSION_NAME") as String
 
 dependencies {
     // Depend on the JVM variant of the KMP :data-buoy module.
@@ -24,6 +25,11 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 }
 
+signing {
+    isRequired = !version.toString().endsWith("SNAPSHOT")
+    sign(publishing.publications)
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -31,20 +37,41 @@ publishing {
             pom {
                 name.set("data-buoy-testing")
                 description.set("Test utilities for data-buoy: mock server, in-memory database, and test doubles.")
-                url.set("https://github.com/les-corp/data-buoy")
+                url.set("https://github.com/lauren2020/data-buoy")
                 licenses {
                     license {
                         name.set("The Apache License, Version 2.0")
                         url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
                     }
                 }
+                developers {
+                    developer {
+                        id.set("lauren2020")
+                        name.set("Lauren Shultz")
+                        email.set("lauren@elizabethvaildev.com")
+                    }
+                }
                 scm {
-                    url.set("https://github.com/les-corp/data-buoy")
+                    connection.set("scm:git:git://github.com/lauren2020/data-buoy.git")
+                    developerConnection.set("scm:git:ssh://github.com:lauren2020/data-buoy.git")
+                    url.set("https://github.com/lauren2020/data-buoy")
                 }
             }
         }
     }
     repositories {
         mavenLocal()
+        maven {
+            name = "mavenCentral"
+            url = if (version.toString().endsWith("SNAPSHOT")) {
+                uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            } else {
+                uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            }
+            credentials {
+                username = findProperty("mavenCentralUsername") as String? ?: ""
+                password = findProperty("mavenCentralPassword") as String? ?: ""
+            }
+        }
     }
 }
