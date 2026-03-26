@@ -1,4 +1,6 @@
-package com.les.databuoy
+package com.les.databuoy.publicconfigs
+
+import com.les.databuoy.SquashRequestMerger
 
 public sealed class PendingRequestQueueStrategy {
     public class Squash(

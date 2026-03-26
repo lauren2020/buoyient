@@ -6,7 +6,7 @@ import com.les.databuoy.DataBuoyStatus
 import com.les.databuoy.DatabaseOverride
 import com.les.databuoy.publicconfigs.EncryptionProvider
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.PendingRequestQueueStrategy
+import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.PendingSyncRequest
 import com.les.databuoy.ResolveConflictResult
 import com.les.databuoy.ServiceRequestTag

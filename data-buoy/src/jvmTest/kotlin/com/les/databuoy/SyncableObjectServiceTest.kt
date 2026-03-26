@@ -1,6 +1,7 @@
 package com.les.databuoy
 
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.publicconfigs.SyncFetchConfig
 import com.les.databuoy.publicconfigs.SyncUpConfig
 import com.les.databuoy.publicconfigs.SyncUpResult

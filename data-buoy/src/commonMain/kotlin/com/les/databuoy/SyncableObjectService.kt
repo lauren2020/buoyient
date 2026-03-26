@@ -5,6 +5,7 @@ import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
 import com.les.databuoy.publicconfigs.EncryptionProvider
+import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.publicconfigs.createPlatformConnectivityChecker
 import com.les.databuoy.sync.SyncDriver
@@ -35,8 +36,8 @@ import kotlinx.serialization.KSerializer
  *   platform-specific implementation; override in tests to simulate offline scenarios.
  * @param encryptionProvider - Optional [com.les.databuoy.publicconfigs.EncryptionProvider] for encrypting data at rest in the
  *   local store. Pass `null` (the default) to store data unencrypted.
- * @param queueStrategy - Controls how offline requests are queued. [PendingRequestQueueStrategy.Queue]
- *   (default) keeps one entry per operation; [PendingRequestQueueStrategy.Squash]
+ * @param queueStrategy - Controls how offline requests are queued. [com.les.databuoy.publicconfigs.PendingRequestQueueStrategy.Queue]
+ *   (default) keeps one entry per operation; [com.les.databuoy.publicconfigs.PendingRequestQueueStrategy.Squash]
  *   collapses consecutive offline edits into a single request.
  * @param rebaseHandler - Handles 3-way merge conflict detection and resolution during sync-up.
  *   Defaults to a standard handler built from the provided [serializer].

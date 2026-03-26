@@ -2,7 +2,7 @@ package com.les.databuoy.internalutilities
 
 import com.les.databuoy.DataBuoyStatus
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.PendingRequestQueueStrategy
+import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.PendingSyncRequest
 import com.les.databuoy.ServiceRequestTag
 import com.les.databuoy.StorageCodec
