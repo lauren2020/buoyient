@@ -28,6 +28,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -264,7 +266,7 @@ class CrossServicePlaceholderTest {
     }
 
     @Test
-    fun `resolveAllPlaceholders resolves version in body`() {
+    fun `resolveAllPlaceholders resolves numeric version as JSON number`() {
         val request = HttpRequest(
             method = HttpRequest.HttpMethod.PATCH,
             endpointUrl = "https://api.test.com/items",
@@ -272,7 +274,23 @@ class CrossServicePlaceholderTest {
         )
         val result = request.resolveAllPlaceholders(version = "3")
         assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
-        assertEquals("3", result.request.requestBody["version"]!!.toString().trim('"'))
+        val versionElement = result.request.requestBody["version"]!!.jsonPrimitive
+        assertFalse(versionElement.isString, "Numeric version should resolve to a JSON number, not a string")
+        assertEquals(3, versionElement.long)
+    }
+
+    @Test
+    fun `resolveAllPlaceholders resolves non-numeric version as JSON string`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.PATCH,
+            endpointUrl = "https://api.test.com/items",
+            requestBody = buildJsonObject { put("version", HttpRequest.VERSION_PLACEHOLDER) },
+        )
+        val result = request.resolveAllPlaceholders(version = "etag-abc-123")
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        val versionElement = result.request.requestBody["version"]!!.jsonPrimitive
+        assertTrue(versionElement.isString, "Non-numeric version should resolve to a JSON string")
+        assertEquals("etag-abc-123", versionElement.content)
     }
 
     @Test
@@ -351,7 +369,7 @@ class CrossServicePlaceholderTest {
         )
         assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
         assertEquals("https://api.test.com/items/server-42", result.request.endpointUrl)
-        assertEquals("5", result.request.requestBody["version"]!!.toString().trim('"'))
+        assertEquals(5, result.request.requestBody["version"]!!.jsonPrimitive.long)
         assertEquals("server-order-1", result.request.requestBody["order_id"]!!.toString().trim('"'))
     }
 

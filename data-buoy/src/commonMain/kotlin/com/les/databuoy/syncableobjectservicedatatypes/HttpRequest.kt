@@ -262,7 +262,15 @@ public class HttpRequest(
                 is JsonPrimitive -> {
                     if (el.isString && el.content.contains(placeholder)) {
                         replaced = true
-                        JsonPrimitive(el.content.replace(placeholder, replacement))
+                        if (el.content == placeholder) {
+                            // Exact match — try to preserve the most appropriate JSON type.
+                            replacement.toLongOrNull()?.let { JsonPrimitive(it) }
+                                ?: replacement.toDoubleOrNull()?.let { JsonPrimitive(it) }
+                                ?: JsonPrimitive(replacement)
+                        } else {
+                            // Substring match — keep as string (e.g., placeholder in a URL).
+                            JsonPrimitive(el.content.replace(placeholder, replacement))
+                        }
                     } else el
                 }
                 is JsonObject -> JsonObject(el.mapValues { (_, v) -> replaceIn(v) })
