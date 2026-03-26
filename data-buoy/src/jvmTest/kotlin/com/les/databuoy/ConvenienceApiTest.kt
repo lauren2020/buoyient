@@ -196,14 +196,14 @@ class ConvenienceApiTest {
         assertEquals(emptyList(), config.serviceHeaders)
     }
 
-    @Test(expected = IllegalStateException::class)
+    @Test(expected = IllegalArgumentException::class)
     fun `builder throws when fetch config is missing`() {
         ServerProcessingConfig.builder<TestItem>()
             .syncUp { _, _ -> SyncUpResult.Failed.RemovePendingRequest() }
             .build()
     }
 
-    @Test(expected = IllegalStateException::class)
+    @Test(expected = IllegalArgumentException::class)
     fun `builder throws when sync-up config is missing`() {
         ServerProcessingConfig.builder<TestItem>()
             .fetchWithGet("https://api.example.com/items", 300) { emptyList() }

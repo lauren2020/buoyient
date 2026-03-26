@@ -101,10 +101,10 @@ class ServiceCreationConventionsTest {
         )
         assertFileContains(
             "examples/todo/src/main/kotlin/com/les/databuoy/examples/todo/TodoServerProcessingConfig.kt",
-            ": ServerProcessingConfig<Todo>",
-            "override val syncFetchConfig",
-            "override val syncUpConfig",
-            "override val serviceHeaders",
+            "ServerProcessingConfig",
+            "fetchWithGet",
+            "syncUpFromUnpacker",
+            "serviceHeaders",
         )
         assertFileContains(
             "examples/todo/src/main/kotlin/com/les/databuoy/examples/todo/TodoService.kt",
