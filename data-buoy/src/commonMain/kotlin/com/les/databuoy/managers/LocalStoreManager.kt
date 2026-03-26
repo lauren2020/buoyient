@@ -781,6 +781,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             is PendingRequestQueueManager.RebasePendingRequestsResult.AbortedRebaseToConflicts -> {
                 database.syncDataQueries.markConflictAfterRebase(
                     sync_status = SyncableObject.SyncStatus.CONFLICT,
+                    server_id = updatedServerData.serverId,
                     last_synced_server_data = storageCodec.encodeForStorage(codec.encodeToString(updatedServerData)),
                     last_synced_timestamp = lastSyncedTimestamp,
                     service_name = serviceName,
@@ -902,6 +903,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         database.syncDataQueries.resolveConflict(
                             sync_status = updatedSyncStatus,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
+                            server_id = latestData.serverId ?: newServerBaseline.serverId,
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -958,6 +960,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     database.syncDataQueries.resolveConflict(
                         sync_status = SyncableObject.SyncStatus.SYNCED,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(entry.data)),
+                        server_id = serverId ?: entry.data.serverId,
                         service_name = serviceName,
                         client_id = clientId,
                     )
@@ -977,6 +980,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     database.syncDataQueries.resolveConflict(
                         sync_status = updatedSyncStatus,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
+                        server_id = serverId ?: latestData.serverId,
                         service_name = serviceName,
                         client_id = clientId,
                     )
@@ -1002,6 +1006,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         database.syncDataQueries.resolveConflict(
                             sync_status = SyncableObject.SyncStatus.SYNCED,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(entry.data)),
+                            server_id = serverId ?: entry.data.serverId,
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -1018,6 +1023,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         database.syncDataQueries.resolveConflict(
                             sync_status = updatedSyncStatus,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
+                            server_id = serverId ?: latestData.serverId,
                             service_name = serviceName,
                             client_id = clientId,
                         )

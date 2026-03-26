@@ -246,6 +246,7 @@ class ConflictResolutionTest {
         db.syncDataQueries.resolveConflict(
             sync_status = SyncableObject.SyncStatus.CONFLICT,
             data_blob = codec.encode(syncedItem).toString(),
+            server_id = "srv-1",
             service_name = "test",
             client_id = "c1",
         )
@@ -313,6 +314,7 @@ class ConflictResolutionTest {
         db.syncDataQueries.resolveConflict(
             sync_status = SyncableObject.SyncStatus.CONFLICT,
             data_blob = codec.encode(update).toString(),
+            server_id = "srv-1",
             service_name = "test",
             client_id = "c1",
         )
