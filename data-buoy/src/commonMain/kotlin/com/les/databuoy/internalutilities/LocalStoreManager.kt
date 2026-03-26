@@ -2,8 +2,8 @@ package com.les.databuoy.internalutilities
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
-import com.les.databuoy.DataBuoyStatus
-import com.les.databuoy.DatabaseOverride
+import com.les.databuoy.globalconfigs.DataBuoyStatus
+import com.les.databuoy.globalconfigs.DatabaseOverride
 import com.les.databuoy.serviceconfigs.EncryptionProvider
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
@@ -18,7 +18,7 @@ import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.sync.UpsertResult
-import com.les.databuoy.createSyncDatabase
+import com.les.databuoy.globalconfigs.createSyncDatabase
 import com.les.databuoy.db.SyncDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

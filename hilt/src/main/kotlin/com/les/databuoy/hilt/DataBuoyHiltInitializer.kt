@@ -2,11 +2,11 @@ package com.les.databuoy.hilt
 
 import android.content.Context
 import androidx.startup.Initializer
-import com.les.databuoy.DataBuoy
+import com.les.databuoy.globalconfigs.DataBuoy
 import com.les.databuoy.DataBuoyInitializer
 import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.SyncServiceRegistryProvider
-import com.les.databuoy.registerServiceProvider
+import com.les.databuoy.globalconfigs.registerServiceProvider
 import dagger.hilt.android.EntryPointAccessors
 
 /**

@@ -1,6 +1,6 @@
 package com.les.databuoy.internalutilities
 
-import com.les.databuoy.DataBuoyStatus
+import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.PendingSyncRequest

@@ -1,5 +1,6 @@
 package com.les.databuoy
 
+import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry
 import com.les.databuoy.internalutilities.ServerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

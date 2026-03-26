@@ -1,9 +1,9 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.DatabaseOverride
+import com.les.databuoy.globalconfigs.DatabaseOverride
 import com.les.databuoy.sync.SyncUpCoordinator
 import com.les.databuoy.SyncableObjectService
-import com.les.databuoy.createSyncDatabase
+import com.les.databuoy.globalconfigs.createSyncDatabase
 
 /**
  * Test helper that runs a single-service sync-up pass via [SyncUpCoordinator].

@@ -1,8 +1,8 @@
 package com.les.databuoy.internalutilities
 
-import com.les.databuoy.GlobalHeaderProvider
-import com.les.databuoy.GlobalHeaderProviderRegistry
-import com.les.databuoy.HttpClientOverride
+import com.les.databuoy.globalconfigs.GlobalHeaderProvider
+import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry
+import com.les.databuoy.globalconfigs.HttpClientOverride
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.utils.SyncLog
 import io.ktor.client.HttpClient

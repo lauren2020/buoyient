@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.globalconfigs
 
 /**
  * Provides headers that should be applied to every HTTP request made by data-buoy,

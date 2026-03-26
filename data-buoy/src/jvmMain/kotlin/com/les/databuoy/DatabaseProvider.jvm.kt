@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.globalconfigs
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.les.databuoy.db.SyncDatabase

@@ -1,6 +1,7 @@
-package com.les.databuoy
+package com.les.databuoy.globalconfigs
 
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.les.databuoy.DataBuoyPlatformContext
 import com.les.databuoy.db.SyncDatabase
 
 public actual fun createSyncDatabase(): SyncDatabase = DatabaseProvider.database

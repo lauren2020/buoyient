@@ -1,6 +1,9 @@
-package com.les.databuoy
+package com.les.databuoy.globalconfigs
 
 import android.content.Context
+import com.les.databuoy.SyncServiceRegistryProvider
+import com.les.databuoy.SyncWorker
+import com.les.databuoy.SyncableObjectService
 
 internal actual fun platformRegisterServices(services: Set<SyncableObjectService<*, *>>) {
     val drivers = services.map { it.syncDriver }

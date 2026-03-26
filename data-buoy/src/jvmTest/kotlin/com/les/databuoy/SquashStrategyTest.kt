@@ -1,5 +1,6 @@
 package com.les.databuoy
 
+import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy

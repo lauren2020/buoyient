@@ -1,12 +1,13 @@
-package com.les.databuoy
+package com.les.databuoy.globalconfigs
 
+import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.db.SyncDatabase
 import io.ktor.client.HttpClient
 
 /**
  * Main entry point for configuring data-buoy.
  *
- * Consumers register their [SyncableObjectService] instances for background sync via
+ * Consumers register their [com.les.databuoy.SyncableObjectService] instances for background sync via
  * [registerServices]. Platform-specific methods (e.g. `registerServiceProvider`
  * on Android, `syncNow` on iOS) are available as extension functions.
  *

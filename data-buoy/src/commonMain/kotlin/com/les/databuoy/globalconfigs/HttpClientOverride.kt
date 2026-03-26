@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.globalconfigs
 
 import io.ktor.client.HttpClient
 

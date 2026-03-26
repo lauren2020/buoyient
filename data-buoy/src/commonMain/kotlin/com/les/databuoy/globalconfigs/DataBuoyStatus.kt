@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.globalconfigs
 
 import com.les.databuoy.db.SyncDatabase
 import kotlinx.coroutines.flow.MutableStateFlow

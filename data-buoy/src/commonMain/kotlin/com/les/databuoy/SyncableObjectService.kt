@@ -93,7 +93,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
      * The sync engine that handles sync-down, sync-up, conflict resolution, and periodic
      * scheduling.
      *
-     * Register this with [DataBuoy.registerDrivers] or include it in your Hilt multibinding
+     * Register this with [com.les.databuoy.globalconfigs.DataBuoy.registerDrivers] or include it in your Hilt multibinding
      * set so background sync picks up pending requests for this service.
      */
     public val syncDriver: SyncDriver<O, T> = SyncDriver(

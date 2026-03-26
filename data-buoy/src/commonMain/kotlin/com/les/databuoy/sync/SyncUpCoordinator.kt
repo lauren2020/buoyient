@@ -1,6 +1,6 @@
 package com.les.databuoy.sync
 
-import com.les.databuoy.DataBuoyStatus
+import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.utils.SyncLog
 import com.les.databuoy.db.SyncDatabase
 

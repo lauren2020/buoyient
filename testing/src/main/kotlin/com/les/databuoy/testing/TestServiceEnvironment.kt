@@ -1,7 +1,7 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.DatabaseOverride
-import com.les.databuoy.HttpClientOverride
+import com.les.databuoy.globalconfigs.DatabaseOverride
+import com.les.databuoy.globalconfigs.HttpClientOverride
 import com.les.databuoy.utils.IdGenerator
 import com.les.databuoy.utils.SyncLog
 import com.les.databuoy.utils.SyncLogger
