@@ -46,7 +46,7 @@ afterEvaluate {
                 pom {
                     name.set("data-buoy-hilt")
                     description.set("Optional Hilt integration for data-buoy: auto-registers SyncableObjectService instances via @IntoSet multibinding.")
-                    url.set("https://github.com/les-corp/data-buoy")
+                    url.set("https://github.com/lauren2020/data-buoy")
                     licenses {
                         license {
                             name.set("The Apache License, Version 2.0")
@@ -54,7 +54,7 @@ afterEvaluate {
                         }
                     }
                     scm {
-                        url.set("https://github.com/les-corp/data-buoy")
+                        url.set("https://github.com/lauren2020/data-buoy")
                     }
                 }
             }
