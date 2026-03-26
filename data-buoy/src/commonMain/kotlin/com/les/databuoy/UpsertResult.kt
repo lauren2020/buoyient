@@ -1,7 +1,7 @@
 package com.les.databuoy
 
-sealed class UpsertResult {
-    object CleanUpsert : UpsertResult()
-    object MergedUpsert : UpsertResult()
-    object ConflictFailure : UpsertResult()
+public sealed class UpsertResult {
+    public object CleanUpsert : UpsertResult()
+    public object MergedUpsert : UpsertResult()
+    public object ConflictFailure : UpsertResult()
 }

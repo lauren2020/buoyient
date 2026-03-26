@@ -1,3 +1,3 @@
 package com.les.databuoy
 
-interface Service<T>
+public interface Service<T>

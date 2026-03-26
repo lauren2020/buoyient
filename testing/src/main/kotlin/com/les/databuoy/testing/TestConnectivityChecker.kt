@@ -13,8 +13,8 @@ import com.les.databuoy.ConnectivityChecker
  * // ... now operations will follow the offline path ...
  * ```
  */
-class TestConnectivityChecker(
-    var online: Boolean = true,
+public class TestConnectivityChecker(
+    public var online: Boolean = true,
 ) : ConnectivityChecker {
     override fun isOnline(): Boolean = online
 }

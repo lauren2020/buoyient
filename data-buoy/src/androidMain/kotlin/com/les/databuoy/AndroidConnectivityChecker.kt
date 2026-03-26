@@ -7,10 +7,10 @@ import android.net.NetworkCapabilities
 /**
  * Android implementation of [ConnectivityChecker] backed by [ConnectivityManager].
  */
-actual fun createPlatformConnectivityChecker(): ConnectivityChecker =
+public actual fun createPlatformConnectivityChecker(): ConnectivityChecker =
     AndroidConnectivityChecker(DataBuoyPlatformContext.appContext)
 
-class AndroidConnectivityChecker(private val context: Context) : ConnectivityChecker {
+public class AndroidConnectivityChecker(private val context: Context) : ConnectivityChecker {
 
     override fun isOnline(): Boolean {
         val connectivityManager =

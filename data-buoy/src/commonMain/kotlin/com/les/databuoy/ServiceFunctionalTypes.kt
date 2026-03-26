@@ -14,8 +14,8 @@ import kotlinx.serialization.json.jsonObject
  * @param attemptedServerRequest if a prior attempt was made to the server (e.g. timed out),
  *  this holds that request so the builder can account for idempotent retry concerns.
  */
-fun interface CreateRequestBuilder<O : SyncableObject<O>> {
-    fun buildRequest(
+public fun interface CreateRequestBuilder<O : SyncableObject<O>> {
+    public fun buildRequest(
         data: O,
         idempotencyKey: String,
         isOffline: Boolean,
@@ -35,8 +35,8 @@ fun interface CreateRequestBuilder<O : SyncableObject<O>> {
  * @param attemptedServerRequest if a prior attempt was made to the server (e.g. timed out),
  *  this holds that request so the builder can account for idempotent retry concerns.
  */
-fun interface UpdateRequestBuilder<O : SyncableObject<O>> {
-    fun buildRequest(
+public fun interface UpdateRequestBuilder<O : SyncableObject<O>> {
+    public fun buildRequest(
         lastSyncedData: O,
         updatedData: O,
         idempotencyKey: String,
@@ -53,8 +53,8 @@ fun interface UpdateRequestBuilder<O : SyncableObject<O>> {
  *  been attempted on the server — useful for building requests that account for partial
  *  server-side state.
  */
-fun interface VoidRequestBuilder<O : SyncableObject<O>> {
-    fun buildRequest(
+public fun interface VoidRequestBuilder<O : SyncableObject<O>> {
+    public fun buildRequest(
         data: O,
         serverAttemptedPendingRequests: List<PendingSyncRequest<O>>,
     ): HttpRequest
@@ -69,10 +69,10 @@ fun interface VoidRequestBuilder<O : SyncableObject<O>> {
  * @param syncStatus the sync status representing the state of the object after this operation.
  * @return the unpacked data, or null if the response does not contain valid data.
  */
-fun interface ResponseUnpacker<O : SyncableObject<O>> {
-    fun unpack(responseBody: JsonObject, statusCode: Int, syncStatus: SyncableObject.SyncStatus): O?
+public fun interface ResponseUnpacker<O : SyncableObject<O>> {
+    public fun unpack(responseBody: JsonObject, statusCode: Int, syncStatus: SyncableObject.SyncStatus): O?
 
-    companion object {
+    public companion object {
         private val json = Json { ignoreUnknownKeys = true }
 
         /**
@@ -82,7 +82,7 @@ fun interface ResponseUnpacker<O : SyncableObject<O>> {
          * @param key the top-level JSON key containing the object (e.g., "order", "item").
          * @param serializer the [KSerializer] for deserializing the object.
          */
-        fun <O : SyncableObject<O>> fromKey(
+        public fun <O : SyncableObject<O>> fromKey(
             key: String,
             serializer: KSerializer<O>,
         ): ResponseUnpacker<O> = ResponseUnpacker { responseBody, _, _ ->
@@ -100,7 +100,7 @@ fun interface ResponseUnpacker<O : SyncableObject<O>> {
          * @param keys the top-level JSON keys to try, in order (e.g., "order", "payment").
          * @param serializer the [KSerializer] for deserializing the object.
          */
-        fun <O : SyncableObject<O>> fromKeys(
+        public fun <O : SyncableObject<O>> fromKeys(
             keys: List<String>,
             serializer: KSerializer<O>,
         ): ResponseUnpacker<O> = ResponseUnpacker { responseBody, _, _ ->
@@ -122,6 +122,6 @@ fun interface ResponseUnpacker<O : SyncableObject<O>> {
  * @param updateRequest the new update request to merge into the create.
  * @return a single merged HTTP request that represents both operations.
  */
-fun interface SquashRequestMerger {
-    fun merge(createRequest: HttpRequest, updateRequest: HttpRequest): HttpRequest
+public fun interface SquashRequestMerger {
+    public fun merge(createRequest: HttpRequest, updateRequest: HttpRequest): HttpRequest
 }

@@ -1,9 +1,9 @@
 package com.les.databuoy
 
-sealed class ResolveConflictResult<O : SyncableObject<O>> {
-    class Resolved<O : SyncableObject<O>>(val resolvedData: O) : ResolveConflictResult<O>()
-    class RebaseConflict<O : SyncableObject<O>>(
-        val conflict: SyncableObjectRebaseHandler.FieldConflict<O>,
+public sealed class ResolveConflictResult<O : SyncableObject<O>> {
+    public class Resolved<O : SyncableObject<O>>(public val resolvedData: O) : ResolveConflictResult<O>()
+    public class RebaseConflict<O : SyncableObject<O>>(
+        public val conflict: SyncableObjectRebaseHandler.FieldConflict<O>,
     ) : ResolveConflictResult<O>()
-    class Failed<O : SyncableObject<O>>(val exception: Exception) : ResolveConflictResult<O>()
+    public class Failed<O : SyncableObject<O>>(public val exception: Exception) : ResolveConflictResult<O>()
 }

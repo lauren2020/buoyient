@@ -6,11 +6,11 @@ import kotlinx.serialization.json.JsonObject
 /**
  * A recorded HTTP request captured by [MockEndpointRouter] for later inspection.
  */
-data class RecordedRequest(
-    val method: HttpRequest.HttpMethod,
-    val url: String,
-    val body: JsonObject,
-    val headers: Map<String, String>,
+public data class RecordedRequest(
+    public val method: HttpRequest.HttpMethod,
+    public val url: String,
+    public val body: JsonObject,
+    public val headers: Map<String, String>,
 )
 
 /**
@@ -20,10 +20,10 @@ data class RecordedRequest(
  * @property body the JSON response body.
  * @property epochTimestamp the response timestamp in epoch seconds. Defaults to the current time.
  */
-data class MockResponse(
-    val statusCode: Int,
-    val body: JsonObject,
-    val epochTimestamp: Long = System.currentTimeMillis() / 1000,
+public data class MockResponse(
+    public val statusCode: Int,
+    public val body: JsonObject,
+    public val epochTimestamp: Long = System.currentTimeMillis() / 1000,
 )
 
 /**
@@ -36,8 +36,8 @@ data class MockResponse(
  * }
  * ```
  */
-fun interface MockRequestHandler {
-    fun handle(request: RecordedRequest): MockResponse
+public fun interface MockRequestHandler {
+    public fun handle(request: RecordedRequest): MockResponse
 }
 
 /**
@@ -45,7 +45,7 @@ fun interface MockRequestHandler {
  * The [MockEndpointRouter] will translate this into a
  * [ServerManager.ServerManagerResponse.ConnectionError].
  */
-class MockConnectionException(
+public class MockConnectionException(
     message: String = "Simulated connection error",
 ) : Exception(message)
 
@@ -54,6 +54,6 @@ class MockConnectionException(
  * The [MockEndpointRouter] will translate this into a
  * [ServerManager.ServerManagerResponse.RequestTimedOut].
  */
-class MockTimeoutException(
+public class MockTimeoutException(
     message: String = "Simulated request timeout",
 ) : Exception(message)

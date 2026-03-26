@@ -22,7 +22,7 @@ import kotlinx.serialization.json.put
  *
  * Scheduled by [AndroidBackgroundRequestScheduler].
  */
-class VoidByIdempotencyKeyWorker(
+public class VoidByIdempotencyKeyWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
@@ -77,16 +77,16 @@ class VoidByIdempotencyKeyWorker(
         }
     }
 
-    companion object {
-        const val TAG = "VoidByIdempotencyKeyWorker"
-        const val KEY_REQUEST_JSON = "request_json"
-        const val KEY_HEADERS_JSON = "headers_json"
+    public companion object {
+        public const val TAG: String = "VoidByIdempotencyKeyWorker"
+        public const val KEY_REQUEST_JSON: String = "request_json"
+        public const val KEY_HEADERS_JSON: String = "headers_json"
         private const val MAX_RETRIES = 5
 
         private const val HEADER_NAME_TAG = "name"
         private const val HEADER_VALUE_TAG = "value"
 
-        fun serializeHeaders(headers: List<Pair<String, String>>): String {
+        public fun serializeHeaders(headers: List<Pair<String, String>>): String {
             val array = JsonArray(headers.map { (name, value) ->
                 buildJsonObject {
                     put(HEADER_NAME_TAG, name)
@@ -96,7 +96,7 @@ class VoidByIdempotencyKeyWorker(
             return array.toString()
         }
 
-        fun deserializeHeaders(json: String): List<Pair<String, String>> {
+        public fun deserializeHeaders(json: String): List<Pair<String, String>> {
             return Json.parseToJsonElement(json).jsonArray.map { element ->
                 val obj = element.jsonObject
                 obj[HEADER_NAME_TAG]!!.jsonPrimitive.content to obj[HEADER_VALUE_TAG]!!.jsonPrimitive.content

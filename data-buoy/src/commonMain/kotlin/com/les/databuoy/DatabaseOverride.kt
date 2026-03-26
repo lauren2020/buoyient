@@ -9,7 +9,7 @@ import com.les.databuoy.db.SyncDatabase
  * Set via [DataBuoy.database] for custom database configurations or by
  * [TestServiceEnvironment] for integration tests (in-memory database isolation).
  */
-object DatabaseOverride {
+public object DatabaseOverride {
     @Volatile
-    var database: SyncDatabase? = null
+    public var database: SyncDatabase? = null
 }

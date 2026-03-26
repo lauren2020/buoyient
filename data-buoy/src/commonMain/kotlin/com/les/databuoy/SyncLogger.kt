@@ -6,14 +6,14 @@ package com.les.databuoy
  * Implementations map to the host platform's logging facility
  * (e.g., `android.util.Log` on Android, `NSLog`/`os_log` on iOS).
  */
-interface SyncLogger {
-    fun d(tag: String, message: String)
-    fun w(tag: String, message: String)
-    fun e(tag: String, message: String, throwable: Throwable? = null)
+public interface SyncLogger {
+    public fun d(tag: String, message: String)
+    public fun w(tag: String, message: String)
+    public fun e(tag: String, message: String, throwable: Throwable? = null)
 }
 
 /**
  * Returns the platform-specific [SyncLogger] implementation.
  * On Android this delegates to `android.util.Log`; on iOS to `println`.
  */
-expect fun createPlatformSyncLogger(): SyncLogger
+public expect fun createPlatformSyncLogger(): SyncLogger

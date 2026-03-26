@@ -2,22 +2,22 @@ package com.les.databuoy
 
 import kotlinx.serialization.json.JsonObject
 
-sealed class SyncUpResult<O : SyncableObject<O>> {
-    abstract val data: O?
+public sealed class SyncUpResult<O : SyncableObject<O>> {
+    public abstract val data: O?
 
-    class Success<O : SyncableObject<O>>(override val data: O) : SyncUpResult<O>()
-    sealed class Failed<O : SyncableObject<O>> : SyncUpResult<O>() {
+    public class Success<O : SyncableObject<O>>(override val data: O) : SyncUpResult<O>()
+    public sealed class Failed<O : SyncableObject<O>> : SyncUpResult<O>() {
         override val data: O? = null
 
         /** The pending request should be retried on the next sync cycle. */
-        class Retry<O : SyncableObject<O>> : Failed<O>()
+        public class Retry<O : SyncableObject<O>> : Failed<O>()
         /** The pending request should be removed from the queue (e.g., permanently rejected by the server). */
-        class RemovePendingRequest<O : SyncableObject<O>> : Failed<O>()
+        public class RemovePendingRequest<O : SyncableObject<O>> : Failed<O>()
     }
 }
 
-abstract class SyncUpConfig<O : SyncableObject<O>> {
-    open fun acceptUploadResponseAsProcessed(
+public abstract class SyncUpConfig<O : SyncableObject<O>> {
+    public open fun acceptUploadResponseAsProcessed(
         statusCode: Int,
         responseBody: JsonObject,
         requestTag: String,
@@ -45,9 +45,9 @@ abstract class SyncUpConfig<O : SyncableObject<O>> {
      *         [SyncUpResult.Failed.Retry] to leave the pending request in the queue for a future attempt, or
      *         [SyncUpResult.Failed.RemovePendingRequest] to remove it from the queue (e.g., permanently rejected).
      */
-    abstract fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<O>
+    public abstract fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<O>
 
-    companion object {
+    public companion object {
         /**
          * Creates a [SyncUpConfig] that delegates response parsing to a [ResponseUnpacker].
          * The unpacker's result is wrapped in [SyncUpResult.Success] if non-null, or
@@ -57,7 +57,7 @@ abstract class SyncUpConfig<O : SyncableObject<O>> {
          * This is useful when your synchronous [ResponseUnpacker] and async sync-up
          * parsing logic are identical, allowing you to define the parsing once.
          */
-        fun <O : SyncableObject<O>> fromUnpacker(
+        public fun <O : SyncableObject<O>> fromUnpacker(
             unpacker: ResponseUnpacker<O>,
         ): SyncUpConfig<O> = object : SyncUpConfig<O>() {
             override fun fromResponseBody(

@@ -14,7 +14,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
-class ServerManager(
+public class ServerManager(
     private val serviceBaseHeaders: List<Pair<String, String>>,
     private val globalHeaderProvider: GlobalHeaderProvider? = GlobalHeaderProviderRegistry.provider,
     private val httpClient: HttpClient = HttpClientOverride.httpClient ?: HttpClient {
@@ -25,11 +25,11 @@ class ServerManager(
         }
     },
 ) {
-    fun close() {
+    public fun close() {
         httpClient.close()
     }
 
-    suspend fun sendRequest(
+    public suspend fun sendRequest(
         httpRequest: HttpRequest,
     ): ServerManagerResponse {
         return try {
@@ -79,7 +79,7 @@ class ServerManager(
         }
     }
 
-    sealed class ServerManagerResponse {
+    public sealed class ServerManagerResponse {
         /**
          * A request was sent and the server returned a 2xx status code.
          *
@@ -87,10 +87,10 @@ class ServerManager(
          * @property responseBody - the json response body from the server.
          * @property responseEpochTimestamp - the time in epoch seconds that the response was started.
          */
-        class Success(
-            val statusCode: Int,
-            val responseBody: JsonObject,
-            val responseEpochTimestamp: Long,
+        public class Success(
+            public val statusCode: Int,
+            public val responseBody: JsonObject,
+            public val responseEpochTimestamp: Long,
         ) : ServerManagerResponse()
 
         /**
@@ -100,9 +100,9 @@ class ServerManager(
          * @property statusCode - the status code of the server response.
          * @property responseBody - the json response body from the server.
          */
-        class Failed(
-            val statusCode: Int,
-            val responseBody: JsonObject,
+        public class Failed(
+            public val statusCode: Int,
+            public val responseBody: JsonObject,
         ) : ServerManagerResponse()
 
         /**
@@ -112,23 +112,23 @@ class ServerManager(
          * @property statusCode - the 5xx status code of the server response.
          * @property responseBody - the json response body from the server, if any.
          */
-        class ServerError(
-            val statusCode: Int,
-            val responseBody: JsonObject,
+        public class ServerError(
+            public val statusCode: Int,
+            public val responseBody: JsonObject,
         ) : ServerManagerResponse()
 
         /**
          * A request was attempted but timed out before a response was received.
          */
-        object RequestTimedOut : ServerManagerResponse()
+        public object RequestTimedOut : ServerManagerResponse()
 
         /**
          * A request was not attempted due to connectivity failure.
          */
-        object ConnectionError : ServerManagerResponse()
+        public object ConnectionError : ServerManagerResponse()
     }
 
-    companion object {
-        const val TAG = "SyncableObjectService:HttpManager"
+    public companion object {
+        public const val TAG: String = "SyncableObjectService:HttpManager"
     }
 }

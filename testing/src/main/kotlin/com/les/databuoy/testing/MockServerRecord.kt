@@ -22,14 +22,14 @@ import kotlinx.serialization.json.put
  * @property updatedAt epoch seconds when the record was last modified. Used by
  *   [MockServerCollection.getUpdatedSince] for delta sync-down filtering.
  */
-data class MockServerRecord(
-    val serverId: String,
-    val clientId: String?,
-    val version: Int,
-    val data: JsonObject,
-    val voided: Boolean = false,
-    val createdAt: Long,
-    val updatedAt: Long,
+public data class MockServerRecord(
+    public val serverId: String,
+    public val clientId: String?,
+    public val version: Int,
+    public val data: JsonObject,
+    public val voided: Boolean = false,
+    public val createdAt: Long,
+    public val updatedAt: Long,
 )
 
 /**
@@ -48,7 +48,7 @@ data class MockServerRecord(
  * }
  * ```
  */
-fun MockServerRecord.toJsonObject(): JsonObject = buildJsonObject {
+public fun MockServerRecord.toJsonObject(): JsonObject = buildJsonObject {
     put("server_id", serverId)
     clientId?.let { put("client_id", it) }
     put("version", version)

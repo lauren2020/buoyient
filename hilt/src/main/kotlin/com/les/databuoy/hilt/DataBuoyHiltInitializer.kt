@@ -23,7 +23,7 @@ import dagger.hilt.android.EntryPointAccessors
  * [com.les.databuoy.SyncWorker] actually runs — at which point the
  * application is fully initialized and Hilt's component graph is available.
  */
-class DataBuoyHiltInitializer : Initializer<Unit> {
+public class DataBuoyHiltInitializer : Initializer<Unit> {
 
     override fun create(context: Context) {
         // Register a lazy provider — drivers are resolved from Hilt only

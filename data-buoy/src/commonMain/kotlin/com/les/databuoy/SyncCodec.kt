@@ -11,23 +11,23 @@ import kotlinx.serialization.json.jsonObject
  * threaded through the internal classes, replacing per-class [Json] instances
  * and duplicate encode/decode helpers.
  */
-class SyncCodec<O : SyncableObject<O>>(
-    val serializer: KSerializer<O>,
+public class SyncCodec<O : SyncableObject<O>>(
+    public val serializer: KSerializer<O>,
 ) {
-    val json = Json {
+    public val json: Json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
 
-    fun encode(obj: O): JsonObject =
+    public fun encode(obj: O): JsonObject =
         json.encodeToJsonElement(serializer, obj).jsonObject
 
-    fun encodeToString(obj: O): String =
+    public fun encodeToString(obj: O): String =
         encode(obj).toString()
 
-    fun decode(jsonObject: JsonObject, syncStatus: SyncableObject.SyncStatus): O =
+    public fun decode(jsonObject: JsonObject, syncStatus: SyncableObject.SyncStatus): O =
         json.decodeFromJsonElement(serializer, jsonObject).withSyncStatus(syncStatus)
 
-    fun decode(jsonString: String, syncStatus: SyncableObject.SyncStatus): O =
+    public fun decode(jsonString: String, syncStatus: SyncableObject.SyncStatus): O =
         json.decodeFromString(serializer, jsonString).withSyncStatus(syncStatus)
 }

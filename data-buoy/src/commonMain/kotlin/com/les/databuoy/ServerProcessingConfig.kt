@@ -2,17 +2,17 @@ package com.les.databuoy
 
 import kotlinx.serialization.json.JsonObject
 
-interface ServerProcessingConfig<O : SyncableObject<O>> {
+public interface ServerProcessingConfig<O : SyncableObject<O>> {
     /**
      * The configuration for how syncing server data down and upserting it to the local store
      * should be handled.
      */
-    val syncFetchConfig: SyncFetchConfig<O>
+    public val syncFetchConfig: SyncFetchConfig<O>
 
     /**
      * The configuration for how syncing local data up to the server should be handled.
      */
-    val syncUpConfig: SyncUpConfig<O>
+    public val syncUpConfig: SyncUpConfig<O>
 
     /**
      * Headers specific to this service, applied to every request it makes.
@@ -21,9 +21,9 @@ interface ServerProcessingConfig<O : SyncableObject<O>> {
      * At request time, headers are merged in order: global provider headers, then these
      * service headers, then per-request additional headers.
      */
-    val serviceHeaders: List<Pair<String, String>>
+    public val serviceHeaders: List<Pair<String, String>>
 
-    companion object {
+    public companion object {
         /**
          * Creates a [Builder] for constructing a [ServerProcessingConfig] with a fluent API.
          *
@@ -40,10 +40,10 @@ interface ServerProcessingConfig<O : SyncableObject<O>> {
          *     .build()
          * ```
          */
-        fun <O : SyncableObject<O>> builder(): Builder<O> = Builder()
+        public fun <O : SyncableObject<O>> builder(): Builder<O> = Builder()
     }
 
-    class Builder<O : SyncableObject<O>> internal constructor() {
+    public class Builder<O : SyncableObject<O>> internal constructor() {
         private var fetchConfig: SyncFetchConfig<O>? = null
         private var upConfig: SyncUpConfig<O>? = null
         private var headers: List<Pair<String, String>> = emptyList()
@@ -55,7 +55,7 @@ interface ServerProcessingConfig<O : SyncableObject<O>> {
          * @param syncCadenceSeconds how often (in seconds) to sync down.
          * @param transformResponse extracts a list of [O] from the raw JSON response.
          */
-        fun fetchWithGet(
+        public fun fetchWithGet(
             endpoint: String,
             syncCadenceSeconds: Long,
             transformResponse: (JsonObject) -> List<O>,
@@ -71,7 +71,7 @@ interface ServerProcessingConfig<O : SyncableObject<O>> {
          * @param syncCadenceSeconds how often (in seconds) to sync down.
          * @param transformResponse extracts a list of [O] from the raw JSON response.
          */
-        fun fetchWithPost(
+        public fun fetchWithPost(
             endpoint: String,
             requestBody: JsonObject,
             syncCadenceSeconds: Long,
@@ -86,7 +86,7 @@ interface ServerProcessingConfig<O : SyncableObject<O>> {
          * @param fromResponseBody a function that extracts [O] from a sync-up response,
          *  given the request tag and raw JSON response body.
          */
-        fun syncUp(
+        public fun syncUp(
             fromResponseBody: (requestTag: String, responseBody: JsonObject) -> SyncUpResult<O>,
         ): Builder<O> = apply {
             upConfig = object : SyncUpConfig<O>() {
@@ -102,14 +102,14 @@ interface ServerProcessingConfig<O : SyncableObject<O>> {
          *
          * @param unpacker the [ResponseUnpacker] to delegate to.
          */
-        fun syncUpFromUnpacker(unpacker: ResponseUnpacker<O>): Builder<O> = apply {
+        public fun syncUpFromUnpacker(unpacker: ResponseUnpacker<O>): Builder<O> = apply {
             upConfig = SyncUpConfig.fromUnpacker(unpacker)
         }
 
         /**
          * Sets per-service headers applied to every request this service makes.
          */
-        fun serviceHeaders(vararg headers: Pair<String, String>): Builder<O> = apply {
+        public fun serviceHeaders(vararg headers: Pair<String, String>): Builder<O> = apply {
             this.headers = headers.toList()
         }
 
@@ -119,7 +119,7 @@ interface ServerProcessingConfig<O : SyncableObject<O>> {
          *
          * @throws IllegalStateException if fetch or sync-up config is missing.
          */
-        fun build(): ServerProcessingConfig<O> {
+        public fun build(): ServerProcessingConfig<O> {
             val fetch = requireNotNull(fetchConfig) {
                 "ServerProcessingConfig.Builder requires a fetch config. Call fetchWithGet() or fetchWithPost()."
             }

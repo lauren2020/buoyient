@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
  * Call [scheduleSyncIfNeeded] whenever offline data is stored so that
  * a background sync is attempted as soon as connectivity returns.
  */
-object SyncScheduler {
+public object SyncScheduler {
 
     private const val TAG = "SyncScheduler"
 
@@ -27,7 +27,7 @@ object SyncScheduler {
      * Uses [ExistingWorkPolicy.KEEP] so that multiple offline writes
      * do not duplicate enqueued work — only one sync pass is needed.
      */
-    fun scheduleSyncIfNeeded(context: Context) {
+    public fun scheduleSyncIfNeeded(context: Context) {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()

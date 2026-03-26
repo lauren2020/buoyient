@@ -24,6 +24,6 @@ internal actual fun platformRegisterServices(services: Set<SyncableObjectService
  * })
  * ```
  */
-fun DataBuoy.registerServiceProvider(provider: SyncServiceRegistryProvider) {
+public fun DataBuoy.registerServiceProvider(provider: SyncServiceRegistryProvider) {
     SyncWorker.registerServiceProvider(provider)
 }

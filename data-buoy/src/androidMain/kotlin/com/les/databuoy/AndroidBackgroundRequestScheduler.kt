@@ -10,10 +10,10 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 
-actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler =
+public actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler =
     AndroidBackgroundRequestScheduler(DataBuoyPlatformContext.appContext)
 
-class AndroidBackgroundRequestScheduler(private val context: Context) : BackgroundRequestScheduler {
+public class AndroidBackgroundRequestScheduler(private val context: Context) : BackgroundRequestScheduler {
 
     override fun scheduleRequest(
         httpRequest: HttpRequest,
@@ -43,7 +43,7 @@ class AndroidBackgroundRequestScheduler(private val context: Context) : Backgrou
         Log.d(TAG, "Void-by-idempotency-key work enqueued")
     }
 
-    companion object {
+    public companion object {
         private const val TAG = "BackgroundRequestScheduler"
     }
 }

@@ -16,14 +16,14 @@ import androidx.work.WorkerParameters
  * The app module must register a [SyncServiceRegistryProvider] via
  * [registerServiceProvider] so the worker knows which drivers to sync.
  */
-class SyncWorker(
+public class SyncWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
 
-    companion object {
-        const val TAG = "SyncWorker"
-        const val UNIQUE_WORK_NAME = "offline_sync_work"
+    public companion object {
+        public const val TAG: String = "SyncWorker"
+        public const val UNIQUE_WORK_NAME: String = "offline_sync_work"
 
         @Volatile
         private var serviceProvider: SyncServiceRegistryProvider? = null
@@ -33,7 +33,7 @@ class SyncWorker(
          * can create the correct driver instances at sync time.
          * Call this once during app startup (e.g. in Application.onCreate).
          */
-        fun registerServiceProvider(provider: SyncServiceRegistryProvider) {
+        public fun registerServiceProvider(provider: SyncServiceRegistryProvider) {
             serviceProvider = provider
         }
     }

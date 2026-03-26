@@ -8,25 +8,25 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * Observable, app-wide view of pending sync health across every registered service.
  */
-class DataBuoyStatus(
+public class DataBuoyStatus(
     private val database: SyncDatabase = createSyncDatabase(),
 ) {
     private val _hasPendingConflicts = MutableStateFlow(false)
-    val hasPendingConflicts: StateFlow<Boolean> = _hasPendingConflicts.asStateFlow()
+    public val hasPendingConflicts: StateFlow<Boolean> = _hasPendingConflicts.asStateFlow()
 
     private val _pendingRequestCount = MutableStateFlow(0)
-    val pendingRequestCount: StateFlow<Int> = _pendingRequestCount.asStateFlow()
+    public val pendingRequestCount: StateFlow<Int> = _pendingRequestCount.asStateFlow()
 
     init {
         refresh()
     }
 
-    fun refresh() {
+    public fun refresh() {
         _hasPendingConflicts.value = database.syncPendingEventsQueries.hasAnyConflicts().executeAsOne()
         _pendingRequestCount.value = database.syncPendingEventsQueries.getPendingRequestCount().executeAsOne().toInt()
     }
 
-    companion object {
-        val shared: DataBuoyStatus by lazy { DataBuoyStatus() }
+    public companion object {
+        public val shared: DataBuoyStatus by lazy { DataBuoyStatus() }
     }
 }

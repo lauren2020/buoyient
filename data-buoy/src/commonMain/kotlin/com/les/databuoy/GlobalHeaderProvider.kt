@@ -15,8 +15,8 @@ package com.les.databuoy
  * }
  * ```
  */
-fun interface GlobalHeaderProvider {
-    fun headers(): List<Pair<String, String>>
+public fun interface GlobalHeaderProvider {
+    public fun headers(): List<Pair<String, String>>
 }
 
 /**
@@ -25,6 +25,6 @@ fun interface GlobalHeaderProvider {
  * This is the common (KMP) backing store. Platform-specific [DataBuoy] objects
  * delegate to this registry.
  */
-object GlobalHeaderProviderRegistry {
-    var provider: GlobalHeaderProvider? = null
+public object GlobalHeaderProviderRegistry {
+    public var provider: GlobalHeaderProvider? = null
 }

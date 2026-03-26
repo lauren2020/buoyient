@@ -10,7 +10,7 @@ import com.les.databuoy.db.SyncDatabase
  * queries the global pending-request queue and dispatches each entry to
  * the correct driver by [SyncDriver.serviceName].
  */
-class SyncUpCoordinator(
+public class SyncUpCoordinator(
     private val drivers: List<SyncDriver<*, *>>,
     private val database: SyncDatabase,
     private val status: DataBuoyStatus = DataBuoyStatus(database),
@@ -21,7 +21,7 @@ class SyncUpCoordinator(
      *
      * @return the total number of requests that were successfully synced.
      */
-    suspend fun syncUpAll(): Int {
+    public suspend fun syncUpAll(): Int {
         try {
             SyncLog.d(TAG, "Starting global sync up across ${drivers.size} services...")
 
@@ -71,7 +71,7 @@ class SyncUpCoordinator(
         }
     }
 
-    companion object {
-        private const val TAG = "SyncUpCoordinator"
+    private companion object {
+        private const val TAG: String = "SyncUpCoordinator"
     }
 }

@@ -31,8 +31,8 @@ import dagger.hilt.components.SingletonComponent
  */
 @EntryPoint
 @InstallIn(SingletonComponent::class)
-interface DataBuoyEntryPoint {
-    fun syncDrivers(): Set<@JvmSuppressWildcards SyncDriver<*, *>>
+public interface DataBuoyEntryPoint {
+    public fun syncDrivers(): Set<@JvmSuppressWildcards SyncDriver<*, *>>
 }
 
 /**
@@ -43,7 +43,7 @@ interface DataBuoyEntryPoint {
  */
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class DataBuoyMultibindsModule {
+public abstract class DataBuoyMultibindsModule {
     @Multibinds
-    abstract fun syncDrivers(): Set<@JvmSuppressWildcards SyncDriver<*, *>>
+    public abstract fun syncDrivers(): Set<@JvmSuppressWildcards SyncDriver<*, *>>
 }

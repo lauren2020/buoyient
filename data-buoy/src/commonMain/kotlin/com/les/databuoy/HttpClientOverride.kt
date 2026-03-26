@@ -9,7 +9,7 @@ import io.ktor.client.HttpClient
  * Set via [DataBuoy.httpClient] for mock mode or by [TestServiceEnvironment]
  * for integration tests.
  */
-object HttpClientOverride {
+public object HttpClientOverride {
     @Volatile
-    var httpClient: HttpClient? = null
+    public var httpClient: HttpClient? = null
 }

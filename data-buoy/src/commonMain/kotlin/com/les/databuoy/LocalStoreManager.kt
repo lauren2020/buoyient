@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlin.jvm.Throws
 
-class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
+internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val database: SyncDatabase = DatabaseOverride.database ?: createSyncDatabase(),
     private val serviceName: String,
     private val syncScheduleNotifier: SyncScheduleNotifier,
@@ -88,10 +88,10 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         else -> throw QueueWriteException(queueResult)
     }
 
-    fun hasPendingRequests(clientId: String): Boolean =
+    internal fun hasPendingRequests(clientId: String): Boolean =
         pendingRequestQueueManager.hasPendingRequests(clientId)
 
-    fun getEffectiveUpdateContext(updatedData: O): UpdateContext<O> {
+    internal fun getEffectiveUpdateContext(updatedData: O): UpdateContext<O> {
         try {
             val pendingRequests = pendingRequestQueueManager.getPendingRequests(updatedData.clientId)
             val latestPendingRequest = pendingRequests.lastOrNull()
@@ -139,34 +139,34 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    sealed class UpdateContext<O : SyncableObject<O>> {
-        sealed class ValidUpdate<O : SyncableObject<O>>(
-            val baseData: O,
-            val hasPendingRequests: Boolean,
+    internal sealed class UpdateContext<O : SyncableObject<O>> {
+        internal sealed class ValidUpdate<O : SyncableObject<O>>(
+            internal val baseData: O,
+            internal val hasPendingRequests: Boolean,
         ) : UpdateContext<O>() {
-            sealed class Queue<O : SyncableObject<O>>(
+            internal sealed class Queue<O : SyncableObject<O>>(
                 baseData: O,
                 hasPendingRequests: Boolean,
             ) : ValidUpdate<O>(baseData, hasPendingRequests) {
-                class Preferred<O : SyncableObject<O>>(
+                internal class Preferred<O : SyncableObject<O>>(
                     baseData: O,
                     hasPendingRequests: Boolean,
                 ) : Queue<O>(baseData, hasPendingRequests)
 
-                class ForcedAfterServerAttempt<O : SyncableObject<O>>(
+                internal class ForcedAfterServerAttempt<O : SyncableObject<O>>(
                     baseData: O,
                     hasPendingRequests: Boolean,
                 ) : Queue<O>(baseData, hasPendingRequests)
             }
 
-            class Squash<O : SyncableObject<O>>(
+            internal class Squash<O : SyncableObject<O>>(
                 baseData: O,
                 hasPendingRequests: Boolean,
-                val squashUpdateIntoCreate: SquashRequestMerger,
+                internal val squashUpdateIntoCreate: SquashRequestMerger,
             ) : ValidUpdate<O>(baseData, hasPendingRequests)
         }
 
-        class InvalidState<O : SyncableObject<O>> : UpdateContext<O>()
+        internal class InvalidState<O : SyncableObject<O>> : UpdateContext<O>()
     }
 
     /**
@@ -178,7 +178,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * - **LocalOnly / PendingVoid / Conflict / not found** → throws, because an update is
      *   not valid in those states.
      */
-    fun getEffectiveBaseDataForUpdate(
+    internal fun getEffectiveBaseDataForUpdate(
         data: O,
         effectiveStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy,
     ): O {
@@ -227,7 +227,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * is already cheap and idempotent (Android uses [ExistingWorkPolicy.KEEP]).
      * An extra no-op enqueue is cheaper than a DB query to check first.
      */
-    fun scheduleSyncUp() {
+    internal fun scheduleSyncUp() {
         syncScheduleNotifier.scheduleSyncIfNeeded()
     }
 
@@ -235,7 +235,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         status.refresh()
     }
 
-    fun close() {
+    internal fun close() {
         // No-op: the database is application-scoped and outlives any
         // individual service instance. Android tears down the connection
         // when the process is destroyed.
@@ -244,7 +244,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     /**
      * Queue up a CREATE request to be processed async.
      */
-    fun insertLocalData(
+    internal fun insertLocalData(
         data: O,
         httpRequest: HttpRequest,
         idempotencyKey: String,
@@ -289,7 +289,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * Persist the data back from the server after processing a CREATE request synchronously with
      * the server while online.
      */
-    fun insertFromServerResponse(
+    internal fun insertFromServerResponse(
         serverData: O,
         responseTimestamp: String,
     ) {
@@ -314,7 +314,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     /**
      * Queue up an UPDATE request to be processed async.
      */
-    fun updateLocalData(
+    internal fun updateLocalData(
         data: O,
         idempotencyKey: String,
         updateRequest: HttpRequest,
@@ -357,7 +357,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * Persist the data back from the server after processing an UPDATE request synchronously with
      * the server while online.
      */
-    fun upsertFromServerResponse(serverData: O, responseTimestamp: String) {
+    internal fun upsertFromServerResponse(serverData: O, responseTimestamp: String) {
         try {
             val serverDataJson = codec.encodeToString(serverData)
             val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
@@ -375,7 +375,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    fun upsertEntry(
+    internal fun upsertEntry(
         serverObj: O,
         syncedAtTimestamp: String,
         clientId: String,
@@ -394,7 +394,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         )
     }
 
-    fun voidData(
+    internal fun voidData(
         data: O,
         httpRequest: HttpRequest,
         idempotencyKey: String,
@@ -429,7 +429,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    fun upsertFromVoidServerResponse(serverData: O, responseTimestamp: String) {
+    internal fun upsertFromVoidServerResponse(serverData: O, responseTimestamp: String) {
         try {
             val serverDataJson = codec.encodeToString(serverData)
             val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
@@ -448,7 +448,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     }
 
     @Throws
-    fun voidLocalOnlyData(data: O): O {
+    internal fun voidLocalOnlyData(data: O): O {
         val jsonData = codec.encode(data)
         transaction {
             database.syncDataQueries.voidLocalOnly(
@@ -517,7 +517,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    fun getData(clientId: String, serverId: String?): LocalStoreEntry<O>? {
+    internal fun getData(clientId: String, serverId: String?): LocalStoreEntry<O>? {
         val rows = database.syncDataQueries.getData(
             service_name = serviceName,
             client_id = clientId,
@@ -550,7 +550,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         )
     }
 
-    fun getAllData(limit: Int): List<LocalStoreEntry<O>> {
+    internal fun getAllData(limit: Int): List<LocalStoreEntry<O>> {
         val rows = database.syncDataQueries.getAllData(
             service_name = serviceName,
             limit = limit.toLong(),
@@ -586,7 +586,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * service whenever the underlying database table changes. Backed by SQLDelight's
      * query-observation mechanism.
      */
-    fun getAllDataAsFlow(limit: Int): Flow<List<LocalStoreEntry<O>>> {
+    internal fun getAllDataAsFlow(limit: Int): Flow<List<LocalStoreEntry<O>>> {
         return database.syncDataQueries.getAllData(
             service_name = serviceName,
             limit = limit.toLong(),
@@ -622,7 +622,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * locally, we need to upsert that new server data into the local store and rebase any
      * potential pending upload requests.
      */
-    fun upsertSyncDownResponseData(
+    internal fun upsertSyncDownResponseData(
         clientId: String,
         lastSyncedTimestamp: String,
         updatedServerData: O,
@@ -656,7 +656,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * local data store and all pending sync requests need to be rebased on that updated server
      * data. This function handles that.
      */
-    fun upsertPendingRequestSyncResponseData(
+    internal fun upsertPendingRequestSyncResponseData(
         updatedServerData: O,
         lastSyncedTimestamp: String,
         syncedPendingRequest: PendingSyncRequest<O>,
@@ -738,7 +738,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    fun updateLocalDataAfterPendingRequestSync(
+    internal fun updateLocalDataAfterPendingRequestSync(
         processedLocalData: O,
         lastSyncedTimestamp: String,
         syncedPendingRequest: PendingSyncRequest<O>,
@@ -780,7 +780,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * 4. Re-rebasing any subsequent pending requests
      * 5. Updating sync_data status back to a pending state
      */
-    fun resolveConflictData(
+    internal fun resolveConflictData(
         resolvedData: O,
         resolvedHttpRequest: HttpRequest,
         mergeHandler: SyncableObjectRebaseHandler<O>,
@@ -881,7 +881,7 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      *  [ResolveConflictResult.RebaseConflict] if rebasing reveals a real conflict, or
      *  [ResolveConflictResult.Failed] on error.
      */
-    fun repairOrphanedConflictStatus(
+    internal fun repairOrphanedConflictStatus(
         clientId: String,
         serverId: String?,
         mergeHandler: SyncableObjectRebaseHandler<O>,
@@ -983,14 +983,14 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    class LocalStoreEntry<O>(
-        val data: O,
-        val latestServerData: O?,
-        val lastSyncedTimestamp: String?,
-        val syncStatus: SyncableObject.SyncStatus,
+    internal class LocalStoreEntry<O>(
+        internal val data: O,
+        internal val latestServerData: O?,
+        internal val lastSyncedTimestamp: String?,
+        internal val syncStatus: SyncableObject.SyncStatus,
     )
 
-    companion object {
-        const val TAG = "SyncableObjectService:LocalStoreManager"
+    internal companion object {
+        internal const val TAG: String = "SyncableObjectService:LocalStoreManager"
     }
 }

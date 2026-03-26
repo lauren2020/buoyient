@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * @param idPrefix prefix for generated server IDs (e.g. "server" produces "server-1", "server-2").
  * @param clock provides the current time in epoch seconds. Override for deterministic tests.
  */
-class MockServerStore(
+public class MockServerStore(
     private val idPrefix: String = "server",
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
 ) {
@@ -57,7 +57,7 @@ class MockServerStore(
      * doesn't exist yet. Collections are lazy — call this freely without worrying
      * about initialization order.
      */
-    fun collection(name: String): MockServerCollection =
+    public fun collection(name: String): MockServerCollection =
         collections.getOrPut(name) {
             MockServerCollection(
                 name = name,
@@ -71,7 +71,7 @@ class MockServerStore(
      * Clears all collections and resets the ID counter. Call this between test
      * cases if reusing a single store instance.
      */
-    fun reset() {
+    public fun reset() {
         collections.values.forEach { it.clear() }
         collections.clear()
         idCounter.set(0)

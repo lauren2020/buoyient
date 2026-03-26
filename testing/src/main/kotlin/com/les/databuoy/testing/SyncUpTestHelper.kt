@@ -17,7 +17,7 @@ import com.les.databuoy.createSyncDatabase
  *
  * @return the number of pending requests that were successfully synced.
  */
-suspend fun SyncableObjectService<*, *>.syncUpLocalChanges(): Int {
+public suspend fun SyncableObjectService<*, *>.syncUpLocalChanges(): Int {
     val database = DatabaseOverride.database ?: createSyncDatabase()
     val coordinator = SyncUpCoordinator(
         drivers = listOf(this.syncDriver),

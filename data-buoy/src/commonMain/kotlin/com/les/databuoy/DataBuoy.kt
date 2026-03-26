@@ -17,9 +17,9 @@ import io.ktor.client.HttpClient
  * in the published JAR) and the `docs/` directory for integration guides, key class
  * reference, and conventions.
  */
-object DataBuoy {
+public object DataBuoy {
 
-    val status: DataBuoyStatus
+    public val status: DataBuoyStatus
         get() = DataBuoyStatus.shared
 
     /**
@@ -35,7 +35,7 @@ object DataBuoy {
      * The provider is evaluated on every request, so refreshed tokens are picked up
      * automatically — you never need to update this property after setting it.
      */
-    var globalHeaderProvider: GlobalHeaderProvider?
+    public var globalHeaderProvider: GlobalHeaderProvider?
         get() = GlobalHeaderProviderRegistry.provider
         set(value) { GlobalHeaderProviderRegistry.provider = value }
 
@@ -48,7 +48,7 @@ object DataBuoy {
      * DataBuoy.httpClient = mockRouter.buildHttpClient()
      * ```
      */
-    var httpClient: HttpClient?
+    public var httpClient: HttpClient?
         get() = HttpClientOverride.httpClient
         set(value) { HttpClientOverride.httpClient = value }
 
@@ -57,14 +57,14 @@ object DataBuoy {
      * [LocalStoreManager] created after this point uses this database instead
      * of the platform default.
      */
-    var database: SyncDatabase?
+    public var database: SyncDatabase?
         get() = DatabaseOverride.database
         set(value) { DatabaseOverride.database = value }
 
     /**
      * Register a set of already-constructed services for background sync.
      */
-    fun registerServices(services: Set<SyncableObjectService<*, *>>) {
+    public fun registerServices(services: Set<SyncableObjectService<*, *>>) {
         platformRegisterServices(services)
     }
 }

@@ -7,8 +7,8 @@ package com.les.databuoy
  * On Android, this schedules a dedicated WorkManager job with network constraints.
  * On iOS, this is a stub pending BGTaskScheduler implementation.
  */
-interface BackgroundRequestScheduler {
-    fun scheduleRequest(
+public interface BackgroundRequestScheduler {
+    public fun scheduleRequest(
         httpRequest: HttpRequest,
         serviceHeaders: List<Pair<String, String>>,
     )
@@ -17,4 +17,4 @@ interface BackgroundRequestScheduler {
 /**
  * Returns the platform-specific [BackgroundRequestScheduler] implementation.
  */
-expect fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler
+public expect fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler

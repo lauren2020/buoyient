@@ -48,7 +48,7 @@ import kotlinx.serialization.json.put
  *   Defaults to `{"data": [<records>]}`.
  * @return this router, for chaining.
  */
-fun MockEndpointRouter.registerCrudHandlers(
+public fun MockEndpointRouter.registerCrudHandlers(
     collection: MockServerCollection,
     baseUrl: String,
     responseWrapper: (MockServerRecord) -> JsonObject = ::defaultSingleWrapper,
@@ -117,7 +117,7 @@ fun MockEndpointRouter.registerCrudHandlers(
  *   request body. Return `null` to get all records instead of a delta.
  * @return this router, for chaining.
  */
-fun MockEndpointRouter.registerSyncDownHandler(
+public fun MockEndpointRouter.registerSyncDownHandler(
     collection: MockServerCollection,
     urlPattern: String,
     listResponseWrapper: (List<MockServerRecord>) -> JsonObject = ::defaultListWrapper,

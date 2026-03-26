@@ -11,7 +11,7 @@ import androidx.work.WorkManagerInitializer
  * (e.g., [AndroidSyncScheduleNotifier], [AndroidConnectivityChecker]) can access
  * it without consumers having to pass it explicitly.
  */
-class DataBuoyInitializer : Initializer<Unit> {
+public class DataBuoyInitializer : Initializer<Unit> {
 
     override fun create(context: Context) {
         DataBuoyPlatformContext.initialize(context)

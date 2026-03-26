@@ -5,9 +5,9 @@ import android.util.Log
 /**
  * Android implementation of [SyncLogger] backed by [android.util.Log].
  */
-actual fun createPlatformSyncLogger(): SyncLogger = AndroidSyncLogger()
+public actual fun createPlatformSyncLogger(): SyncLogger = AndroidSyncLogger()
 
-class AndroidSyncLogger : SyncLogger {
+public class AndroidSyncLogger : SyncLogger {
     override fun d(tag: String, message: String) {
         Log.d(tag, message)
     }

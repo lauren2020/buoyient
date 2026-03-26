@@ -32,7 +32,7 @@ import kotlinx.serialization.KSerializer
  * @param rebaseHandler - Handles 3-way merge conflict detection and resolution during sync-up.
  *   Defaults to a standard handler built from the provided [serializer].
  */
-abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
+public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
     serializer: KSerializer<O>,
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
     protected val serviceName: String,
@@ -73,7 +73,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      * Register this with [DataBuoy.registerDrivers] or include it in your Hilt multibinding
      * set so background sync picks up pending requests for this service.
      */
-    val syncDriver: SyncDriver<O, T> = SyncDriver(
+    public val syncDriver: SyncDriver<O, T> = SyncDriver(
         serverManager = serverManager,
         connectivityChecker = connectivityChecker,
         codec = codec,
@@ -86,12 +86,12 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     /**
      * Stops the periodic sync-down loop.
      */
-    fun stopPeriodicSyncDown() = syncDriver.stopPeriodicSyncDown()
+    public fun stopPeriodicSyncDown(): Unit = syncDriver.stopPeriodicSyncDown()
 
     /**
      * Fetches all data from the server and upserts it into the local db.
      */
-    suspend fun syncDownFromServer() = syncDriver.syncDownFromServer()
+    public suspend fun syncDownFromServer(): Unit = syncDriver.syncDownFromServer()
 
     /**
      * Creates a new syncable object. If the device is online, the object is sent
@@ -780,7 +780,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     /**
      * Retrieve all [O] items from the db that meet the given filter criteria.
      */
-    fun getAllFromLocalStore(limit: Int = 100): List<O> =
+    public fun getAllFromLocalStore(limit: Int = 100): List<O> =
         localStoreManager.getAllData(limit = limit).map { it.data }
 
     /**
@@ -790,7 +790,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
      * Ideal for Compose or other reactive UIs that need to stay in sync with local state
      * without manual refresh calls.
      */
-    fun getAllFromLocalStoreAsFlow(limit: Int = 100): Flow<List<O>> =
+    public fun getAllFromLocalStoreAsFlow(limit: Int = 100): Flow<List<O>> =
         localStoreManager.getAllDataAsFlow(limit = limit).map { entries -> entries.map { it.data } }
 
     /**
@@ -885,7 +885,7 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         return flow.asStateFlow()
     }
 
-    fun close() {
+    public fun close() {
         serverManager.close()
         localStoreManager.close()
         syncDriver.close()
@@ -913,13 +913,13 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         }
     }
 
-    sealed class ProcessingConstraints {
-        object OfflineOnly : ProcessingConstraints()
-        object OnlineOnly : ProcessingConstraints()
-        object NoConstraints : ProcessingConstraints()
+    public sealed class ProcessingConstraints {
+        public object OfflineOnly : ProcessingConstraints()
+        public object OnlineOnly : ProcessingConstraints()
+        public object NoConstraints : ProcessingConstraints()
     }
 
-    companion object {
-        private const val TAG = "SyncableObjectService"
+    public companion object {
+        private const val TAG: String = "SyncableObjectService"
     }
 }

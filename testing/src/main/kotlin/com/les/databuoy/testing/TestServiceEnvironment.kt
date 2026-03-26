@@ -43,14 +43,14 @@ import com.les.databuoy.db.SyncDatabase
  *   [mockRouter] via [registerCrudHandlers] or [registerSyncDownHandler] for
  *   realistic server-side state. Defaults to a fresh store instance.
  */
-class TestServiceEnvironment(
-    val mockRouter: MockEndpointRouter = MockEndpointRouter(),
-    val connectivityChecker: TestConnectivityChecker = TestConnectivityChecker(online = true),
-    val logger: SyncLogger = NoOpSyncLogger,
-    val syncScheduleNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier,
-    val idGenerator: IdGenerator = IncrementingIdGenerator(),
-    val database: SyncDatabase = TestDatabaseFactory.createInMemory(),
-    val mockServerStore: MockServerStore = MockServerStore(),
+public class TestServiceEnvironment(
+    public val mockRouter: MockEndpointRouter = MockEndpointRouter(),
+    public val connectivityChecker: TestConnectivityChecker = TestConnectivityChecker(online = true),
+    public val logger: SyncLogger = NoOpSyncLogger,
+    public val syncScheduleNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier,
+    public val idGenerator: IdGenerator = IncrementingIdGenerator(),
+    public val database: SyncDatabase = TestDatabaseFactory.createInMemory(),
+    public val mockServerStore: MockServerStore = MockServerStore(),
 ) {
     init {
         SyncLog.logger = logger

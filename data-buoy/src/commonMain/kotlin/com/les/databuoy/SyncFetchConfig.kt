@@ -2,21 +2,21 @@ package com.les.databuoy
 
 import kotlinx.serialization.json.JsonObject
 
-sealed class SyncFetchConfig<out T>(
+public sealed class SyncFetchConfig<out T>(
     private val transformResponse: (JsonObject) -> List<T>,
 ) {
-    abstract val syncCadenceSeconds: Long
-    fun transformItemsListFromResponse(response: JsonObject): List<T> = transformResponse(response)
+    public abstract val syncCadenceSeconds: Long
+    public fun transformItemsListFromResponse(response: JsonObject): List<T> = transformResponse(response)
 
-    class GetFetchConfig<T>(
-        val endpoint: String,
+    public class GetFetchConfig<T>(
+        public val endpoint: String,
         override val syncCadenceSeconds: Long,
         transformResponse: (JsonObject) -> List<T>,
     ) : SyncFetchConfig<T>(transformResponse)
 
-    class PostFetchConfig<T>(
-        val endpoint: String,
-        val requestBody: JsonObject,
+    public class PostFetchConfig<T>(
+        public val endpoint: String,
+        public val requestBody: JsonObject,
         override val syncCadenceSeconds: Long,
         transformResponse: (JsonObject) -> List<T>,
     ) : SyncFetchConfig<T>(transformResponse)

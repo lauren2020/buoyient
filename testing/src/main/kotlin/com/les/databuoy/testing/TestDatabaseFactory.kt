@@ -8,12 +8,12 @@ import com.les.databuoy.db.SyncDatabase
  * Each call to [createInMemory] returns an isolated database with no shared state,
  * ensuring tests do not interfere with each other.
  */
-object TestDatabaseFactory {
+public object TestDatabaseFactory {
 
     /**
      * Creates a fresh in-memory [SyncDatabase] with the schema fully applied.
      */
-    fun createInMemory(): SyncDatabase {
+    public fun createInMemory(): SyncDatabase {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         SyncDatabase.Schema.create(driver)
         return SyncDatabase(driver)

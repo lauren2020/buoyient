@@ -4,8 +4,8 @@ package com.les.databuoy
  * Platform-agnostic interface for generating unique identifiers.
  * On Android/JVM, this wraps java.util.UUID. On iOS, this wraps NSUUID.
  */
-interface IdGenerator {
-    fun generateId(): String
+public interface IdGenerator {
+    public fun generateId(): String
 
     /**
      * Process-wide ID generator for the data-buoy sync engine.
@@ -14,9 +14,9 @@ interface IdGenerator {
      * [generator] at startup to install a test or mock implementation —
      * for example, `IdGenerator.generator = IncrementingIdGenerator()`.
      */
-    companion object : IdGenerator {
+    public companion object : IdGenerator {
         @Volatile
-        var generator: IdGenerator = createPlatformIdGenerator()
+        public var generator: IdGenerator = createPlatformIdGenerator()
 
         override fun generateId(): String = generator.generateId()
     }
@@ -26,4 +26,4 @@ interface IdGenerator {
  * Returns the platform-specific [IdGenerator] implementation.
  * On Android/JVM this uses `java.util.UUID`; on iOS `platform.Foundation.NSUUID`.
  */
-expect fun createPlatformIdGenerator(): IdGenerator
+public expect fun createPlatformIdGenerator(): IdGenerator

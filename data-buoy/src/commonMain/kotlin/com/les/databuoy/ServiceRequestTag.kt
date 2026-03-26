@@ -1,5 +1,5 @@
 package com.les.databuoy
 
-interface ServiceRequestTag {
-    val value: String
+public interface ServiceRequestTag {
+    public val value: String
 }

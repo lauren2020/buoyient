@@ -18,44 +18,44 @@ import kotlinx.serialization.json.jsonPrimitive
  * Provide a custom subclass to [SyncableObjectService] by overriding its
  * `mergeHandler` property.
  */
-open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
+public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
     private val codec: SyncCodec<O>,
 ) {
 
     // region Types
 
-    sealed class ConflictResolution<O> {
+    public sealed class ConflictResolution<O> {
         /** The conflict was resolved — use [resolvedData] as the merged data. */
-        class Resolved<O>(
-            val resolvedData: O,
-            val updatedHttpRequest: HttpRequest?,
+        public class Resolved<O>(
+            public val resolvedData: O,
+            public val updatedHttpRequest: HttpRequest?,
         ) : ConflictResolution<O>()
 
         /** The conflict is unresolved — mark the row as CONFLICT for manual resolution. */
-        class Unresolved<O> : ConflictResolution<O>()
+        public class Unresolved<O> : ConflictResolution<O>()
     }
 
-    sealed class RebaseResult<O : SyncableObject<O>> {
+    public sealed class RebaseResult<O : SyncableObject<O>> {
 
-        class Conflict<O : SyncableObject<O>>(
-            val conflict: FieldConflict<O>,
+        public class Conflict<O : SyncableObject<O>>(
+            public val conflict: FieldConflict<O>,
         ) : RebaseResult<O>()
 
-        class Rebased<O : SyncableObject<O>>(
-            val mergedData: O,
-            val updatedHttpRequest: HttpRequest?,
+        public class Rebased<O : SyncableObject<O>>(
+            public val mergedData: O,
+            public val updatedHttpRequest: HttpRequest?,
         ) : RebaseResult<O>()
     }
 
-    data class FieldConflict<O : SyncableObject<O>>(
-        val pendingRequestId: Int,
-        val fieldNames: List<String>,
-        val baseValue: O?,
-        val localValue: O,
-        val serverValue: O,
-        val requestTag: String? = null,
+    public data class FieldConflict<O : SyncableObject<O>>(
+        public val pendingRequestId: Int,
+        public val fieldNames: List<String>,
+        public val baseValue: O?,
+        public val localValue: O,
+        public val serverValue: O,
+        public val requestTag: String? = null,
     ) {
-        fun toJson(codec: SyncCodec<O>): JsonObject = buildJsonObject {
+        public fun toJson(codec: SyncCodec<O>): JsonObject = buildJsonObject {
             put(PENDING_REQUEST_ID_KEY, JsonPrimitive(pendingRequestId))
             put(FIELD_NAMES_KEY, JsonPrimitive(fieldNames.joinToString(":")))
             put(BASE_DATA_KEY, baseValue?.let { codec.encode(it) } ?: JsonObject(emptyMap()))
@@ -64,15 +64,15 @@ open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
             requestTag?.let { put(REQUEST_TAG_KEY, JsonPrimitive(it)) }
         }
 
-        companion object {
-            const val PENDING_REQUEST_ID_KEY = "pending_request_id"
-            const val FIELD_NAMES_KEY = "field_names"
-            const val BASE_DATA_KEY = "base_data"
-            const val LOCAL_DATA_KEY = "local_data"
-            const val SERVER_DATA_KEY = "server_data"
-            const val REQUEST_TAG_KEY = "request_tag"
+        public companion object {
+            public const val PENDING_REQUEST_ID_KEY: String = "pending_request_id"
+            public const val FIELD_NAMES_KEY: String = "field_names"
+            public const val BASE_DATA_KEY: String = "base_data"
+            public const val LOCAL_DATA_KEY: String = "local_data"
+            public const val SERVER_DATA_KEY: String = "server_data"
+            public const val REQUEST_TAG_KEY: String = "request_tag"
 
-            fun <O : SyncableObject<O>> fromJson(
+            public fun <O : SyncableObject<O>> fromJson(
                 jsonObject: JsonObject,
                 codec: SyncCodec<O>,
             ): FieldConflict<O> {
@@ -107,7 +107,7 @@ open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
      *
      * The default implementation returns [ConflictResolution.Unresolved].
      */
-    open fun handleMergeConflict(
+    public open fun handleMergeConflict(
         rebaseResult: RebaseResult<O>,
         requestTag: String? = null,
     ): ConflictResolution<O> = ConflictResolution.Unresolved()
@@ -132,7 +132,7 @@ open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
      * - [RebaseResult.serverOnlyChanges]: field names changed only on the server
      * - [RebaseResult.localOnlyChanges]: field names changed only locally
      */
-    open fun rebaseDataForPendingRequest(
+    public open fun rebaseDataForPendingRequest(
         oldBaseData: O?,
         currentData: O,
         newBaseData: O,

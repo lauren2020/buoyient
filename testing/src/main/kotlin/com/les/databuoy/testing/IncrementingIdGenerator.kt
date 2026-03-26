@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * Generated IDs follow the pattern `{prefix}-{counter}`, e.g. `test-id-1`, `test-id-2`.
  */
-class IncrementingIdGenerator(
+public class IncrementingIdGenerator(
     private val prefix: String = "test-id",
 ) : IdGenerator {
     private val counter = AtomicInteger(0)
@@ -17,7 +17,7 @@ class IncrementingIdGenerator(
     override fun generateId(): String = "$prefix-${counter.incrementAndGet()}"
 
     /** Resets the counter back to 0. */
-    fun reset() {
+    public fun reset() {
         counter.set(0)
     }
 }

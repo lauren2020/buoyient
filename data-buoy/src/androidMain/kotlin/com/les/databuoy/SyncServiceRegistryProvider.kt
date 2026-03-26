@@ -9,6 +9,6 @@ import android.content.Context
  * [SyncWorker.registerServiceProvider] so the SDK knows which services
  * to sync in the background.
  */
-interface SyncServiceRegistryProvider {
-    fun createDrivers(context: Context): List<SyncDriver<*, *>>
+public interface SyncServiceRegistryProvider {
+    public fun createDrivers(context: Context): List<SyncDriver<*, *>>
 }

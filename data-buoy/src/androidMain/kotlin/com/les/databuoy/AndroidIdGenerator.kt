@@ -2,8 +2,8 @@ package com.les.databuoy
 
 import java.util.UUID
 
-actual fun createPlatformIdGenerator(): IdGenerator = AndroidIdGenerator()
+public actual fun createPlatformIdGenerator(): IdGenerator = AndroidIdGenerator()
 
-class AndroidIdGenerator : IdGenerator {
+public class AndroidIdGenerator : IdGenerator {
     override fun generateId(): String = UUID.randomUUID().toString()
 }

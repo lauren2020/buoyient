@@ -8,11 +8,11 @@ package com.les.databuoy
  * callers can swap the backing [logger] at startup — for example,
  * `SyncLog.logger = PrintSyncLogger` in mock mode or tests.
  */
-object SyncLog : SyncLogger {
+public object SyncLog : SyncLogger {
     @Volatile
-    var logger: SyncLogger = createPlatformSyncLogger()
+    public var logger: SyncLogger = createPlatformSyncLogger()
 
-    override fun d(tag: String, message: String) = logger.d(tag, message)
-    override fun w(tag: String, message: String) = logger.w(tag, message)
-    override fun e(tag: String, message: String, throwable: Throwable?) = logger.e(tag, message, throwable)
+    override fun d(tag: String, message: String): Unit = logger.d(tag, message)
+    override fun w(tag: String, message: String): Unit = logger.w(tag, message)
+    override fun e(tag: String, message: String, throwable: Throwable?): Unit = logger.e(tag, message, throwable)
 }

@@ -11,26 +11,26 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
-class HttpRequest(
-    val method: HttpMethod,
-    val endpointUrl: String,
-    val requestBody: JsonObject,
-    val additionalHeaders: List<Pair<String, String>> = emptyList(),
+public class HttpRequest(
+    public val method: HttpMethod,
+    public val endpointUrl: String,
+    public val requestBody: JsonObject,
+    public val additionalHeaders: List<Pair<String, String>> = emptyList(),
 ) {
-    enum class HttpMethod(val value: String) {
+    public enum class HttpMethod(public val value: String) {
         DELETE("DELETE"),
         GET("GET"),
         PATCH("PATCH"),
         POST("POST"),
         PUT("PUT");
 
-        companion object {
+        public companion object {
             @OptIn(ExperimentalStdlibApi::class)
-            fun fromValue(value: String): HttpMethod = entries.first { it.value == value }
+            public fun fromValue(value: String): HttpMethod = entries.first { it.value == value }
         }
     }
 
-    fun toJson() = buildJsonObject {
+    public fun toJson(): JsonObject = buildJsonObject {
         put(METHOD_TAG, method.value)
         put(ENDPOINT_URL_TAG, endpointUrl)
         put(REQUEST_BODY_TAG, requestBody)
@@ -44,7 +44,7 @@ class HttpRequest(
         }
     }
 
-    fun resolveEndpoint(serverId: String): HttpRequest? {
+    public fun resolveEndpoint(serverId: String): HttpRequest? {
         if (!endpointUrl.contains(SERVER_ID_PLACEHOLDER)) return null
         return HttpRequest(
             method = method,
@@ -54,7 +54,7 @@ class HttpRequest(
         )
     }
 
-    fun resolveBodyVersion(version: String): HttpRequest? {
+    public fun resolveBodyVersion(version: String): HttpRequest? {
         val resolved = replacePlaceholderInJson(requestBody, VERSION_PLACEHOLDER, version)
             ?: return null
         return HttpRequest(
@@ -65,7 +65,7 @@ class HttpRequest(
         )
     }
 
-    fun resolveBodyServerId(serverId: String): HttpRequest? {
+    public fun resolveBodyServerId(serverId: String): HttpRequest? {
         val resolved = replacePlaceholderInJson(requestBody, SERVER_ID_PLACEHOLDER, serverId)
             ?: return null
         return HttpRequest(
@@ -80,7 +80,7 @@ class HttpRequest(
      * Returns `true` if this request's endpoint URL or request body contains any
      * cross-service placeholders (i.e., `{cross:serviceName:clientId}`).
      */
-    fun containsCrossServicePlaceholders(): Boolean {
+    public fun containsCrossServicePlaceholders(): Boolean {
         return endpointUrl.contains(CROSS_SERVICE_PLACEHOLDER_PREFIX) ||
             requestBody.toString().contains(CROSS_SERVICE_PLACEHOLDER_PREFIX)
     }
@@ -98,7 +98,7 @@ class HttpRequest(
      * @return a new [HttpRequest] with all cross-service placeholders resolved,
      *   or `null` if any dependency is unresolved.
      */
-    fun resolveCrossServicePlaceholders(
+    public fun resolveCrossServicePlaceholders(
         resolver: (serviceName: String, clientId: String) -> String?,
     ): HttpRequest? {
         val fullText = endpointUrl + requestBody.toString()
@@ -136,9 +136,9 @@ class HttpRequest(
         )
     }
 
-    companion object {
-        const val SERVER_ID_PLACEHOLDER = "{serverId}"
-        const val VERSION_PLACEHOLDER = "{version}"
+    public companion object {
+        public const val SERVER_ID_PLACEHOLDER: String = "{serverId}"
+        public const val VERSION_PLACEHOLDER: String = "{version}"
         private const val CROSS_SERVICE_PLACEHOLDER_PREFIX = "{cross:"
         private val CROSS_SERVICE_PATTERN = Regex("""\{cross:([^:}]+):([^}]+)\}""")
 
@@ -161,7 +161,7 @@ class HttpRequest(
          * @param serviceName the [SyncableObjectService.serviceName] of the dependency
          * @param clientId the [SyncableObject.clientId] of the referenced object
          */
-        fun crossServicePlaceholder(serviceName: String, clientId: String): String =
+        public fun crossServicePlaceholder(serviceName: String, clientId: String): String =
             "{cross:$serviceName:$clientId}"
 
         /**
@@ -187,14 +187,14 @@ class HttpRequest(
             val result = replaceIn(element)
             return if (replaced) result as JsonObject else null
         }
-        const val METHOD_TAG = "method"
-        const val ENDPOINT_URL_TAG = "endpoint"
-        const val REQUEST_BODY_TAG = "request_body"
-        const val ADDITIONAL_HEADERS_TAG = "additional_headers"
+        public const val METHOD_TAG: String = "method"
+        public const val ENDPOINT_URL_TAG: String = "endpoint"
+        public const val REQUEST_BODY_TAG: String = "request_body"
+        public const val ADDITIONAL_HEADERS_TAG: String = "additional_headers"
         private const val HEADER_NAME_TAG = "name"
         private const val HEADER_VALUE_TAG = "value"
 
-        fun fromJson(json: JsonObject) = HttpRequest(
+        public fun fromJson(json: JsonObject): HttpRequest = HttpRequest(
             method = HttpMethod.fromValue(json[METHOD_TAG]!!.jsonPrimitive.content),
             endpointUrl = json[ENDPOINT_URL_TAG]!!.jsonPrimitive.content,
             requestBody = json[REQUEST_BODY_TAG]!!.jsonObject,

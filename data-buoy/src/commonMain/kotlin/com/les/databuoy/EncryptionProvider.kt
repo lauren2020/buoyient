@@ -13,7 +13,7 @@ package com.les.databuoy
  * string and must return a string-safe ciphertext (e.g., Base64-encoded), and
  * [decrypt] reverses the transformation.
  */
-interface EncryptionProvider {
-    fun encrypt(plaintext: String): String
-    fun decrypt(ciphertext: String): String
+public interface EncryptionProvider {
+    public fun encrypt(plaintext: String): String
+    public fun decrypt(ciphertext: String): String
 }

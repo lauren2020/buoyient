@@ -21,8 +21,8 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @property name the collection name (typically matches the service name, e.g. "todos").
  */
-class MockServerCollection internal constructor(
-    val name: String,
+public class MockServerCollection internal constructor(
+    public val name: String,
     private val records: ConcurrentHashMap<String, MockServerRecord>,
     private val generateId: () -> String,
     private val clock: () -> Long,
@@ -40,7 +40,7 @@ class MockServerCollection internal constructor(
      *
      * @return the newly created record.
      */
-    fun create(requestBody: JsonObject): MockServerRecord {
+    public fun create(requestBody: JsonObject): MockServerRecord {
         val serverId = generateId()
         val now = clock()
         val clientId = requestBody["client_id"]?.jsonPrimitive?.contentOrNull
@@ -65,7 +65,7 @@ class MockServerCollection internal constructor(
      *
      * @return the updated record, or `null` if [serverId] is not found.
      */
-    fun update(serverId: String, requestBody: JsonObject): MockServerRecord? {
+    public fun update(serverId: String, requestBody: JsonObject): MockServerRecord? {
         var result: MockServerRecord? = null
         records.computeIfPresent(serverId) { _, existing ->
             val mergedData = buildJsonObject {
@@ -86,18 +86,18 @@ class MockServerCollection internal constructor(
     /**
      * Retrieves a record by server ID.
      */
-    fun get(serverId: String): MockServerRecord? = records[serverId]
+    public fun get(serverId: String): MockServerRecord? = records[serverId]
 
     /**
      * Returns all records in this collection, including voided ones.
      */
-    fun getAll(): List<MockServerRecord> = records.values.toList()
+    public fun getAll(): List<MockServerRecord> = records.values.toList()
 
     /**
      * Returns records where [MockServerRecord.updatedAt] is strictly greater than
      * [epochSeconds]. Use this to implement delta sync-down endpoints.
      */
-    fun getUpdatedSince(epochSeconds: Long): List<MockServerRecord> =
+    public fun getUpdatedSince(epochSeconds: Long): List<MockServerRecord> =
         records.values.filter { it.updatedAt > epochSeconds }
 
     /**
@@ -105,7 +105,7 @@ class MockServerCollection internal constructor(
      *
      * @return the voided record, or `null` if [serverId] is not found.
      */
-    fun void(serverId: String): MockServerRecord? {
+    public fun void(serverId: String): MockServerRecord? {
         var result: MockServerRecord? = null
         records.computeIfPresent(serverId) { _, existing ->
             val updated = existing.copy(
@@ -134,7 +134,7 @@ class MockServerCollection internal constructor(
      * @param voided whether the record is voided (defaults to false).
      * @return the seeded record.
      */
-    fun seed(
+    public fun seed(
         serverId: String,
         data: JsonObject,
         version: Int = 1,
@@ -158,7 +158,7 @@ class MockServerCollection internal constructor(
     /**
      * Seeds a pre-built record directly.
      */
-    fun seed(record: MockServerRecord): MockServerRecord {
+    public fun seed(record: MockServerRecord): MockServerRecord {
         records[record.serverId] = record
         return record
     }
@@ -170,7 +170,7 @@ class MockServerCollection internal constructor(
      *
      * @return the mutated record, or `null` if [serverId] is not found.
      */
-    fun mutate(serverId: String, transform: (JsonObject) -> JsonObject): MockServerRecord? {
+    public fun mutate(serverId: String, transform: (JsonObject) -> JsonObject): MockServerRecord? {
         var result: MockServerRecord? = null
         records.computeIfPresent(serverId) { _, existing ->
             val updated = existing.copy(
@@ -190,24 +190,24 @@ class MockServerCollection internal constructor(
      *
      * @return `true` if the record existed and was removed.
      */
-    fun remove(serverId: String): Boolean = records.remove(serverId) != null
+    public fun remove(serverId: String): Boolean = records.remove(serverId) != null
 
     /**
      * Finds a record by its client-assigned ID.
      *
      * @return the matching record, or `null` if not found.
      */
-    fun findByClientId(clientId: String): MockServerRecord? =
+    public fun findByClientId(clientId: String): MockServerRecord? =
         records.values.find { it.clientId == clientId }
 
     /** Returns the number of records in this collection. */
-    fun count(): Int = records.size
+    public fun count(): Int = records.size
 
     /** Returns `true` if this collection contains no records. */
-    fun isEmpty(): Boolean = records.isEmpty()
+    public fun isEmpty(): Boolean = records.isEmpty()
 
     /** Removes all records from this collection. */
-    fun clear() {
+    public fun clear() {
         records.clear()
     }
 }

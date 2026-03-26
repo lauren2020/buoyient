@@ -4,7 +4,7 @@ import com.les.databuoy.db.SyncDatabase
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
-class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
+public class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     internal val database: SyncDatabase,
     internal val serviceName: String,
     internal val strategy: PendingRequestQueueStrategy,
@@ -12,23 +12,23 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val status: DataBuoyStatus = DataBuoyStatus(database),
     internal val storageCodec: StorageCodec = StorageCodec(),
 ) {
-    sealed class PendingRequestQueueStrategy {
-        class Squash(
-            val squashUpdateIntoCreate: SquashRequestMerger,
+    public sealed class PendingRequestQueueStrategy {
+        public class Squash(
+            public val squashUpdateIntoCreate: SquashRequestMerger,
         ) : PendingRequestQueueStrategy()
 
-        object Queue : PendingRequestQueueStrategy()
+        public object Queue : PendingRequestQueueStrategy()
     }
 
-    sealed class QueueResult {
-        object Stored : QueueResult()
+    public sealed class QueueResult {
+        public object Stored : QueueResult()
 
-        class InvalidQueueRequest(val errorMessage: String) : QueueResult()
+        public class InvalidQueueRequest(public val errorMessage: String) : QueueResult()
 
-        object StoreFailed : QueueResult()
+        public object StoreFailed : QueueResult()
     }
 
-    fun queueCreateRequest(
+    internal fun queueCreateRequest(
         data: O,
         httpRequest: HttpRequest,
         idempotencyKey: String,
@@ -58,7 +58,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         return storeEntry(pendingSyncRequest)
     }
 
-    fun queueUpdateRequest(
+    internal fun queueUpdateRequest(
         data: O,
         idempotencyKey: String,
         updateRequest: HttpRequest,
@@ -139,7 +139,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    fun queueVoidRequest(
+    internal fun queueVoidRequest(
         data: O,
         httpRequest: HttpRequest,
         idempotencyKey: String,
@@ -202,21 +202,21 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         QueueResult.StoreFailed
     }
 
-    fun hasAnyPendingRequests(): Boolean =
+    internal fun hasAnyPendingRequests(): Boolean =
         database.syncPendingEventsQueries.hasPendingRequestsByService(
             service_name = serviceName,
         ).executeAsOne()
 
-    fun hasPendingRequests(clientId: String): Boolean =
+    internal fun hasPendingRequests(clientId: String): Boolean =
         database.syncPendingEventsQueries.hasPendingRequestsByClientId(
             service_name = serviceName,
             client_id = clientId,
         ).executeAsOne()
 
-    fun getLatestPendingRequest(clientId: String): PendingSyncRequest<O>? =
+    internal fun getLatestPendingRequest(clientId: String): PendingSyncRequest<O>? =
         getPendingRequests(clientId).lastOrNull()
 
-    fun getPendingRequestById(pendingRequestId: Int): PendingSyncRequest<O>? {
+    internal fun getPendingRequestById(pendingRequestId: Int): PendingSyncRequest<O>? {
         val row = database.syncPendingEventsQueries.getPendingRequestById(
             pending_request_id = pendingRequestId.toLong(),
         ).executeAsOneOrNull() ?: return null
@@ -227,7 +227,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         )
     }
 
-    fun getPendingRequests(clientId: String): List<PendingSyncRequest<O>> {
+    internal fun getPendingRequests(clientId: String): List<PendingSyncRequest<O>> {
         return database.syncPendingEventsQueries.getPendingRequestsByClientId(
             service_name = serviceName,
             client_id = clientId,
@@ -238,7 +238,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    fun getPendingRequests(): List<PendingSyncRequest<O>> {
+    internal fun getPendingRequests(): List<PendingSyncRequest<O>> {
         return database.syncPendingEventsQueries.getAllPendingRequests(
             service_name = serviceName,
         ).executeAsList().map { row ->
@@ -277,7 +277,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         requestTag = requestTag,
     )
 
-    fun clearAllPendingRequests(
+    internal fun clearAllPendingRequests(
         clientId: String,
     ) {
         database.syncPendingEventsQueries.clearAllByClientId(
@@ -287,7 +287,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         status.refresh()
     }
 
-    fun clearPendingRequestAfterUpload(
+    internal fun clearPendingRequestAfterUpload(
         pendingRequestId: Int,
         clientId: String,
     ): ClearRequestResult = try {
@@ -307,19 +307,19 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         ClearRequestResult.FailedToRemoveEntry
     }
 
-    sealed class ClearRequestResult {
-        class Cleared(val updatedSyncStatus: String) : ClearRequestResult()
+    internal sealed class ClearRequestResult {
+        internal class Cleared(internal val updatedSyncStatus: String) : ClearRequestResult()
 
-        object FailedToRemoveEntry : ClearRequestResult()
+        internal object FailedToRemoveEntry : ClearRequestResult()
     }
 
-    fun markPendingRequestAsAttempted(pendingRequestId: Int) {
+    internal fun markPendingRequestAsAttempted(pendingRequestId: Int) {
         database.syncPendingEventsQueries.markAsAttempted(
             pending_request_id = pendingRequestId.toLong(),
         )
     }
 
-    fun rebaseDataForRemainingPendingRequests(
+    internal fun rebaseDataForRemainingPendingRequests(
         clientId: String,
         updatedBaseData: O,
         mergeHandler: SyncableObjectRebaseHandler<O>,
@@ -353,15 +353,15 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         )
     }
 
-    sealed class RebasePendingRequestsResult<O : SyncableObject<O>> {
-        class NoPendingRequestRemaining<O : SyncableObject<O>> : RebasePendingRequestsResult<O>()
+    internal sealed class RebasePendingRequestsResult<O : SyncableObject<O>> {
+        internal class NoPendingRequestRemaining<O : SyncableObject<O>> : RebasePendingRequestsResult<O>()
 
-        class RebasedRemainingPendingRequests<O : SyncableObject<O>>(
-            val rebasedLatestData: O,
+        internal class RebasedRemainingPendingRequests<O : SyncableObject<O>>(
+            internal val rebasedLatestData: O,
         ) : RebasePendingRequestsResult<O>()
 
-        class AbortedRebaseToConflicts<O : SyncableObject<O>>(
-            val conflict: SyncableObjectRebaseHandler.FieldConflict<O>,
+        internal class AbortedRebaseToConflicts<O : SyncableObject<O>>(
+            internal val conflict: SyncableObjectRebaseHandler.FieldConflict<O>,
         ) : RebasePendingRequestsResult<O>()
     }
 
@@ -453,19 +453,19 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    sealed class UpsertPendingChangesResult {
-        object NoPendingRequests : UpsertPendingChangesResult()
+    internal sealed class UpsertPendingChangesResult {
+        internal object NoPendingRequests : UpsertPendingChangesResult()
 
-        class MergedAllPendingChanges(val resolvedConflicts: Boolean) : UpsertPendingChangesResult()
+        internal class MergedAllPendingChanges(internal val resolvedConflicts: Boolean) : UpsertPendingChangesResult()
 
-        object PendingChangesConflict : UpsertPendingChangesResult()
+        internal object PendingChangesConflict : UpsertPendingChangesResult()
     }
 
     /**
      * Returns the first pending request for [clientId] that has a non-null conflict,
      * or null if no conflicting request exists.
      */
-    fun getConflictingPendingRequest(clientId: String): PendingSyncRequest<O>? =
+    internal fun getConflictingPendingRequest(clientId: String): PendingSyncRequest<O>? =
         getPendingRequests(clientId).firstOrNull { it.conflict != null }
 
     /**
@@ -473,7 +473,7 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * the consumer-provided resolved values, clearing the conflict_info, and updating
      * the last_synced_data to the new server baseline.
      */
-    fun resolveConflictOnPendingRequest(
+    internal fun resolveConflictOnPendingRequest(
         pendingRequest: PendingSyncRequest<O>,
         resolvedData: O,
         resolvedHttpRequest: HttpRequest,
@@ -488,16 +488,16 @@ class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         status.refresh()
     }
 
-    fun hasAnyConflictsGlobally(): Boolean =
+    internal fun hasAnyConflictsGlobally(): Boolean =
         database.syncPendingEventsQueries.hasAnyConflicts().executeAsOne()
 
-    fun getConflicts(clientId: String): List<SyncableObjectRebaseHandler.FieldConflict<O>> {
+    internal fun getConflicts(clientId: String): List<SyncableObjectRebaseHandler.FieldConflict<O>> {
         return getPendingRequests(clientId).mapNotNull { pendingSyncRequest ->
             pendingSyncRequest.conflict
         }
     }
 
-    companion object {
-        const val TAG = "SyncableObjectService:PendingRequestQueueManager"
+    internal companion object {
+        internal const val TAG: String = "SyncableObjectService:PendingRequestQueueManager"
     }
 }

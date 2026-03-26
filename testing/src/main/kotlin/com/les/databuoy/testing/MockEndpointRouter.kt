@@ -27,7 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 //
 // Routes are matched in registration order. The first matching handler wins.
 // Unmatched requests return a 404 with an empty JSON body.
-class MockEndpointRouter {
+public class MockEndpointRouter {
 
     private data class Route(
         val method: HttpRequest.HttpMethod,
@@ -39,10 +39,10 @@ class MockEndpointRouter {
     private val _requestLog = CopyOnWriteArrayList<RecordedRequest>()
 
     /** All requests that have been received, in order. */
-    val requestLog: List<RecordedRequest> get() = _requestLog.toList()
+    public val requestLog: List<RecordedRequest> get() = _requestLog.toList()
 
     /** Clears the recorded request log. */
-    fun clearRequestLog() {
+    public fun clearRequestLog() {
         _requestLog.clear()
     }
 
@@ -52,7 +52,7 @@ class MockEndpointRouter {
      * Registers a handler for requests matching [method] and [urlPattern].
      * Returns `this` for chaining.
      */
-    fun on(
+    public fun on(
         method: HttpRequest.HttpMethod,
         urlPattern: String,
         handler: MockRequestHandler,
@@ -62,26 +62,26 @@ class MockEndpointRouter {
     }
 
     /** Registers a handler that always returns a static response. */
-    fun on(
+    public fun on(
         method: HttpRequest.HttpMethod,
         urlPattern: String,
         statusCode: Int,
         responseBody: JsonObject,
     ): MockEndpointRouter = on(method, urlPattern) { MockResponse(statusCode, responseBody) }
 
-    fun onGet(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
+    public fun onGet(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
         on(HttpRequest.HttpMethod.GET, urlPattern, handler)
 
-    fun onPost(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
+    public fun onPost(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
         on(HttpRequest.HttpMethod.POST, urlPattern, handler)
 
-    fun onPut(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
+    public fun onPut(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
         on(HttpRequest.HttpMethod.PUT, urlPattern, handler)
 
-    fun onPatch(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
+    public fun onPatch(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
         on(HttpRequest.HttpMethod.PATCH, urlPattern, handler)
 
-    fun onDelete(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
+    public fun onDelete(urlPattern: String, handler: MockRequestHandler): MockEndpointRouter =
         on(HttpRequest.HttpMethod.DELETE, urlPattern, handler)
 
     // -- Build outputs --
@@ -90,7 +90,7 @@ class MockEndpointRouter {
      * Creates a Ktor [HttpClient] backed by a [MockEngine] that routes requests
      * through this router's registered handlers.
      */
-    fun buildHttpClient(): HttpClient {
+    public fun buildHttpClient(): HttpClient {
         val engine = MockEngine { requestData ->
             val method = requestData.method.value.uppercase().let { methodValue ->
                 HttpRequest.HttpMethod.entries.find { it.value == methodValue }
@@ -152,7 +152,7 @@ class MockEndpointRouter {
      * This is the most common entry point: pass the result directly to
      * a [SyncableObjectService] constructor.
      */
-    fun buildServerManager(
+    public fun buildServerManager(
         serviceBaseHeaders: List<Pair<String, String>> = emptyList(),
     ): ServerManager = ServerManager(
         serviceBaseHeaders = serviceBaseHeaders,
@@ -164,7 +164,7 @@ class MockEndpointRouter {
     private fun findRoute(method: HttpRequest.HttpMethod, url: String): Route? =
         routes.firstOrNull { it.method == method && matchesPattern(it.urlPattern, url) }
 
-    companion object {
+    public companion object {
         internal fun matchesPattern(pattern: String, url: String): Boolean {
             val startsWithWild = pattern.startsWith("*")
             val endsWithWild = pattern.endsWith("*")

@@ -28,18 +28,18 @@ internal class SyncUpRetryLaterException(message: String) : Exception(message)
  *   construction. Pass `false` in tests to prevent background sync from interfering with
  *   test assertions.
  */
-class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
+public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal constructor(
     private val serverManager: ServerManager,
     private val connectivityChecker: ConnectivityChecker,
     private val codec: SyncCodec<O>,
     private val serverProcessingConfig: ServerProcessingConfig<O>,
     private val localStoreManager: LocalStoreManager<O, T>,
-    val serviceName: String,
-    val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(codec),
+    public val serviceName: String,
+    public val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(codec),
     autoStart: Boolean = true,
 ) {
 
-    val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    public val serviceScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Per-clientId Mutex map for application-level mutual exclusion.
     // Serializes all operations (CRUD, sync-down, sync-up) on the same object
@@ -76,7 +76,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      * This prevents races between user-initiated CRUD, periodic sync-down, and
      * background sync-up when they target the same clientId.
      */
-    suspend fun <R> withClientLock(clientId: String, block: suspend () -> R): R {
+    public suspend fun <R> withClientLock(clientId: String, block: suspend () -> R): R {
         val ref = lockMapMutex.withLock {
             clientLocks.getOrPut(clientId) { RefCountedMutex() }.also { it.refCount++ }
         }
@@ -105,7 +105,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      *
      * The request structure used to fetch from the server is configured by [ServerProcessingConfig].
      */
-    suspend fun syncDownFromServer() {
+    public suspend fun syncDownFromServer() {
         try {
             if (!connectivityChecker.isOnline()) {
                 // If the client is not connected, do not bother trying to sync.
@@ -192,7 +192,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
      *
      * @return `true` if the request was synced successfully, `false` otherwise.
      */
-    suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean {
+    public suspend fun syncUpSinglePendingRequest(pendingRequestId: Int): Boolean {
         var entry: PendingSyncRequest<O>? = null
         return try {
             // Re-fetch the entry so we always use the latest rebased state.
@@ -419,7 +419,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
     /**
      * Stops the periodic sync-down loop. Can be restarted by calling [startPeriodicSyncDown].
      */
-    fun stopPeriodicSyncDown() {
+    public fun stopPeriodicSyncDown() {
         serviceScope.launch {
             syncJobMutex.withLock {
                 syncDownJob?.cancel()
@@ -428,11 +428,11 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    fun close() {
+    public fun close() {
         serviceScope.cancel()
     }
 
-    companion object {
-        const val TAG = "SyncableObjectService:SyncDriver"
+    public companion object {
+        public const val TAG: String = "SyncableObjectService:SyncDriver"
     }
 }

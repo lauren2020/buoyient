@@ -6,7 +6,7 @@ import com.les.databuoy.SyncLogger
  * A [SyncLogger] that silently discards all log messages.
  * Useful in tests where log output is not needed.
  */
-object NoOpSyncLogger : SyncLogger {
+public object NoOpSyncLogger : SyncLogger {
     override fun d(tag: String, message: String) {}
     override fun w(tag: String, message: String) {}
     override fun e(tag: String, message: String, throwable: Throwable?) {}
@@ -16,7 +16,7 @@ object NoOpSyncLogger : SyncLogger {
  * A [SyncLogger] that prints all log messages to stdout.
  * Useful for debugging tests or in manual testing scenarios.
  */
-object PrintSyncLogger : SyncLogger {
+public object PrintSyncLogger : SyncLogger {
     override fun d(tag: String, message: String) {
         println("D/$tag: $message")
     }

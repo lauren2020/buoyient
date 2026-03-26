@@ -2,18 +2,18 @@ package com.les.databuoy
 
 import kotlinx.serialization.json.JsonObject
 
-sealed class GetResponse<O> {
-    class ReceivedServerResponse<O>(
-        val statusCode: Int,
-        val responseBody: JsonObject,
-        val data: O?,
+public sealed class GetResponse<O> {
+    public class ReceivedServerResponse<O>(
+        public val statusCode: Int,
+        public val responseBody: JsonObject,
+        public val data: O?,
     ) : GetResponse<O>()
 
-    class RetrievedFromLocalStore<O>(val data: O) : GetResponse<O>()
+    public class RetrievedFromLocalStore<O>(public val data: O) : GetResponse<O>()
 
-    class NotFound<O> : GetResponse<O>()
+    public class NotFound<O> : GetResponse<O>()
 
-    class NoInternetConnection<O> : GetResponse<O>()
+    public class NoInternetConnection<O> : GetResponse<O>()
 
-    class RequestTimedOut<O> : GetResponse<O>()
+    public class RequestTimedOut<O> : GetResponse<O>()
 }
