@@ -94,6 +94,20 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
     public suspend fun syncDownFromServer(): Unit = syncDriver.syncDownFromServer()
 
     /**
+     * Resolves all placeholders in [request] using the given object's [serverId] and [version],
+     * plus the cross-service resolver from the local store.
+     */
+    private fun resolveRequest(
+        request: HttpRequest,
+        serverId: String?,
+        version: Int?,
+    ): HttpRequest.PlaceholderResolutionResult = request.resolveAllPlaceholders(
+        serverId = serverId,
+        version = version?.toString(),
+        crossServiceResolver = localStoreManager.crossServiceIdResolver,
+    )
+
+    /**
      * Creates a new syncable object. If the device is online, the object is sent
      * to the remote API via [serverProcessingConfig]. If offline, the object
      * is stored locally for later sync. This should be used to facilitate and request that
@@ -161,7 +175,22 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         requestTag: T,
         unpackSyncData: ResponseUnpacker<O>,
     ): SyncableObjectServiceResponse<O> {
-        val request = buildRequest.buildRequest(data, idempotencyKey, false, null)
+        val rawRequest = buildRequest.buildRequest(data, idempotencyKey, false, null)
+        val request = when (val resolution = resolveRequest(rawRequest, data.serverId, data.version)) {
+            is HttpRequest.PlaceholderResolutionResult.Resolved -> resolution.request
+            is HttpRequest.PlaceholderResolutionResult.UnresolvedServerId,
+            is HttpRequest.PlaceholderResolutionResult.UnresolvedCrossService -> {
+                if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    return SyncableObjectServiceResponse.InvalidRequest()
+                }
+                return createAsync(
+                    idempotencyKey = idempotencyKey,
+                    data = data,
+                    httpRequest = buildRequest.buildRequest(data, idempotencyKey, true, null),
+                    requestTag = requestTag,
+                )
+            }
+        }
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
                 return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
@@ -353,13 +382,36 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         buildRequest: UpdateRequestBuilder<O>,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
-        val request = buildRequest.buildRequest(
+        val rawRequest = buildRequest.buildRequest(
             baseData = updateContext.baseData,
             updatedData = data,
             idempotencyKey = idempotencyKey,
             isAsync = false,
             attemptedServerRequest = null,
         )
+        val request = when (val resolution = resolveRequest(rawRequest, updateContext.baseData.serverId, updateContext.baseData.version)) {
+            is HttpRequest.PlaceholderResolutionResult.Resolved -> resolution.request
+            is HttpRequest.PlaceholderResolutionResult.UnresolvedServerId,
+            is HttpRequest.PlaceholderResolutionResult.UnresolvedCrossService -> {
+                if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    return SyncableObjectServiceResponse.InvalidRequest()
+                }
+                return updateAsync(
+                    idempotencyKey = idempotencyKey,
+                    data = data,
+                    updateRequest = buildRequest.buildRequest(
+                        baseData = updateContext.baseData,
+                        updatedData = data,
+                        idempotencyKey = idempotencyKey,
+                        isAsync = true,
+                        attemptedServerRequest = null,
+                    ),
+                    serverAttemptMadeForCurrentRequest = false,
+                    updateContext = updateContext,
+                    requestTag = requestTag,
+                )
+            }
+        }
         when (val response = serverManager.sendRequest(httpRequest = request)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
                 return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
@@ -550,7 +602,22 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         idempotencyKey: String,
         requestTag: T,
     ): SyncableObjectServiceResponse<O> {
-        when (val response = serverManager.sendRequest(httpRequest = request)) {
+        val resolvedRequest = when (val resolution = resolveRequest(request, data.serverId, data.version)) {
+            is HttpRequest.PlaceholderResolutionResult.Resolved -> resolution.request
+            is HttpRequest.PlaceholderResolutionResult.UnresolvedServerId,
+            is HttpRequest.PlaceholderResolutionResult.UnresolvedCrossService -> {
+                if (processingConstraints is ProcessingConstraints.OnlineOnly) {
+                    return SyncableObjectServiceResponse.InvalidRequest()
+                }
+                return voidAsync(
+                    data = data,
+                    request = request,
+                    idempotencyKey = idempotencyKey,
+                    requestTag = requestTag,
+                )
+            }
+        }
+        when (val response = serverManager.sendRequest(httpRequest = resolvedRequest)) {
             is ServerManager.ServerManagerResponse.ConnectionError ->
                 return if (processingConstraints is ProcessingConstraints.OnlineOnly) {
                     SyncableObjectServiceResponse.NoInternetConnection()

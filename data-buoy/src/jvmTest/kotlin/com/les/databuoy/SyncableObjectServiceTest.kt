@@ -116,6 +116,30 @@ class SyncableObjectServiceTest {
             },
         )
 
+        suspend fun testCreateWithCrossServicePlaceholder(
+            item: TestItem,
+            constraints: ProcessingConstraints = ProcessingConstraints.NoConstraints,
+        ) = create(
+            data = item,
+            processingConstraints = constraints,
+            requestTag = TestRequestTag.DEFAULT,
+            request = CreateRequestBuilder { data, idempotencyKey, _, _ ->
+                HttpRequest(
+                    HttpRequest.HttpMethod.POST, "https://api.test.com/items",
+                    buildJsonObject {
+                        put("client_id", data.clientId)
+                        put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+                        put("idempotency_key", idempotencyKey)
+                    },
+                )
+            },
+            unpackSyncData = ResponseUnpacker { body, _, syncStatus ->
+                body["data"]?.jsonObject?.let {
+                    Json.decodeFromJsonElement(TestItem.serializer(), it).withSyncStatus(syncStatus)
+                }
+            },
+        )
+
         suspend fun testVoid(item: TestItem) = void(
             data = item,
             requestTag = TestRequestTag.VOID,
@@ -1131,6 +1155,127 @@ class SyncableObjectServiceTest {
         assertEquals(1, items.size)
         assertEquals("Keep", items[0].name)
 
+        service.close()
+    }
+
+    // endregion
+
+    // region placeholder resolution in sync path
+
+    @Test
+    fun `updateSync resolves serverId placeholder in URL from baseData`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        // First create an item so it has a serverId in the local store.
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        env.mockRouter.onPost("https://api.test.com/items") { _ ->
+            MockResponse(201, wrapResponse(serverItem))
+        }
+        service.testCreate(testItem(clientId = "client-1"))
+
+        // Now update — the request builder uses SERVER_ID_PLACEHOLDER in the URL.
+        // The placeholder should be resolved from baseData.serverId before sending.
+        var capturedUrl: String? = null
+        val updatedServerItem = testItem(clientId = "client-1", serverId = "server-1", version = 2, name = "Updated")
+        env.mockRouter.onPut("https://api.test.com/items/server-1") { request ->
+            capturedUrl = request.url
+            MockResponse(200, wrapResponse(updatedServerItem))
+        }
+
+        val result = service.testUpdate(
+            serverItem.copy(name = "Updated").withSyncStatus(SyncableObject.SyncStatus.Synced("")),
+        )
+
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
+        assertNotNull(capturedUrl)
+        assertFalse(capturedUrl!!.contains(HttpRequest.SERVER_ID_PLACEHOLDER), "URL should not contain placeholder")
+        assertTrue(capturedUrl!!.contains("server-1"), "URL should contain resolved server ID")
+        service.close()
+    }
+
+    @Test
+    fun `voidSync resolves serverId placeholder in URL from data`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        // Create an item first.
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        env.mockRouter.onPost("https://api.test.com/items") { _ ->
+            MockResponse(201, wrapResponse(serverItem))
+        }
+        service.testCreate(testItem(clientId = "client-1"))
+
+        // Void it — URL uses SERVER_ID_PLACEHOLDER pattern, should be resolved.
+        var capturedUrl: String? = null
+        val voidedItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        env.mockRouter.onDelete("https://api.test.com/items/server-1") { request ->
+            capturedUrl = request.url
+            MockResponse(200, wrapResponse(voidedItem))
+        }
+
+        val result = service.testVoid(
+            serverItem.withSyncStatus(SyncableObject.SyncStatus.Synced("")),
+        )
+
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
+        assertNotNull(capturedUrl)
+        assertFalse(capturedUrl!!.contains(HttpRequest.SERVER_ID_PLACEHOLDER), "URL should not contain placeholder")
+        service.close()
+    }
+
+    @Test
+    fun `createSync with cross-service placeholder - resolves when dependency is synced`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+
+        // Insert a synced order into the DB so cross-service resolution can find it.
+        env.database.syncDataQueries.insertFromServerResponse(
+            service_name = "orders",
+            client_id = "order-1",
+            server_id = "server-order-42",
+            version = 1,
+            data_blob = "{}",
+            last_synced_timestamp = "2024-01-01",
+            sync_status = SyncableObject.SyncStatus.SYNCED,
+            last_synced_server_data = "{}",
+        )
+
+        // Now create an item whose request body contains a cross-service placeholder.
+        var capturedBody: String? = null
+        val serverItem = testItem(clientId = "client-1", serverId = "server-1", version = 1)
+        env.mockRouter.onPost("https://api.test.com/items") { request ->
+            capturedBody = request.body.toString()
+            MockResponse(201, wrapResponse(serverItem))
+        }
+
+        val result = service.testCreateWithCrossServicePlaceholder(testItem(clientId = "client-1"))
+
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
+        assertNotNull(capturedBody)
+        assertTrue(capturedBody!!.contains("server-order-42"), "Body should contain resolved cross-service ID")
+        assertFalse(capturedBody!!.contains("{cross:"), "Body should not contain unresolved placeholder")
+        service.close()
+    }
+
+    @Test
+    fun `createSync with unresolved cross-service placeholder and OnlineOnly returns InvalidRequest`() = runBlocking {
+        val (service, _) = createServiceAndEnv(online = true)
+
+        // Don't insert any "orders" data — the cross-service placeholder will be unresolvable.
+        val result = service.testCreateWithCrossServicePlaceholder(
+            testItem(clientId = "client-1"),
+            constraints = SyncableObjectService.ProcessingConstraints.OnlineOnly,
+        )
+
+        assertIs<SyncableObjectServiceResponse.InvalidRequest<TestItem>>(result)
+        service.close()
+    }
+
+    @Test
+    fun `createSync with unresolved cross-service placeholder falls back to async`() = runBlocking {
+        val (service, _) = createServiceAndEnv(online = true)
+
+        // Don't insert any "orders" data — the cross-service placeholder will be unresolvable.
+        // With NoConstraints, it should fall back to async (stored locally).
+        val result = service.testCreateWithCrossServicePlaceholder(testItem(clientId = "client-1"))
+
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(result)
         service.close()
     }
 

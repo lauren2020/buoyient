@@ -136,6 +136,64 @@ public class HttpRequest(
         )
     }
 
+    /**
+     * Result of [resolveAllPlaceholders] — indicates whether all placeholders were
+     * successfully resolved or which category of placeholder could not be resolved.
+     */
+    public sealed class PlaceholderResolutionResult {
+        /** All placeholders resolved successfully. */
+        public class Resolved(public val request: HttpRequest) : PlaceholderResolutionResult()
+        /** The request contains a `{serverId}` placeholder but no serverId was available. */
+        public class UnresolvedServerId(public val request: HttpRequest) : PlaceholderResolutionResult()
+        /** The request contains a cross-service placeholder that could not be resolved. */
+        public class UnresolvedCrossService(public val request: HttpRequest) : PlaceholderResolutionResult()
+    }
+
+    /**
+     * Resolves all placeholders (`{serverId}`, `{version}`, `{cross:…}`) in this request
+     * in a single pass. Callers decide what to do with unresolved results (skip, queue, error).
+     *
+     * @param serverId value to substitute for `{serverId}` in URL and body. If `null` and the
+     *   request contains the placeholder, returns [PlaceholderResolutionResult.UnresolvedServerId].
+     * @param version value to substitute for `{version}` in the body. If `null`, version
+     *   placeholders are left as-is (no error).
+     * @param crossServiceResolver looks up a server ID by (serviceName, clientId). If `null`
+     *   or if any dependency is unresolved, returns [PlaceholderResolutionResult.UnresolvedCrossService].
+     */
+    public fun resolveAllPlaceholders(
+        serverId: String? = null,
+        version: String? = null,
+        crossServiceResolver: ((serviceName: String, clientId: String) -> String?)? = null,
+    ): PlaceholderResolutionResult {
+        var resolved = this
+
+        // 1. Resolve serverId in URL
+        if (resolved.endpointUrl.contains(SERVER_ID_PLACEHOLDER)) {
+            if (serverId == null) return PlaceholderResolutionResult.UnresolvedServerId(resolved)
+            resolved = resolved.resolveEndpoint(serverId) ?: resolved
+        }
+
+        // 2. Resolve serverId in body
+        if (resolved.requestBody.toString().contains(SERVER_ID_PLACEHOLDER)) {
+            if (serverId == null) return PlaceholderResolutionResult.UnresolvedServerId(resolved)
+            resolved = resolved.resolveBodyServerId(serverId) ?: resolved
+        }
+
+        // 3. Resolve version in body
+        if (version != null) {
+            resolved = resolved.resolveBodyVersion(version) ?: resolved
+        }
+
+        // 4. Resolve cross-service placeholders
+        if (resolved.containsCrossServicePlaceholders()) {
+            if (crossServiceResolver == null) return PlaceholderResolutionResult.UnresolvedCrossService(resolved)
+            resolved = resolved.resolveCrossServicePlaceholders(crossServiceResolver)
+                ?: return PlaceholderResolutionResult.UnresolvedCrossService(resolved)
+        }
+
+        return PlaceholderResolutionResult.Resolved(resolved)
+    }
+
     public companion object {
         public const val SERVER_ID_PLACEHOLDER: String = "{serverId}"
         public const val VERSION_PLACEHOLDER: String = "{version}"

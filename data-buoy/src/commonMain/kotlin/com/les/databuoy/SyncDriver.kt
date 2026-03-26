@@ -259,48 +259,23 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
      */
     private suspend fun syncUpPendingData(row: PendingSyncRequest<O>): Boolean {
         var request = row.request
-        // If the request contains placeholders, updates those based on the latest server context.
-        if (row.request.endpointUrl.contains(HttpRequest.SERVER_ID_PLACEHOLDER)) {
-            val serverId = row.baseData?.serverId ?: row.data.serverId
-            if (serverId == null) {
-                // If the endpoint contains unresolved placeholders and still has no server id,
-                // skip this entry.
-                // This can happen if the preceding CREATE hasn't synced yet (e.g., it failed).
-                // The entry stays in the queue and will be retried on the next sync cycle.
+        // Resolve all placeholders ({serverId}, {version}, {cross:…}) in one pass.
+        val serverId = row.baseData?.serverId ?: row.data.serverId
+        val version = (row.baseData?.version ?: row.data.version).toString()
+        when (val resolution = request.resolveAllPlaceholders(
+            serverId = serverId,
+            version = version,
+            crossServiceResolver = localStoreManager.crossServiceIdResolver,
+        )) {
+            is HttpRequest.PlaceholderResolutionResult.Resolved -> request = resolution.request
+            is HttpRequest.PlaceholderResolutionResult.UnresolvedServerId -> {
                 SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
                 return false
-            } else {
-                request = request.resolveEndpoint(serverId) ?: request
             }
-        }
-        // Use the (potentially endpoint-resolved) request, not the original row.request,
-        // so that all placeholder checks operate on the latest resolved state.
-        if (request.requestBody.toString().contains(HttpRequest.SERVER_ID_PLACEHOLDER)) {
-            val serverId = row.baseData?.serverId ?: row.data.serverId
-            if (serverId == null) {
-                // If the request body contains unresolved placeholders and still has no server id,
-                // skip this entry.
-                // This can happen if the preceding CREATE hasn't synced yet (e.g., it failed).
-                // The entry stays in the queue and will be retried on the next sync cycle.
-                SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
-                return false
-            } else {
-                request = request.resolveBodyServerId(serverId) ?: request
-            }
-        }
-        if (request.requestBody.toString().contains(HttpRequest.VERSION_PLACEHOLDER)) {
-            // Resolve the version placeholder in the request body with the most up-to-date version.
-            val version = row.baseData?.version ?: row.data.version
-            request = request.resolveBodyVersion(version.toString()) ?: request
-        }
-        // Resolve cross-service placeholders (e.g., {cross:orders:abc-123} → server ID from orders service).
-        if (request.containsCrossServicePlaceholders()) {
-            val resolved = request.resolveCrossServicePlaceholders(localStoreManager.crossServiceIdResolver)
-            if (resolved == null) {
+            is HttpRequest.PlaceholderResolutionResult.UnresolvedCrossService -> {
                 SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: cross-service dependency not yet resolved")
                 return false
             }
-            request = resolved
         }
         return when (val response = serverManager.sendRequest(request)) {
             is ServerManager.ServerManagerResponse.ConnectionError,

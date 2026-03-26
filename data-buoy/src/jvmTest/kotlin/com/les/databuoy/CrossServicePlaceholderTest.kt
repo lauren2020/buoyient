@@ -19,6 +19,7 @@ import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -184,6 +185,179 @@ class CrossServicePlaceholderTest {
         )
         val resolved = request.resolveCrossServicePlaceholders { _, _ -> "any" }
         assertNull(resolved)
+    }
+
+    // endregion
+
+    // region resolveAllPlaceholders tests
+
+    @Test
+    fun `resolveAllPlaceholders with no placeholders returns Resolved with unchanged request`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/items",
+            requestBody = buildJsonObject { put("name", "Test") },
+        )
+        val result = request.resolveAllPlaceholders(serverId = "s1", version = "1")
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        assertEquals(request.endpointUrl, result.request.endpointUrl)
+        assertEquals(request.requestBody, result.request.requestBody)
+    }
+
+    @Test
+    fun `resolveAllPlaceholders resolves serverId in URL`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.PATCH,
+            endpointUrl = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}",
+            requestBody = buildJsonObject { put("name", "Test") },
+        )
+        val result = request.resolveAllPlaceholders(serverId = "server-42")
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        assertEquals("https://api.test.com/items/server-42", result.request.endpointUrl)
+    }
+
+    @Test
+    fun `resolveAllPlaceholders returns UnresolvedServerId when serverId null and placeholder in URL`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.PATCH,
+            endpointUrl = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}",
+            requestBody = buildJsonObject { put("name", "Test") },
+        )
+        val result = request.resolveAllPlaceholders(serverId = null)
+        assertIs<HttpRequest.PlaceholderResolutionResult.UnresolvedServerId>(result)
+    }
+
+    @Test
+    fun `resolveAllPlaceholders resolves serverId in body`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.PATCH,
+            endpointUrl = "https://api.test.com/items",
+            requestBody = buildJsonObject { put("id", HttpRequest.SERVER_ID_PLACEHOLDER) },
+        )
+        val result = request.resolveAllPlaceholders(serverId = "server-42")
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        assertEquals("server-42", result.request.requestBody["id"]!!.toString().trim('"'))
+    }
+
+    @Test
+    fun `resolveAllPlaceholders returns UnresolvedServerId when serverId null and placeholder in body`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.PATCH,
+            endpointUrl = "https://api.test.com/items",
+            requestBody = buildJsonObject { put("id", HttpRequest.SERVER_ID_PLACEHOLDER) },
+        )
+        val result = request.resolveAllPlaceholders(serverId = null)
+        assertIs<HttpRequest.PlaceholderResolutionResult.UnresolvedServerId>(result)
+    }
+
+    @Test
+    fun `resolveAllPlaceholders resolves version in body`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.PATCH,
+            endpointUrl = "https://api.test.com/items",
+            requestBody = buildJsonObject { put("version", HttpRequest.VERSION_PLACEHOLDER) },
+        )
+        val result = request.resolveAllPlaceholders(version = "3")
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        assertEquals("3", result.request.requestBody["version"]!!.toString().trim('"'))
+    }
+
+    @Test
+    fun `resolveAllPlaceholders leaves version placeholder when version is null`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.PATCH,
+            endpointUrl = "https://api.test.com/items",
+            requestBody = buildJsonObject { put("version", HttpRequest.VERSION_PLACEHOLDER) },
+        )
+        val result = request.resolveAllPlaceholders(version = null)
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        assertEquals(
+            HttpRequest.VERSION_PLACEHOLDER,
+            result.request.requestBody["version"]!!.toString().trim('"'),
+        )
+    }
+
+    @Test
+    fun `resolveAllPlaceholders resolves cross-service placeholders`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments",
+            requestBody = buildJsonObject {
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+            },
+        )
+        val result = request.resolveAllPlaceholders(
+            crossServiceResolver = { _, _ -> "server-order-1" },
+        )
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        assertEquals("server-order-1", result.request.requestBody["order_id"]!!.toString().trim('"'))
+    }
+
+    @Test
+    fun `resolveAllPlaceholders returns UnresolvedCrossService when resolver returns null`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments",
+            requestBody = buildJsonObject {
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+            },
+        )
+        val result = request.resolveAllPlaceholders(
+            crossServiceResolver = { _, _ -> null },
+        )
+        assertIs<HttpRequest.PlaceholderResolutionResult.UnresolvedCrossService>(result)
+    }
+
+    @Test
+    fun `resolveAllPlaceholders returns UnresolvedCrossService when no resolver provided`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments",
+            requestBody = buildJsonObject {
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+            },
+        )
+        val result = request.resolveAllPlaceholders(crossServiceResolver = null)
+        assertIs<HttpRequest.PlaceholderResolutionResult.UnresolvedCrossService>(result)
+    }
+
+    @Test
+    fun `resolveAllPlaceholders resolves all placeholder types in one call`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.PATCH,
+            endpointUrl = "https://api.test.com/items/${HttpRequest.SERVER_ID_PLACEHOLDER}",
+            requestBody = buildJsonObject {
+                put("version", HttpRequest.VERSION_PLACEHOLDER)
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+            },
+        )
+        val result = request.resolveAllPlaceholders(
+            serverId = "server-42",
+            version = "5",
+            crossServiceResolver = { _, _ -> "server-order-1" },
+        )
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        assertEquals("https://api.test.com/items/server-42", result.request.endpointUrl)
+        assertEquals("5", result.request.requestBody["version"]!!.toString().trim('"'))
+        assertEquals("server-order-1", result.request.requestBody["order_id"]!!.toString().trim('"'))
+    }
+
+    @Test
+    fun `resolveAllPlaceholders does not call cross-service resolver when no cross-service placeholders`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/items",
+            requestBody = buildJsonObject { put("name", "Test") },
+        )
+        var resolverCalled = false
+        val result = request.resolveAllPlaceholders(
+            crossServiceResolver = { _, _ ->
+                resolverCalled = true
+                "should-not-be-called"
+            },
+        )
+        assertIs<HttpRequest.PlaceholderResolutionResult.Resolved>(result)
+        assertFalse(resolverCalled, "Cross-service resolver should not be called when no placeholders exist")
     }
 
     // endregion
