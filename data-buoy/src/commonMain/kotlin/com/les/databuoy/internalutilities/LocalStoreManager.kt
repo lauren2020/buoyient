@@ -7,6 +7,7 @@ import com.les.databuoy.DatabaseOverride
 import com.les.databuoy.EncryptionProvider
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.PendingRequestQueueManager
+import com.les.databuoy.PendingRequestQueueStrategy
 import com.les.databuoy.PendingSyncRequest
 import com.les.databuoy.ResolveConflictResult
 import com.les.databuoy.ServiceRequestTag
@@ -30,8 +31,8 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val syncScheduleNotifier: SyncScheduleNotifier,
     private val codec: SyncCodec<O>,
     private val status: DataBuoyStatus = DataBuoyStatus.Companion.shared,
-    private val queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
-        PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+    private val queueStrategy: PendingRequestQueueStrategy =
+        PendingRequestQueueStrategy.Queue,
     encryptionProvider: EncryptionProvider? = null,
 ) {
     private val storageCodec = StorageCodec(encryptionProvider)
@@ -113,12 +114,12 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             val pendingRequests = pendingRequestQueueManager.getPendingRequests(updatedData.clientId)
             val latestPendingRequest = pendingRequests.lastOrNull()
             when (pendingRequestQueueManager.strategy) {
-                is PendingRequestQueueManager.PendingRequestQueueStrategy.Squash -> {
+                is PendingRequestQueueStrategy.Squash -> {
                     if (latestPendingRequest?.serverAttemptMade == true) {
                         val effectiveBaseData = getEffectiveBaseDataForUpdate(
                             data = updatedData,
                             // Override the preferred strategy since we are forcing queue.
-                            effectiveStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+                            effectiveStrategy = PendingRequestQueueStrategy.Queue,
                         )
                         // If a server attempt was already made and we do not know if the server
                         // received that request or not, we want to make sure that any retry of
@@ -140,7 +141,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     }
                 }
 
-                is PendingRequestQueueManager.PendingRequestQueueStrategy.Queue -> {
+                is PendingRequestQueueStrategy.Queue -> {
                     val effectiveBaseData = getEffectiveBaseDataForUpdate(
                         data = updatedData,
                         effectiveStrategy = pendingRequestQueueManager.strategy,
@@ -197,7 +198,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      */
     internal fun getEffectiveBaseDataForUpdate(
         data: O,
-        effectiveStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy,
+        effectiveStrategy: PendingRequestQueueStrategy,
     ): O {
         val localStoreEntry = getData(
             clientId = data.clientId,
@@ -216,10 +217,10 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             }
 
             is SyncableObject.SyncStatus.PendingUpdate -> when (effectiveStrategy) {
-                is PendingRequestQueueManager.PendingRequestQueueStrategy.Queue -> {
+                is PendingRequestQueueStrategy.Queue -> {
                     pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.data
                 }
-                is PendingRequestQueueManager.PendingRequestQueueStrategy.Squash -> {
+                is PendingRequestQueueStrategy.Squash -> {
                     pendingRequestQueueManager.getLatestPendingRequest(data.clientId)!!.baseData!!
                 }
             }

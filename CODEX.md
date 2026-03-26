@@ -54,7 +54,7 @@ If you are unsure about naming or wiring, prefer copying from `templates/` and `
 | `SyncFetchConfig<O>` | Configures periodic sync-down (GET or POST) |
 | `SyncUpConfig<O>` | Controls sync-up retry logic and response parsing via `fromResponseBody()` |
 | `SyncCodec<O>` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
-| `PendingRequestQueueManager.PendingRequestQueueStrategy` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
+| `PendingRequestQueueStrategy` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
 | `SquashRequestMerger` | Functional interface for merging an update into a pending create when using `Squash` strategy |
 | `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
 | `DataBuoy` | Convenience API for service registration |

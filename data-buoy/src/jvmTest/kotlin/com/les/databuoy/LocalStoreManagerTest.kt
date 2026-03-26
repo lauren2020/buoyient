@@ -544,7 +544,7 @@ class LocalStoreManagerTest {
 
         manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
 
-        val base = manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val base = manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueStrategy.Queue)
         assertEquals("ServerV1", base.name)
         assertEquals(1, base.version)
     }
@@ -560,7 +560,7 @@ class LocalStoreManagerTest {
             idempotencyKey = "key-1", requestTag = TestRequestTag.DEFAULT,
         )
 
-        val base = manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val base = manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueStrategy.Queue)
         assertEquals("Created", base.name)
     }
 
@@ -583,7 +583,7 @@ class LocalStoreManagerTest {
             requestTag = TestRequestTag.DEFAULT,
         )
 
-        val base = manager.getEffectiveBaseDataForUpdate(updated, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val base = manager.getEffectiveBaseDataForUpdate(updated, PendingRequestQueueStrategy.Queue)
         assertEquals("Updated", base.name)
     }
 
@@ -600,7 +600,7 @@ class LocalStoreManagerTest {
         )
 
         val exception = try {
-            manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+            manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueStrategy.Queue)
             null
         } catch (e: Exception) { e }
 
@@ -614,7 +614,7 @@ class LocalStoreManagerTest {
         val item = testItem(clientId = "nonexistent", serverId = null)
 
         val exception = try {
-            manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+            manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueStrategy.Queue)
             null
         } catch (e: Exception) { e }
 

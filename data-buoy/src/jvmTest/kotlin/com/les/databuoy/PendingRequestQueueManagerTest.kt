@@ -68,8 +68,8 @@ class PendingRequestQueueManagerTest {
     private fun createManager(
         database: SyncDatabase = TestDatabaseFactory.createInMemory(),
         serviceName: String = "test-service",
-        strategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
-            PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+        strategy: PendingRequestQueueStrategy =
+            PendingRequestQueueStrategy.Queue,
         status: DataBuoyStatus = DataBuoyStatus(database),
     ) = PendingRequestQueueManager<TestItem, TestRequestTag>(
         database = database,
@@ -241,7 +241,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `queueUpdateRequest with Queue strategy stores update`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val item = testItem()
         val result = manager.queueUpdateRequest(
             data = item,
@@ -262,7 +262,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `queueUpdateRequest with Queue strategy allows multiple updates`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val item = testItem()
         repeat(3) { i ->
             manager.queueUpdateRequest(
@@ -282,7 +282,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `queueUpdateRequest with Queue strategy rejects update after void`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val item = testItem()
         manager.queueVoidRequest(
             data = item, httpRequest = makeRequest(), idempotencyKey = "v1",
@@ -310,7 +310,7 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `squash strategy stores update when no prior pending requests`() {
         val manager = createManager(
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
+            strategy = PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
         val item = testItem()
         val result = manager.queueUpdateRequest(
@@ -332,7 +332,7 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `squash strategy squashes update into unattempted create`() {
         val manager = createManager(
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
+            strategy = PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
         val item = testItem()
         // Queue a create that has not been attempted on the server.
@@ -370,7 +370,7 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `squash strategy does not squash update into server-attempted create`() {
         val manager = createManager(
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
+            strategy = PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
         val item = testItem()
         // Queue a create that was already attempted on the server.
@@ -403,7 +403,7 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `squash strategy squashes consecutive unattempted updates`() {
         val manager = createManager(
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
+            strategy = PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
         val item = testItem()
         // First update.
@@ -441,7 +441,7 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `squash strategy does not squash update after server-attempted update`() {
         val manager = createManager(
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
+            strategy = PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
         val item = testItem()
         // First update attempted on server.
@@ -476,7 +476,7 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `squash strategy rejects update after void`() {
         val manager = createManager(
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
+            strategy = PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
         val item = testItem()
         manager.queueVoidRequest(
@@ -502,7 +502,7 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `StoreAfterServerAttempt rejects update after void in squash mode`() {
         val manager = createManager(
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
+            strategy = PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
         val item = testItem()
         manager.queueVoidRequest(
@@ -527,7 +527,7 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `StoreAfterServerAttempt stores with serverAttemptMade true`() {
         val manager = createManager(
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(identitySquashMerger),
+            strategy = PendingRequestQueueStrategy.Squash(identitySquashMerger),
         )
         val item = testItem()
         manager.queueUpdateRequest(
@@ -591,7 +591,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `getLatestPendingRequest returns the last queued request`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val item = testItem()
         manager.queueCreateRequest(
             data = item, httpRequest = makeRequest(), idempotencyKey = "k1",
@@ -681,7 +681,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `clearAllPendingRequests removes all requests for clientId`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val item = testItem()
         manager.queueCreateRequest(
             data = item, httpRequest = makeRequest(), idempotencyKey = "k1",
@@ -743,7 +743,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `clearPendingRequestAfterUpload returns PENDING_UPDATE when update remains`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val item = testItem()
         manager.queueCreateRequest(
             data = item, httpRequest = makeRequest(), idempotencyKey = "k1",
@@ -770,7 +770,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `clearPendingRequestAfterUpload returns PENDING_VOID when void remains`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val item = testItem()
         manager.queueCreateRequest(
             data = item, httpRequest = makeRequest(), idempotencyKey = "k1",
@@ -826,7 +826,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `rebase applies server changes to pending request without conflict`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val base = testItem(name = "Base", value = 1)
         val localUpdate = testItem(name = "LocalName", value = 1)
         // Queue an update that changed the name field.
@@ -856,7 +856,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `rebase aborts with conflict when same field changed differently`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val base = testItem(name = "Base", value = 1)
         val localUpdate = testItem(name = "LocalName", value = 1)
         manager.queueUpdateRequest(
@@ -918,7 +918,7 @@ class PendingRequestQueueManagerTest {
 
     @Test
     fun `resolveConflictOnPendingRequest clears conflict and updates data`() {
-        val manager = createManager(strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val manager = createManager(strategy = PendingRequestQueueStrategy.Queue)
         val base = testItem(name = "Base", value = 1)
         val localUpdate = testItem(name = "LocalName", value = 1)
         manager.queueUpdateRequest(

@@ -27,7 +27,7 @@ These guides contain complete templates, required field tables, and common patte
 | `SyncUpConfig<O>` | Controls sync-up retry logic and response parsing via `fromResponseBody()` |
 | `SyncUpResult<O>` | Sealed return type for `fromResponseBody()`: `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest` |
 | `SyncCodec<O>` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
-| `PendingRequestQueueManager.PendingRequestQueueStrategy` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
+| `PendingRequestQueueStrategy` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
 | `SquashRequestMerger` | Functional interface for merging an update into a pending create when using `Squash` strategy |
 | `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
 | `SyncLog` | Process-wide logger singleton — set `SyncLog.logger` to swap the backing `SyncLogger` |

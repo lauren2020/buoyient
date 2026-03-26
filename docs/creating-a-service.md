@@ -287,7 +287,7 @@ class YourModelService(
     serverProcessingConfig = serverProcessingConfig,
     serviceName = SERVICE_NAME,
     connectivityChecker = connectivityChecker,
-    queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+    queueStrategy = PendingRequestQueueStrategy.Squash(
         squashUpdateIntoCreate = SquashRequestMerger { createRequest, updateRequest ->
             HttpRequest(
                 method = createRequest.method,

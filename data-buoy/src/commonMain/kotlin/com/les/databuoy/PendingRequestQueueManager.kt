@@ -5,7 +5,7 @@ import com.les.databuoy.internalutilities.LocalStoreManager
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
-public class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
+internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     internal val database: SyncDatabase,
     internal val serviceName: String,
     internal val strategy: PendingRequestQueueStrategy,
@@ -13,20 +13,12 @@ public class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceReques
     private val status: DataBuoyStatus = DataBuoyStatus(database),
     internal val storageCodec: StorageCodec = StorageCodec(),
 ) {
-    public sealed class PendingRequestQueueStrategy {
-        public class Squash(
-            public val squashUpdateIntoCreate: SquashRequestMerger,
-        ) : PendingRequestQueueStrategy()
+    internal sealed class QueueResult {
+        internal object Stored : QueueResult()
 
-        public object Queue : PendingRequestQueueStrategy()
-    }
+        internal class InvalidQueueRequest(internal val errorMessage: String) : QueueResult()
 
-    public sealed class QueueResult {
-        public object Stored : QueueResult()
-
-        public class InvalidQueueRequest(public val errorMessage: String) : QueueResult()
-
-        public object StoreFailed : QueueResult()
+        internal object StoreFailed : QueueResult()
     }
 
     internal fun queueCreateRequest(

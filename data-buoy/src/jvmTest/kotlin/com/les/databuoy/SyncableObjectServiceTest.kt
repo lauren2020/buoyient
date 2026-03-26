@@ -64,8 +64,8 @@ class SyncableObjectServiceTest {
     private class TestItemService(
         serverProcessingConfig: ServerProcessingConfig<TestItem>,
         connectivityChecker: ConnectivityChecker,
-        queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
-            PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+        queueStrategy: PendingRequestQueueStrategy =
+            PendingRequestQueueStrategy.Queue,
     ) : SyncableObjectService<TestItem, TestRequestTag>(
         serializer = TestItem.serializer(),
         serverProcessingConfig = serverProcessingConfig,
@@ -223,8 +223,8 @@ class SyncableObjectServiceTest {
 
     private fun createServiceAndEnv(
         online: Boolean = true,
-        queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
-            PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+        queueStrategy: PendingRequestQueueStrategy =
+            PendingRequestQueueStrategy.Queue,
     ): Pair<TestItemService, TestServiceEnvironment> {
         val env = TestServiceEnvironment()
         env.connectivityChecker.online = online
@@ -682,7 +682,7 @@ class SyncableObjectServiceTest {
 
     @Test
     fun `update offline Queue strategy - multiple updates create separate pending requests`() = runBlocking {
-        val (service, env) = createServiceAndEnv(online = true, queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Queue)
+        val (service, env) = createServiceAndEnv(online = true, queueStrategy = PendingRequestQueueStrategy.Queue)
         val serverItem = seedSyncedItem(service, env)
 
         env.connectivityChecker.online = false
@@ -708,7 +708,7 @@ class SyncableObjectServiceTest {
     fun `update offline Squash strategy - consecutive updates squash into one pending request`() = runBlocking {
         val (service, env) = createServiceAndEnv(
             online = true,
-            queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+            queueStrategy = PendingRequestQueueStrategy.Squash(
                 squashUpdateIntoCreate = SquashRequestMerger { createReq, updateReq ->
                     // Merge the update body into the create request
                     HttpRequest(createReq.method, createReq.endpointUrl, updateReq.requestBody)
@@ -739,7 +739,7 @@ class SyncableObjectServiceTest {
     fun `update Squash strategy - timeout update not squashed with subsequent update`() = runBlocking {
         val (service, env) = createServiceAndEnv(
             online = true,
-            queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+            queueStrategy = PendingRequestQueueStrategy.Squash(
                 squashUpdateIntoCreate = SquashRequestMerger { createReq, updateReq ->
                     HttpRequest(createReq.method, createReq.endpointUrl, updateReq.requestBody)
                 },
@@ -773,7 +773,7 @@ class SyncableObjectServiceTest {
     fun `update Squash strategy - update after offline create squashes into create`() = runBlocking {
         val (service, env) = createServiceAndEnv(
             online = false,
-            queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+            queueStrategy = PendingRequestQueueStrategy.Squash(
                 squashUpdateIntoCreate = SquashRequestMerger { createReq, updateReq ->
                     HttpRequest(createReq.method, createReq.endpointUrl, updateReq.requestBody)
                 },

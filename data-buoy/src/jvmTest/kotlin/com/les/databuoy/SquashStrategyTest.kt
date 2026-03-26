@@ -19,7 +19,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Tests for the [PendingRequestQueueManager.PendingRequestQueueStrategy.Squash] strategy
+ * Tests for the [PendingRequestQueueStrategy.Squash] strategy
  * wired through [MockServerStoreRouter.registerCrudHandlers].
  *
  * These verify that multiple offline updates to the same object are squashed into a single
@@ -107,7 +107,7 @@ class SquashStrategyTest {
         val squashQueueManager = PendingRequestQueueManager<TestItem, TestRequestTag>(
             database = env.database,
             serviceName = "squash-test",
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+            strategy = PendingRequestQueueStrategy.Squash(
                 squashUpdateIntoCreate = squashMerger,
             ),
             codec = codec,
@@ -191,7 +191,7 @@ class SquashStrategyTest {
         val squashQueueManager = PendingRequestQueueManager<TestItem, TestRequestTag>(
             database = env.database,
             serviceName = "squash-updates",
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+            strategy = PendingRequestQueueStrategy.Squash(
                 squashUpdateIntoCreate = SquashRequestMerger { create, update ->
                     HttpRequest(create.method, create.endpointUrl, update.requestBody)
                 },
@@ -268,7 +268,7 @@ class SquashStrategyTest {
         val squashQueueManager = PendingRequestQueueManager<TestItem, TestRequestTag>(
             database = env.database,
             serviceName = "squash-no-merge",
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+            strategy = PendingRequestQueueStrategy.Squash(
                 squashUpdateIntoCreate = SquashRequestMerger { create, update ->
                     HttpRequest(create.method, create.endpointUrl, update.requestBody)
                 },
@@ -335,7 +335,7 @@ class SquashStrategyTest {
         val squashQueueManager = PendingRequestQueueManager<TestItem, TestRequestTag>(
             database = env.database,
             serviceName = "squash-e2e",
-            strategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
+            strategy = PendingRequestQueueStrategy.Squash(
                 squashUpdateIntoCreate = SquashRequestMerger { create, update ->
                     // Merge the update body into the create request
                     HttpRequest(create.method, create.endpointUrl, update.requestBody)

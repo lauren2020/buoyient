@@ -27,8 +27,8 @@ import kotlinx.serialization.KSerializer
  *   platform-specific implementation; override in tests to simulate offline scenarios.
  * @param encryptionProvider - Optional [EncryptionProvider] for encrypting data at rest in the
  *   local store. Pass `null` (the default) to store data unencrypted.
- * @param queueStrategy - Controls how offline requests are queued. [PendingRequestQueueManager.PendingRequestQueueStrategy.Queue]
- *   (default) keeps one entry per operation; [PendingRequestQueueManager.PendingRequestQueueStrategy.Squash]
+ * @param queueStrategy - Controls how offline requests are queued. [PendingRequestQueueStrategy.Queue]
+ *   (default) keeps one entry per operation; [PendingRequestQueueStrategy.Squash]
  *   collapses consecutive offline edits into a single request.
  * @param rebaseHandler - Handles 3-way merge conflict detection and resolution during sync-up.
  *   Defaults to a standard handler built from the provided [serializer].
@@ -39,8 +39,8 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
     protected val serviceName: String,
     protected val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     encryptionProvider: EncryptionProvider? = null,
-    queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
-        PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+    queueStrategy: PendingRequestQueueStrategy =
+        PendingRequestQueueStrategy.Queue,
     protected val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(SyncCodec(serializer)),
 ) : Service<O> {
 
