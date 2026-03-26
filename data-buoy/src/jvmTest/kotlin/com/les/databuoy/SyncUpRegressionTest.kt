@@ -8,6 +8,7 @@ import com.les.databuoy.publicconfigs.SyncFetchConfig
 import com.les.databuoy.publicconfigs.SyncUpConfig
 import com.les.databuoy.publicconfigs.SyncUpResult
 import com.les.databuoy.sync.SyncDriver
+import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.sync.SyncUpCoordinator
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory

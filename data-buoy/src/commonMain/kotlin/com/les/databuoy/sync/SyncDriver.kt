@@ -10,7 +10,7 @@ import com.les.databuoy.SyncLog
 import com.les.databuoy.publicconfigs.SyncUpResult
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.TimestampFormatter
-import com.les.databuoy.UpsertResult
+import com.les.databuoy.sync.UpsertResult
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker

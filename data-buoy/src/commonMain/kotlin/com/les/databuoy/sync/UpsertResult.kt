@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.sync
 
 public sealed class UpsertResult {
     public object CleanUpsert : UpsertResult()

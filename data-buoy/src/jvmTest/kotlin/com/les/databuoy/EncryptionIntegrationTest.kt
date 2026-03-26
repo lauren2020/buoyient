@@ -2,13 +2,13 @@ package com.les.databuoy
 
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.publicconfigs.EncryptionProvider
+import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 

@@ -1,6 +1,6 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.SyncScheduleNotifier
+import com.les.databuoy.sync.SyncScheduleNotifier
 
 /**
  * A [SyncScheduleNotifier] that does nothing. In tests there is no WorkManager

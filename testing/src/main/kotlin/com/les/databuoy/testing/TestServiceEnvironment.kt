@@ -5,7 +5,7 @@ import com.les.databuoy.HttpClientOverride
 import com.les.databuoy.IdGenerator
 import com.les.databuoy.SyncLog
 import com.les.databuoy.SyncLogger
-import com.les.databuoy.SyncScheduleNotifier
+import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.db.SyncDatabase
 
 /**

@@ -6,7 +6,6 @@ import com.les.databuoy.DataBuoyStatus
 import com.les.databuoy.DatabaseOverride
 import com.les.databuoy.publicconfigs.EncryptionProvider
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.PendingRequestQueueStrategy
 import com.les.databuoy.PendingSyncRequest
 import com.les.databuoy.ResolveConflictResult
@@ -15,10 +14,10 @@ import com.les.databuoy.SquashRequestMerger
 import com.les.databuoy.StorageCodec
 import com.les.databuoy.SyncCodec
 import com.les.databuoy.SyncLog
-import com.les.databuoy.SyncScheduleNotifier
+import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
-import com.les.databuoy.UpsertResult
+import com.les.databuoy.sync.UpsertResult
 import com.les.databuoy.createSyncDatabase
 import com.les.databuoy.db.SyncDatabase
 import kotlinx.coroutines.Dispatchers

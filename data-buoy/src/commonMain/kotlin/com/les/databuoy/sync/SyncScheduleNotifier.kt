@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.sync
 
 /**
  * Platform-agnostic interface for notifying the system that a background sync should be scheduled.
