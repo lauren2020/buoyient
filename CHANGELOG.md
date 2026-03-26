@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SyncFetchConfig` for periodic sync-down (GET or POST).
 - `SyncUpConfig` with `fromResponseBody()` for flexible sync-up response parsing.
 - `SyncableObjectRebaseHandler` for 3-way merge conflict detection and resolution.
-- Cross-service dependency resolution via `HttpRequest.crossServicePlaceholder()`.
+- Cross-service dependency resolution via `HttpRequest.crossServiceServerIdPlaceholder()`.
 - Optional encryption at rest via `EncryptionProvider`.
 - Dynamic global headers via `GlobalHeaderProvider`.
 - Flow-based operation variants (`createWithFlow`, `updateWithFlow`, `voidWithFlow`).

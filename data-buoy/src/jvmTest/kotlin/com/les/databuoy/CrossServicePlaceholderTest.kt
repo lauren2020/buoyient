@@ -23,17 +23,41 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Tests for cross-service placeholder resolution: [HttpRequest.crossServicePlaceholder],
+ * Tests for cross-service placeholder resolution: [HttpRequest.crossServiceServerIdPlaceholder],
  * [HttpRequest.containsCrossServicePlaceholders], [HttpRequest.resolveCrossServicePlaceholders],
  * and end-to-end resolution through [SyncUpCoordinator].
  */
 class CrossServicePlaceholderTest {
 
+    // region Placeholder helper tests
+
+    @Test
+    fun `serverIdOrPlaceholder returns serverId when non-null`() {
+        assertEquals("server-123", HttpRequest.serverIdOrPlaceholder("server-123"))
+    }
+
+    @Test
+    fun `serverIdOrPlaceholder returns placeholder when null`() {
+        assertEquals(HttpRequest.SERVER_ID_PLACEHOLDER, HttpRequest.serverIdOrPlaceholder(null))
+    }
+
+    @Test
+    fun `versionOrPlaceholder returns version string when non-null`() {
+        assertEquals("5", HttpRequest.versionOrPlaceholder(5))
+    }
+
+    @Test
+    fun `versionOrPlaceholder returns placeholder when null`() {
+        assertEquals(HttpRequest.VERSION_PLACEHOLDER, HttpRequest.versionOrPlaceholder(null))
+    }
+
+    // endregion
+
     // region HttpRequest unit tests
 
     @Test
-    fun `crossServicePlaceholder creates correct placeholder string`() {
-        val placeholder = HttpRequest.crossServicePlaceholder("orders", "abc-123")
+    fun `crossServiceServerIdPlaceholder creates correct placeholder string`() {
+        val placeholder = HttpRequest.crossServiceServerIdPlaceholder("orders", "abc-123")
         assertEquals("{cross:orders:abc-123}", placeholder)
     }
 
@@ -53,7 +77,7 @@ class CrossServicePlaceholderTest {
             method = HttpRequest.HttpMethod.POST,
             endpointUrl = "https://api.test.com/payments",
             requestBody = buildJsonObject {
-                put("order_id", HttpRequest.crossServicePlaceholder("orders", "abc-123"))
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "abc-123"))
             },
         )
         assertTrue(request.containsCrossServicePlaceholders())
@@ -89,7 +113,7 @@ class CrossServicePlaceholderTest {
             method = HttpRequest.HttpMethod.POST,
             endpointUrl = "https://api.test.com/payments",
             requestBody = buildJsonObject {
-                put("order_id", HttpRequest.crossServicePlaceholder("orders", "abc-123"))
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "abc-123"))
                 put("amount", 100)
             },
         )
@@ -103,7 +127,7 @@ class CrossServicePlaceholderTest {
             method = HttpRequest.HttpMethod.POST,
             endpointUrl = "https://api.test.com/payments",
             requestBody = buildJsonObject {
-                put("order_id", HttpRequest.crossServicePlaceholder("orders", "abc-123"))
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "abc-123"))
             },
         )
         val resolved = request.resolveCrossServicePlaceholders { _, _ -> null }
@@ -116,8 +140,8 @@ class CrossServicePlaceholderTest {
             method = HttpRequest.HttpMethod.POST,
             endpointUrl = "https://api.test.com/line-items",
             requestBody = buildJsonObject {
-                put("order_id", HttpRequest.crossServicePlaceholder("orders", "order-1"))
-                put("product_id", HttpRequest.crossServicePlaceholder("products", "prod-1"))
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+                put("product_id", HttpRequest.crossServiceServerIdPlaceholder("products", "prod-1"))
             },
         )
         val resolved = request.resolveCrossServicePlaceholders { serviceName, _ ->
@@ -137,8 +161,8 @@ class CrossServicePlaceholderTest {
             method = HttpRequest.HttpMethod.POST,
             endpointUrl = "https://api.test.com/line-items",
             requestBody = buildJsonObject {
-                put("order_id", HttpRequest.crossServicePlaceholder("orders", "order-1"))
-                put("product_id", HttpRequest.crossServicePlaceholder("products", "prod-1"))
+                put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
+                put("product_id", HttpRequest.crossServiceServerIdPlaceholder("products", "prod-1"))
             },
         )
         // orders resolved, products not
@@ -298,7 +322,7 @@ class CrossServicePlaceholderTest {
                 endpointUrl = "https://api.test.com/payments",
                 requestBody = buildJsonObject {
                     put("client_id", "payment-1")
-                    put("order_id", HttpRequest.crossServicePlaceholder("orders", "order-1"))
+                    put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
                     put("amount", 5000)
                 },
             ),
@@ -357,7 +381,7 @@ class CrossServicePlaceholderTest {
                 endpointUrl = "https://api.test.com/payments",
                 requestBody = buildJsonObject {
                     put("client_id", "payment-1")
-                    put("order_id", HttpRequest.crossServicePlaceholder("orders", "order-1"))
+                    put("order_id", HttpRequest.crossServiceServerIdPlaceholder("orders", "order-1"))
                 },
             ),
             idempotencyKey = "idem-payment-1",

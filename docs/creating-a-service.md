@@ -704,61 +704,159 @@ Synced  ──void()──>  PendingVoid  ──background sync──>  (removed
 
 ---
 
-## HttpRequest.SERVER_ID_PLACEHOLDER and VERSION_PLACEHOLDER
+## Placeholders for offline requests
 
-When building requests for objects that might not have a `serverId` yet (created offline), use `HttpRequest.SERVER_ID_PLACEHOLDER` (`"{serverId}"`) in endpoint URLs and request bodies. Data-buoy replaces these with the real server ID at sync time, after the create request succeeds.
+When building requests for objects that might not have a `serverId` yet (created offline), data-buoy provides placeholder values that are resolved automatically at sync time.
 
-Similarly, use `HttpRequest.VERSION_PLACEHOLDER` (`"{version}"`) for optimistic concurrency version fields in request bodies.
+### Server ID placeholder
+
+Use `HttpRequest.serverIdOrPlaceholder()` in endpoint URLs and request bodies. It returns the real server ID when available, or a placeholder that data-buoy resolves after the create request succeeds:
 
 ```kotlin
-// Endpoint with placeholder:
-endpointUrl = "https://api.example.com/v2/items/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}"
+// Recommended — self-documenting and auto-completable:
+endpointUrl = "$BASE_ENDPOINT/${HttpRequest.serverIdOrPlaceholder(data.serverId)}"
 
-// Body with version placeholder:
-put("version", HttpRequest.VERSION_PLACEHOLDER)
+// Also works — manual null coalescing with the raw constant:
+endpointUrl = "$BASE_ENDPOINT/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}"
 ```
+
+### Version placeholder
+
+Use `HttpRequest.versionOrPlaceholder()` for optimistic concurrency version fields in request bodies:
+
+```kotlin
+put("version", HttpRequest.versionOrPlaceholder(data.version))
+```
+
+### When placeholders are resolved
+
+Placeholders are replaced during sync-up, not at call time. The flow is:
+
+1. You call `create()` or `update()` — data-buoy stores the `HttpRequest` (with placeholders) in the pending queue.
+2. When the device is online and the background sync runs, data-buoy replaces `{serverId}` with the object's real server ID and `{version}` with the current version before sending the request.
+3. If the server ID isn't available yet (e.g., the create request hasn't succeeded), the request stays in the queue and is retried next cycle.
 
 ---
 
 ## Cross-service dependencies
 
-When an offline operation in one service depends on another service's server ID (e.g., creating a Payment that references an Order), use `HttpRequest.crossServicePlaceholder()`. The placeholder is resolved automatically during sync-up by looking up the referenced object's server ID from the local database.
+### When to use
 
-Because `SyncUpCoordinator` processes pending requests in global insertion order, the dependency (Order CREATE) is guaranteed to be attempted before the dependent (Payment CREATE). If the dependency hasn't synced yet (e.g., the server was unreachable), the dependent request is skipped and retried on the next sync cycle.
+Use cross-service placeholders when an offline operation in one service needs to reference another service's server ID. The canonical example: creating a Payment that references an Order, where both are created offline.
+
+Without cross-service placeholders, the Payment request would need the Order's server ID — but the Order hasn't synced yet. `HttpRequest.crossServiceServerIdPlaceholder()` solves this by deferring the resolution until sync time.
 
 ### Usage
 
-In the dependent service's `CreateRequestBuilder`:
+In the **dependent** service's request builder, use `crossServiceServerIdPlaceholder()` as a fallback when the referenced object's `serverId` is null:
 
 ```kotlin
-// OrderService created the order offline — it has a clientId but no serverId yet.
-// Use a cross-service placeholder so the Payment request gets the Order's
-// server ID filled in automatically once the Order syncs.
-val orderServerIdOrPlaceholder = order.serverId
-    ?: HttpRequest.crossServicePlaceholder("orders", order.clientId)
+// In PaymentService's CreateRequestBuilder:
+val orderIdForRequest = order.serverId
+    ?: HttpRequest.crossServiceServerIdPlaceholder("orders", order.clientId)
+//                                          ^^^^^^^^  ^^^^^^^^^^^^^^^
+//                                          OrderService's serviceName
+//                                                    the specific order's clientId
 
 HttpRequest(
     method = HttpRequest.HttpMethod.POST,
     endpointUrl = "https://api.example.com/v2/payments",
     requestBody = buildJsonObject {
-        put("order_id", orderServerIdOrPlaceholder)
+        put("order_id", orderIdForRequest)
         put("amount", data.amount)
     },
 )
 ```
 
-### How it works
+The first argument to `crossServiceServerIdPlaceholder` is the **`serviceName`** of the service that owns the dependency (the string passed to `SyncableObjectService`'s constructor). The second argument is the **`clientId`** of the specific object you're referencing.
 
-1. The placeholder `{cross:orders:abc-123}` is stored in the pending request's `HttpRequest`.
-2. During sync-up, `SyncUpCoordinator` provides a resolver that queries `sync_data` for the referenced service + client ID.
-3. If the server ID is available, the placeholder is replaced and the request proceeds.
-4. If the server ID is `null` (dependency not yet synced), the request is skipped — it stays in the queue and is retried next cycle.
+### Full example: Order + Payment
+
+Here's both services side by side to show the complete pattern:
+
+```kotlin
+// ── OrderService ──────────────────────────────────────────
+class OrderService : SyncableObjectService<Order, OrderTag>(
+    serializer = Order.serializer(),
+    serverProcessingConfig = orderConfig,
+    serviceName = "orders",  // ← this is what PaymentService references
+) {
+    suspend fun createOrder(data: Order) = create(
+        data = data,
+        requestTag = OrderTag.CREATE,
+        request = CreateRequestBuilder { current, idempotencyKey, _, _ ->
+            HttpRequest(
+                method = HttpRequest.HttpMethod.POST,
+                endpointUrl = "https://api.example.com/v2/orders",
+                requestBody = buildJsonObject {
+                    put("client_id", current.clientId)
+                    put("total", current.total)
+                    put("idempotency_key", idempotencyKey)
+                },
+            )
+        },
+        unpackSyncData = orderUnpacker,
+    )
+}
+
+// ── PaymentService ────────────────────────────────────────
+class PaymentService : SyncableObjectService<Payment, PaymentTag>(
+    serializer = Payment.serializer(),
+    serverProcessingConfig = paymentConfig,
+    serviceName = "payments",
+) {
+    suspend fun createPayment(data: Payment, order: Order) = create(
+        data = data,
+        requestTag = PaymentTag.CREATE,
+        request = CreateRequestBuilder { current, idempotencyKey, _, _ ->
+            // If the order has already synced, use its real server ID.
+            // If not (both created offline), use a cross-service placeholder.
+            val orderIdForRequest = order.serverId
+                ?: HttpRequest.crossServiceServerIdPlaceholder("orders", order.clientId)
+
+            HttpRequest(
+                method = HttpRequest.HttpMethod.POST,
+                endpointUrl = "https://api.example.com/v2/payments",
+                requestBody = buildJsonObject {
+                    put("order_id", orderIdForRequest)
+                    put("amount", current.amount)
+                    put("idempotency_key", idempotencyKey)
+                },
+            )
+        },
+        unpackSyncData = paymentUnpacker,
+    )
+}
+```
+
+### How it works at sync time
+
+```
+Sync cycle 1 (device comes online):
+  1. SyncUpCoordinator processes pending requests in insertion order
+  2. Order CREATE is first → sent to server → succeeds → server ID "srv-order-42" saved
+  3. Payment CREATE is next → placeholder {cross:orders:abc-123} found
+     → resolver queries sync_data for ("orders", "abc-123") → finds "srv-order-42"
+     → placeholder replaced → request sent with order_id = "srv-order-42"
+
+If Order CREATE fails (server error, network timeout):
+  1. Order stays in pending queue with status Failed.Retry
+  2. Payment placeholder can't resolve → request skipped (stays in queue)
+  3. Next sync cycle retries both
+```
+
+### Debugging tips
+
+- **Payment stuck in pending queue?** Check that the referenced service's `serviceName` string in `crossServiceServerIdPlaceholder()` exactly matches the `serviceName` passed to the dependency's `SyncableObjectService` constructor.
+- **Enable logging** with `SyncLog.logger = ...` to see placeholder resolution attempts. Look for log messages about skipped requests due to unresolved dependencies.
+- **Verify the dependency was created through data-buoy.** Cross-service resolution queries the `sync_data` table — the referenced object must exist there. Objects created outside data-buoy won't be found.
 
 ### Constraints
 
 - The referenced object must be created through data-buoy (so it exists in `sync_data`).
 - The placeholder resolves to the object's `server_id` column — it does not support resolving other fields.
 - Circular dependencies will deadlock (both requests skip forever). Design your data flow to be acyclic.
+- Both services must share the same database instance (the default when using `DataBuoy` initialization).
 
 ---
 

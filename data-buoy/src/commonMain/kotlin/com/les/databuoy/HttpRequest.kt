@@ -143,6 +143,32 @@ public class HttpRequest(
         private val CROSS_SERVICE_PATTERN = Regex("""\{cross:([^:}]+):([^}]+)\}""")
 
         /**
+         * Returns [serverId] if non-null, or [SERVER_ID_PLACEHOLDER] if null.
+         *
+         * Use in endpoint URLs and request bodies for objects that may not have
+         * synced yet — the placeholder is resolved automatically at sync time.
+         *
+         * ```kotlin
+         * endpointUrl = "$BASE_ENDPOINT/${HttpRequest.serverIdOrPlaceholder(data.serverId)}"
+         * ```
+         */
+        public fun serverIdOrPlaceholder(serverId: String?): String =
+            serverId ?: SERVER_ID_PLACEHOLDER
+
+        /**
+         * Returns [version] as a string if non-null, or [VERSION_PLACEHOLDER] if null.
+         *
+         * Use in request bodies for optimistic concurrency version fields —
+         * the placeholder is resolved automatically at sync time.
+         *
+         * ```kotlin
+         * put("version", HttpRequest.versionOrPlaceholder(data.version))
+         * ```
+         */
+        public fun versionOrPlaceholder(version: Int?): String =
+            version?.toString() ?: VERSION_PLACEHOLDER
+
+        /**
          * Creates a cross-service placeholder that will be resolved at sync-up time
          * to the server ID of the referenced object.
          *
@@ -151,7 +177,7 @@ public class HttpRequest(
          * that references an Order's server ID:
          *
          * ```kotlin
-         * val orderIdField = HttpRequest.crossServicePlaceholder("orders", order.clientId)
+         * val orderIdField = HttpRequest.crossServiceServerIdPlaceholder("orders", order.clientId)
          * // Use orderIdField in the request body where the order's server ID is needed
          * ```
          *
@@ -161,7 +187,7 @@ public class HttpRequest(
          * @param serviceName the [SyncableObjectService.serviceName] of the dependency
          * @param clientId the [SyncableObject.clientId] of the referenced object
          */
-        public fun crossServicePlaceholder(serviceName: String, clientId: String): String =
+        public fun crossServiceServerIdPlaceholder(serviceName: String, clientId: String): String =
             "{cross:$serviceName:$clientId}"
 
         /**

@@ -112,7 +112,7 @@ class ServiceCreationConventionsTest {
             "requestTag = TodoRequestTag.CREATE",
             "requestTag = TodoRequestTag.UPDATE",
             "requestTag = TodoRequestTag.VOID",
-            "HttpRequest.SERVER_ID_PLACEHOLDER",
+            "HttpRequest.serverIdOrPlaceholder(",
         )
         assertFileContains(
             "examples/todo/src/test/kotlin/com/les/databuoy/examples/todo/TodoServiceTest.kt",

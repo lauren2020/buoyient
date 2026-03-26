@@ -46,7 +46,7 @@ class TodoService(
         request = UpdateRequestBuilder { _, updatedData, idempotencyKey, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.PATCH,
-                endpointUrl = "$BASE_ENDPOINT/${updatedData.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/edit",
+                endpointUrl = "$BASE_ENDPOINT/${HttpRequest.serverIdOrPlaceholder(updatedData.serverId)}/edit",
                 requestBody = buildJsonObject {
                     put("title", updatedData.title)
                     put("completed", updatedData.completed)
@@ -64,7 +64,7 @@ class TodoService(
         request = UpdateRequestBuilder { _, updatedData, idempotencyKey, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.PATCH,
-                endpointUrl = "$BASE_ENDPOINT/${updatedData.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/complete",
+                endpointUrl = "$BASE_ENDPOINT/${HttpRequest.serverIdOrPlaceholder(updatedData.serverId)}/complete",
                 requestBody = buildJsonObject {
                     put("title", updatedData.title)
                     put("completed", updatedData.completed)
@@ -82,7 +82,7 @@ class TodoService(
         request = VoidRequestBuilder { data, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.DELETE,
-                endpointUrl = "$BASE_ENDPOINT/${data.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
+                endpointUrl = "$BASE_ENDPOINT/${HttpRequest.serverIdOrPlaceholder(data.serverId)}",
                 requestBody = buildJsonObject { },
             )
         },

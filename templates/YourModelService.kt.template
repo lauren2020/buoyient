@@ -50,7 +50,7 @@ class YourModelService(
         request = UpdateRequestBuilder { baseData, updated, idempotencyKey, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.PATCH,
-                endpointUrl = "$BASE_ENDPOINT/${updated.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/thing_one",
+                endpointUrl = "$BASE_ENDPOINT/${HttpRequest.serverIdOrPlaceholder(updated.serverId)}/thing_one",
                 requestBody = buildJsonObject {
                     put("name", updated.name)
                     put("version", updated.version)
@@ -69,7 +69,7 @@ class YourModelService(
             request = UpdateRequestBuilder { baseData, updated, idempotencyKey, _, _ ->
                 HttpRequest(
                     method = HttpRequest.HttpMethod.PATCH,
-                    endpointUrl = "$BASE_ENDPOINT/${updated.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}/thing_two",
+                    endpointUrl = "$BASE_ENDPOINT/${HttpRequest.serverIdOrPlaceholder(updated.serverId)}/thing_two",
                     requestBody = buildJsonObject {
                         put("name", updated.name)
                         put("version", updated.version)
@@ -88,7 +88,7 @@ class YourModelService(
         request = VoidRequestBuilder { current, _, _ ->
             HttpRequest(
                 method = HttpRequest.HttpMethod.DELETE,
-                endpointUrl = "$BASE_ENDPOINT/${current.serverId ?: HttpRequest.SERVER_ID_PLACEHOLDER}",
+                endpointUrl = "$BASE_ENDPOINT/${HttpRequest.serverIdOrPlaceholder(current.serverId)}",
                 requestBody = buildJsonObject { },
             )
         },
