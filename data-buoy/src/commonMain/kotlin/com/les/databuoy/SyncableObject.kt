@@ -39,18 +39,30 @@ public interface SyncableObject<O> {
     }
 
     public sealed class SyncStatus(public val status: String) {
-        public object LocalOnly : SyncStatus(LOCAL_ONLY)
+        public abstract val lastSyncedTimestamp: String?
 
-        public object PendingCreate : SyncStatus(PENDING_CREATE)
+        public object LocalOnly : SyncStatus(LOCAL_ONLY) {
+            public override val lastSyncedTimestamp: String? = null
+        }
 
-        public class PendingUpdate(public val lastSyncedTimestamp: String) : SyncStatus(PENDING_UPDATE)
+        public object PendingCreate : SyncStatus(PENDING_CREATE) {
+            public override val lastSyncedTimestamp: String? = null
+        }
 
-        public class Synced(public val lastSyncedTimestamp: String) : SyncStatus(SYNCED)
+        public class PendingUpdate(
+            public override val lastSyncedTimestamp: String?,
+        ) : SyncStatus(PENDING_UPDATE)
 
-        public class PendingVoid(public val lastSyncedTimestamp: String) : SyncStatus(Companion.PENDING_VOID)
+        public class Synced(
+            public override val lastSyncedTimestamp: String,
+        ) : SyncStatus(SYNCED)
+
+        public class PendingVoid(
+            public override val lastSyncedTimestamp: String?,
+        ) : SyncStatus(Companion.PENDING_VOID)
 
         public class Conflict(
-            public val lastSyncedTimestamp: String,
+            public override val lastSyncedTimestamp: String,
             public val conflictInfo: List<FieldConflictInfo>,
         ) : SyncStatus(CONFLICT) {
             public data class FieldConflictInfo(
@@ -78,11 +90,11 @@ public interface SyncableObject<O> {
                 PENDING_CREATE -> PendingCreate
 
                 PENDING_UPDATE -> PendingUpdate(
-                    lastSyncedTimestamp = lastSyncedTimestamp!!,
+                    lastSyncedTimestamp = lastSyncedTimestamp,
                 )
 
                 PENDING_VOID -> PendingVoid(
-                    lastSyncedTimestamp = lastSyncedTimestamp!!,
+                    lastSyncedTimestamp = lastSyncedTimestamp,
                 )
 
                 SYNCED -> Synced(lastSyncedTimestamp = lastSyncedTimestamp!!)
