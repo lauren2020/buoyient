@@ -1,6 +1,6 @@
 package com.les.databuoy.syncableobjectservicedatatypes
 
-import com.les.databuoy.internalutilities.PendingSyncRequest
+import com.les.databuoy.managers.PendingSyncRequest
 import com.les.databuoy.SyncableObject
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json

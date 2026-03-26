@@ -2,8 +2,8 @@ package com.les.databuoy
 
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.db.SyncDatabase
-import com.les.databuoy.internalutilities.LocalStoreManager
-import com.les.databuoy.internalutilities.PendingRequestQueueManager
+import com.les.databuoy.managers.LocalStoreManager
+import com.les.databuoy.managers.PendingRequestQueueManager
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest

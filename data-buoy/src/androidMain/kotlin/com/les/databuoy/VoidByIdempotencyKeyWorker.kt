@@ -5,7 +5,7 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry
-import com.les.databuoy.internalutilities.ServerManager
+import com.les.databuoy.managers.ServerManager
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray

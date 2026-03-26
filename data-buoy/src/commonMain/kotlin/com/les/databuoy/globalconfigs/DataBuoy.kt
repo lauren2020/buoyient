@@ -41,7 +41,7 @@ public object DataBuoy {
         set(value) { GlobalHeaderProviderRegistry.provider = value }
 
     /**
-     * Override the [HttpClient] used by all services. When set, every [com.les.databuoy.internalutilities.ServerManager]
+     * Override the [HttpClient] used by all services. When set, every [com.les.databuoy.managers.ServerManager]
      * created after this point uses this client instead of a real Ktor HTTP client.
      *
      * Use this for mock mode (manual testing without a real backend):
@@ -55,7 +55,7 @@ public object DataBuoy {
 
     /**
      * Override the [SyncDatabase] used by all services. When set, every
-     * [com.les.databuoy.internalutilities.LocalStoreManager] created after this point uses this database instead
+     * [com.les.databuoy.managers.LocalStoreManager] created after this point uses this database instead
      * of the platform default.
      */
     public var database: SyncDatabase?

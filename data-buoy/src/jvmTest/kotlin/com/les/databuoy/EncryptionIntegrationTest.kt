@@ -1,6 +1,6 @@
 package com.les.databuoy
 
-import com.les.databuoy.internalutilities.LocalStoreManager
+import com.les.databuoy.managers.LocalStoreManager
 import com.les.databuoy.serviceconfigs.EncryptionProvider
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest

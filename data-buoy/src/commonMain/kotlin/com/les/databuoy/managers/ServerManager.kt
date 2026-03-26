@@ -1,4 +1,4 @@
-package com.les.databuoy.internalutilities
+package com.les.databuoy.managers
 
 import com.les.databuoy.globalconfigs.GlobalHeaderProvider
 import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry

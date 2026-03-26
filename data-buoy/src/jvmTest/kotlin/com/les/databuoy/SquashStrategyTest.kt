@@ -1,9 +1,9 @@
 package com.les.databuoy
 
 import com.les.databuoy.globalconfigs.DataBuoyStatus
-import com.les.databuoy.internalutilities.LocalStoreManager
-import com.les.databuoy.internalutilities.PendingRequestQueueManager
-import com.les.databuoy.internalutilities.PendingSyncRequest
+import com.les.databuoy.managers.LocalStoreManager
+import com.les.databuoy.managers.PendingRequestQueueManager
+import com.les.databuoy.managers.PendingSyncRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig

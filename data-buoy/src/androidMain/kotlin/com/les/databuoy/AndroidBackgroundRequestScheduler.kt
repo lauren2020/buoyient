@@ -1,4 +1,4 @@
-package com.les.databuoy.internalutilities
+package com.les.databuoy.managers
 
 import android.content.Context
 import android.util.Log

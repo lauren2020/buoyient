@@ -1,4 +1,4 @@
-package com.les.databuoy.internalutilities
+package com.les.databuoy.managers
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList

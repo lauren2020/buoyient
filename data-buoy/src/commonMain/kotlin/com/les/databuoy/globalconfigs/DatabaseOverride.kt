@@ -3,7 +3,7 @@ package com.les.databuoy.globalconfigs
 import com.les.databuoy.db.SyncDatabase
 
 /**
- * Process-wide [SyncDatabase] override. When set, [com.les.databuoy.internalutilities.LocalStoreManager] and other
+ * Process-wide [SyncDatabase] override. When set, [com.les.databuoy.managers.LocalStoreManager] and other
  * internal components use this database instead of the platform default.
  *
  * Set via [DataBuoy.database] for custom database configurations or by

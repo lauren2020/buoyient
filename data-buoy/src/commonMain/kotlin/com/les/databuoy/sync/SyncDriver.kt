@@ -1,7 +1,7 @@
 package com.les.databuoy.sync
 
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
-import com.les.databuoy.internalutilities.PendingSyncRequest
+import com.les.databuoy.managers.PendingSyncRequest
 import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.ServiceRequestTag
 import com.les.databuoy.utils.SyncCodec
@@ -10,8 +10,8 @@ import com.les.databuoy.utils.SyncLog
 import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.utils.TimestampFormatter
-import com.les.databuoy.internalutilities.LocalStoreManager
-import com.les.databuoy.internalutilities.ServerManager
+import com.les.databuoy.managers.LocalStoreManager
+import com.les.databuoy.managers.ServerManager
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 import kotlinx.coroutines.CoroutineScope
