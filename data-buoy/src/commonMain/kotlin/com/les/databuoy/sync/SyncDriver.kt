@@ -1,5 +1,16 @@
-package com.les.databuoy
+package com.les.databuoy.sync
 
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.PendingSyncRequest
+import com.les.databuoy.ServerProcessingConfig
+import com.les.databuoy.ServiceRequestTag
+import com.les.databuoy.SyncCodec
+import com.les.databuoy.SyncFetchConfig
+import com.les.databuoy.SyncLog
+import com.les.databuoy.SyncUpResult
+import com.les.databuoy.SyncableObject
+import com.les.databuoy.TimestampFormatter
+import com.les.databuoy.UpsertResult
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
@@ -17,7 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Thrown by [SyncDriver.syncUpPendingData] when the server returns [SyncUpResult.Failed.Retry],
+ * Thrown by [SyncDriver.syncUpPendingData] when the server returns [com.les.databuoy.SyncUpResult.Failed.Retry],
  * signalling that the sync-up loop should stop immediately and retry after a delay.
  */
 internal class SyncUpRetryLaterException(message: String) : Exception(message)

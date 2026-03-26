@@ -1,6 +1,6 @@
 package com.les.databuoy.hilt
 
-import com.les.databuoy.SyncDriver
+import com.les.databuoy.sync.SyncDriver
 import dagger.Module
 import dagger.multibindings.Multibinds
 import dagger.hilt.EntryPoint

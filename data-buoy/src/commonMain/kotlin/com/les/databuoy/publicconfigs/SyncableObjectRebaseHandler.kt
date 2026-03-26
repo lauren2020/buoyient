@@ -13,7 +13,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Encapsulates the 3-way merge logic used during [com.les.databuoy.SyncDriver.syncDownFromServer]
+ * Encapsulates the 3-way merge logic used during [com.les.databuoy.sync.SyncDriver.syncDownFromServer]
  * to reconcile local and server changes.
  *
  * This is an `open class` so that service implementations can subclass it to override
@@ -100,7 +100,7 @@ public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
     // region Logic
 
     /**
-     * Called during [com.les.databuoy.SyncDriver.syncDownFromServer] when a 3-way merge detects
+     * Called during [com.les.databuoy.sync.SyncDriver.syncDownFromServer] when a 3-way merge detects
      * field-level conflicts (both the local client and the server changed the same field
      * to different values).
      *

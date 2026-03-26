@@ -1,9 +1,10 @@
 package com.les.databuoy
 
 import android.content.Context
+import com.les.databuoy.sync.SyncDriver
 
 /**
- * Provides [SyncDriver] instances for the [SyncWorker] to sync.
+ * Provides [com.les.databuoy.sync.SyncDriver] instances for the [SyncWorker] to sync.
  *
  * The app module must implement this interface and register it via
  * [SyncWorker.registerServiceProvider] so the SDK knows which services

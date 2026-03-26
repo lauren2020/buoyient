@@ -4,6 +4,7 @@ import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.SyncUpCoordinator
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
@@ -87,7 +88,7 @@ class SyncUpCoordinatorTest {
     }
 
     /**
-     * Creates a [SyncDriver] for a given service name, backed by the shared
+     * Creates a [com.les.databuoy.sync.SyncDriver] for a given service name, backed by the shared
      * [database] and recording requests to [requestLog].
      *
      * @param responseQueue queue of pre-built response bodies; one is consumed per request.

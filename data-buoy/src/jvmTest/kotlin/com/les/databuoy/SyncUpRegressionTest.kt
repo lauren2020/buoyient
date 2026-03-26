@@ -4,6 +4,7 @@ import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.SyncUpCoordinator
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
@@ -205,7 +206,9 @@ class SyncUpRegressionTest {
 
         val driver = SyncDriver(
             serverManager = serverManager,
-            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            connectivityChecker = object : ConnectivityChecker {
+                override fun isOnline() = false
+            },
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
@@ -309,7 +312,9 @@ class SyncUpRegressionTest {
 
         val driver = SyncDriver(
             serverManager = serverManager,
-            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            connectivityChecker = object : ConnectivityChecker {
+                override fun isOnline() = false
+            },
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
@@ -441,7 +446,9 @@ class SyncUpRegressionTest {
 
         val driver = SyncDriver(
             serverManager = serverManager,
-            connectivityChecker = object : ConnectivityChecker { override fun isOnline() = false },
+            connectivityChecker = object : ConnectivityChecker {
+                override fun isOnline() = false
+            },
             codec = SyncCodec(TestItem.serializer()),
             serverProcessingConfig = testServerConfig(),
             localStoreManager = localStore,
