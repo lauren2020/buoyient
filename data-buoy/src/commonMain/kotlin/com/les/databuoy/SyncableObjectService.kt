@@ -1,8 +1,10 @@
 package com.les.databuoy
 
+import com.les.databuoy.internalutilities.BackgroundRequestScheduler
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.internalutilities.ServerManager
+import com.les.databuoy.internalutilities.createPlatformBackgroundRequestScheduler
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
 import com.les.databuoy.serviceconfigs.EncryptionProvider
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy

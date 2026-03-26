@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.internalutilities
 
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 

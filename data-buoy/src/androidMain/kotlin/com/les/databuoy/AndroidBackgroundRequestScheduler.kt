@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.internalutilities
 
 import android.content.Context
 import android.util.Log
@@ -8,13 +8,16 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.les.databuoy.DataBuoyPlatformContext
+import com.les.databuoy.VoidByIdempotencyKeyWorker
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import java.util.concurrent.TimeUnit
 
 public actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler =
     AndroidBackgroundRequestScheduler(DataBuoyPlatformContext.appContext)
 
-public class AndroidBackgroundRequestScheduler(private val context: Context) : BackgroundRequestScheduler {
+public class AndroidBackgroundRequestScheduler(private val context: Context) :
+    BackgroundRequestScheduler {
 
     override fun scheduleRequest(
         httpRequest: HttpRequest,
