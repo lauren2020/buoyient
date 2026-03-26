@@ -1,5 +1,7 @@
-package com.les.databuoy
+package com.les.databuoy.publicconfigs
 
+import com.les.databuoy.ResponseUnpacker
+import com.les.databuoy.SyncableObject
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -21,8 +23,8 @@ public sealed class SyncUpResult<O : SyncableObject<O>> {
      *   becomes the new local copy and the new server baseline.
      * - **Pending requests remain:** [data] becomes the new server baseline, and the
      *   remaining pending changes are **rebased** on top of it via the service's
-     *   [com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler] (3-way merge). If the merge produces conflicts the
-     *   object is marked [SyncableObject.SyncStatus.CONFLICT] for manual resolution.
+     *   [SyncableObjectRebaseHandler] (3-way merge). If the merge produces conflicts the
+     *   object is marked [SyncableObject.SyncStatus.Companion.CONFLICT] for manual resolution.
      *
      * In either case the pending request that was just uploaded is removed from the queue.
      */
@@ -79,12 +81,12 @@ public abstract class SyncUpConfig<O : SyncableObject<O>> {
 
     public companion object {
         /**
-         * Creates a [SyncUpConfig] that delegates response parsing to a [ResponseUnpacker].
+         * Creates a [SyncUpConfig] that delegates response parsing to a [com.les.databuoy.ResponseUnpacker].
          * The unpacker's result is wrapped in [SyncUpResult.Success] if non-null, or
          * [SyncUpResult.Failed.RemovePendingRequest] if null (indicating the response
          * couldn't be parsed — the request is dropped rather than retried indefinitely).
          *
-         * This is useful when your synchronous [ResponseUnpacker] and async sync-up
+         * This is useful when your synchronous [com.les.databuoy.ResponseUnpacker] and async sync-up
          * parsing logic are identical, allowing you to define the parsing once.
          */
         public fun <O : SyncableObject<O>> fromUnpacker(

@@ -2,9 +2,9 @@ package com.les.databuoy
 
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
-import com.les.databuoy.testing.MockResponse
-import com.les.databuoy.testing.MockServerStore
-import com.les.databuoy.testing.NoOpSyncScheduleNotifier
+import com.les.databuoy.publicconfigs.SyncFetchConfig
+import com.les.databuoy.publicconfigs.SyncUpConfig
+import com.les.databuoy.publicconfigs.SyncUpResult
 import com.les.databuoy.testing.TestServiceEnvironment
 import com.les.databuoy.testing.registerCrudHandlers
 import kotlinx.coroutines.runBlocking
@@ -16,7 +16,6 @@ import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**

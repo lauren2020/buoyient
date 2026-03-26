@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.publicconfigs
 
 import kotlinx.serialization.json.JsonObject
 
