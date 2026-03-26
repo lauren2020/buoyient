@@ -242,8 +242,8 @@ public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
         val localAdditions = localArray.filter { it !in baseElements }
         val serverAdditions = serverArray.filter { it !in baseElements }
 
-        // Preserve order: base elements (in local order) + server-only additions.
-        val merged = localAdditions + serverAdditions.filter { it !in localArray.toSet() }
+        // Preserve order: base elements + local additions + server-only additions.
+        val merged = baseArray + localAdditions + serverAdditions.filter { it !in localArray.toSet() }
         return JsonArray(merged)
     }
 
