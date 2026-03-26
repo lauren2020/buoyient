@@ -84,48 +84,15 @@ env.mockRouter.onPost("https://api.example.com/items") { throw MockConnectionExc
 
 ---
 
-## Making your service testable
-
-In production, your service constructor can be minimal (see `docs/creating-a-service.md`). To support integration testing, expose `connectivityChecker`, `serverManager`, and `localStoreManager` as optional constructor parameters so `TestServiceEnvironment` can inject test doubles:
-
-```kotlin
-class YourModelService(
-    serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
-    // Optional — only needed for injecting test doubles from TestServiceEnvironment.
-    // Production callers just use YourModelService() and get sensible defaults.
-    connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    localStoreManager: LocalStoreManager<YourModel, YourModelRequestTag> = LocalStoreManager(
-        codec = SyncCodec(YourModel.serializer()),
-        serviceName = "your_model",
-        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
-    ),
-    serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
-    ),
-) : SyncableObjectService<YourModel, YourModelRequestTag>(
-    serializer = YourModel.serializer(),
-    serverProcessingConfig = serverProcessingConfig,
-    serviceName = "your_model",
-    connectivityChecker = connectivityChecker,
-    localStoreManager = localStoreManager,
-    serverManager = serverManager,
-)
-```
-
-Production code still just calls `YourModelService()` — the extra parameters only matter in tests.
-
----
-
 ## Test Structure Template
 
 Every integration test follows the same pattern:
 
-1. Create a `TestServiceEnvironment`
+1. Create a `TestServiceEnvironment` — this installs mock HTTP, in-memory database, and deterministic IDs as process-wide overrides
 2. Register mock endpoint handlers
-3. Construct the service under test, passing env dependencies
-4. Stop periodic sync-down (if testing sync-up only)
-5. Exercise the service
-6. Assert on response, local DB state, and/or request log
+3. Construct the service — it automatically picks up the test doubles
+4. Exercise the service
+5. Assert on response, local DB state, and/or request log
 
 ```kotlin
 import com.les.databuoy.testing.*
@@ -141,7 +108,7 @@ class YourModelServiceTest {
 
     @Test
     fun `create item online returns server response`() = runBlocking {
-        // 1. Environment
+        // 1. Environment — installs mock HTTP client + in-memory database globally
         val env = TestServiceEnvironment()
 
         // 2. Mock endpoints
@@ -163,21 +130,15 @@ class YourModelServiceTest {
             MockResponse(200, buildJsonObject { put("items", JsonArray(emptyList())) })
         }
 
-        // 3. Construct service with test doubles
+        // 3. Construct service — picks up mock infra automatically
         val service = YourModelService(
-            serverProcessingConfig = YourModelServerProcessingConfig(),
             connectivityChecker = env.connectivityChecker,
-            serverManager = env.serverManager,
-            localStoreManager = env.createLocalStoreManager(
-                codec = SyncCodec(YourModel.serializer()),
-                serviceName = "your_model",
-            ),
         )
 
-        // 5. Exercise
+        // 4. Exercise
         val result = service.createItem(YourModel(name = "Test", amount = 100))
 
-        // 6. Assert
+        // 5. Assert
         assertTrue(result is CreateItemResponse.Success)
         assertEquals("srv-1", result.item.serverId)
         assertEquals(1, env.mockRouter.requestLog.size)

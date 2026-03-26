@@ -64,15 +64,14 @@ class SyncableObjectServiceTest {
     private class TestItemService(
         serverProcessingConfig: ServerProcessingConfig<TestItem>,
         connectivityChecker: ConnectivityChecker,
-        serverManager: ServerManager,
-        localStoreManager: LocalStoreManager<TestItem, TestRequestTag>,
+        queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
+            PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
     ) : SyncableObjectService<TestItem, TestRequestTag>(
         serializer = TestItem.serializer(),
         serverProcessingConfig = serverProcessingConfig,
         serviceName = "test-items",
         connectivityChecker = connectivityChecker,
-        serverManager = serverManager,
-        localStoreManager = localStoreManager,
+        queueStrategy = queueStrategy,
     ) {
         init { stopPeriodicSyncDown() }
 
@@ -210,19 +209,10 @@ class SyncableObjectServiceTest {
             MockResponse(200, buildJsonObject { put("data", buildJsonObject { }) })
         }
 
-        val localStoreManager = LocalStoreManager<TestItem, TestRequestTag>(
-            database = env.database,
-            serviceName = "test-items",
-            syncScheduleNotifier = env.syncScheduleNotifier,
-            codec = SyncCodec(TestItem.serializer()),
-            status = DataBuoyStatus(env.database),
-            queueStrategy = queueStrategy,
-        )
         val service = TestItemService(
             serverProcessingConfig = testServerConfig(),
             connectivityChecker = env.connectivityChecker,
-            serverManager = env.serverManager,
-            localStoreManager = localStoreManager,
+            queueStrategy = queueStrategy,
         )
         return service to env
     }

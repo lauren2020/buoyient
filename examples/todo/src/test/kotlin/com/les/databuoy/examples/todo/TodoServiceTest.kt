@@ -1,6 +1,5 @@
 package com.les.databuoy.examples.todo
 
-import com.les.databuoy.SyncCodec
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.SyncableObjectServiceResponse
 import com.les.databuoy.testing.MockResponse
@@ -76,7 +75,7 @@ class TodoServiceTest {
         assertEquals(0, env.mockRouter.requestLog.size)
 
         env.connectivityChecker.online = true
-        val syncedCount = service.syncUpLocalChanges(env.database)
+        val syncedCount = service.syncUpLocalChanges()
 
         assertEquals(1, syncedCount)
         assertEquals(1, env.mockRouter.requestLog.size)
@@ -86,15 +85,8 @@ class TodoServiceTest {
     }
 
     private fun buildService(env: TestServiceEnvironment): TodoService {
-        val localStoreManager = env.createLocalStoreManager<Todo, TodoRequestTag>(
-            codec = SyncCodec(Todo.serializer()),
-            serviceName = "todo_example",
-        )
         return TodoService(
-            serverProcessingConfig = createTodoServerProcessingConfig(),
             connectivityChecker = env.connectivityChecker,
-            serverManager = env.serverManager,
-            localStoreManager = localStoreManager,
         ).also {
             it.stopPeriodicSyncDown()
             env.mockRouter.clearRequestLog()

@@ -22,18 +22,23 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     val serviceName: String,
     private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     encryptionProvider: EncryptionProvider? = null,
-    private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
-        codec = SyncCodec(serializer),
-        serviceName = serviceName,
-        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
-        encryptionProvider = encryptionProvider,
-    ),
-    private val serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
-    ),
+    queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
+        PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
 ) : Service<O> {
 
     private val codec: SyncCodec<O> = SyncCodec(serializer)
+
+    private val serverManager: ServerManager = ServerManager(
+        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
+    )
+
+    private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
+        codec = codec,
+        serviceName = serviceName,
+        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+        encryptionProvider = encryptionProvider,
+        queueStrategy = queueStrategy,
+    )
 
     private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler()
 

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.map
 import kotlin.jvm.Throws
 
 class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
-    private val database: SyncDatabase = createSyncDatabase(),
+    private val database: SyncDatabase = DatabaseOverride.database ?: createSyncDatabase(),
     private val serviceName: String,
     private val syncScheduleNotifier: SyncScheduleNotifier,
     private val codec: SyncCodec<O>,

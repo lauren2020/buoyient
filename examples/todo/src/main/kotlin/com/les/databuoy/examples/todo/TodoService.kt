@@ -2,40 +2,24 @@ package com.les.databuoy.examples.todo
 
 import com.les.databuoy.ConnectivityChecker
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.LocalStoreManager
-import com.les.databuoy.ServerManager
 import com.les.databuoy.ServerProcessingConfig
-import com.les.databuoy.SyncCodec
 import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.SyncableObjectServiceResponse
 import com.les.databuoy.UpdateRequestBuilder
 import com.les.databuoy.VoidRequestBuilder
 import com.les.databuoy.CreateRequestBuilder
 import com.les.databuoy.createPlatformConnectivityChecker
-import com.les.databuoy.createPlatformSyncScheduleNotifier
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 class TodoService(
     serverProcessingConfig: ServerProcessingConfig<Todo> = createTodoServerProcessingConfig(),
-    // Optional — for injecting test doubles from TestServiceEnvironment.
-    // Production callers just use TodoService() and get sensible defaults.
     connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    localStoreManager: LocalStoreManager<Todo, TodoRequestTag> = LocalStoreManager(
-        codec = SyncCodec(Todo.serializer()),
-        serviceName = SERVICE_NAME,
-        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
-    ),
-    serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
-    ),
 ) : SyncableObjectService<Todo, TodoRequestTag>(
     serializer = Todo.serializer(),
     serverProcessingConfig = serverProcessingConfig,
     serviceName = SERVICE_NAME,
     connectivityChecker = connectivityChecker,
-    localStoreManager = localStoreManager,
-    serverManager = serverManager,
 ) {
 
     suspend fun createTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = create(

@@ -82,7 +82,7 @@ class ServiceCreationConventionsTest {
             "TestServiceEnvironment",
             "env.mockRouter.onGet",
             "env.mockRouter.onPost",
-            "env.createLocalStoreManager",
+            "env.connectivityChecker",
             "stopPeriodicSyncDown()",
         )
     }

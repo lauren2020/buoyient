@@ -1,7 +1,6 @@
 package com.example.yourapp.data.services
 
 import com.example.yourapp.data.models.YourModel
-import com.les.databuoy.SyncCodec
 import com.les.databuoy.SyncableObjectServiceResponse
 import com.les.databuoy.testing.MockResponse
 import com.les.databuoy.testing.TestServiceEnvironment
@@ -36,13 +35,7 @@ class YourModelServiceTest {
         }
 
         val service = YourModelService(
-            serverProcessingConfig = YourModelServerProcessingConfig(),
             connectivityChecker = env.connectivityChecker,
-            serverManager = env.serverManager,
-            localStoreManager = env.createLocalStoreManager(
-                codec = SyncCodec(YourModel.serializer()),
-                serviceName = "your_model",
-            ),
         ).also {
             it.stopPeriodicSyncDown()
             env.mockRouter.clearRequestLog()

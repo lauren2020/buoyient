@@ -27,13 +27,14 @@ If using `debugImplementation`, the mock mode code must live in `src/debug/` or 
 
 ## Architecture Overview
 
-The mock mode works by swapping the `ServerManager` (and optionally `ConnectivityChecker`) that gets passed to your `SyncableObjectService` constructors. No changes to the core library or your service classes are needed -- `SyncableObjectService` already accepts these as constructor parameters with defaults.
+The mock mode works by setting `DataBuoy.httpClient` to a mock-backed HTTP client before creating any services. All services constructed after this point automatically route requests through the mock handlers. No changes to your service classes are needed.
 
 ```
 Normal mode:
   SyncableObjectService ---> ServerManager ---> real Ktor HttpClient ---> real server
 
 Mock mode:
+  DataBuoy.httpClient = mockRouter.buildHttpClient()
   SyncableObjectService ---> ServerManager ---> MockEndpointRouter ---> mock handlers
 ```
 
@@ -146,19 +147,16 @@ class MockServerFixtures {
 
 ## Step 2: Create a Mock Mode Toggle
 
-### Option A: Hilt-based toggle (recommended for Hilt apps)
+Set `DataBuoy.httpClient` before creating any services. All services constructed after this point automatically route requests through the mock handlers — no per-service wiring needed.
 
-Create a `@Module` that conditionally provides mock or real dependencies based on a runtime flag:
+### Option A: Hilt-based toggle (recommended for Hilt apps)
 
 ```kotlin
 package com.example.yourapp.di
 
-import com.les.databuoy.ConnectivityChecker
-import com.les.databuoy.ServerManager
+import com.les.databuoy.DataBuoy
 import com.les.databuoy.SyncLog
-import com.les.databuoy.testing.MockEndpointRouter
 import com.les.databuoy.testing.PrintSyncLogger
-import com.les.databuoy.testing.TestConnectivityChecker
 import com.example.yourapp.testing.MockServerFixtures
 import dagger.Module
 import dagger.Provides
@@ -180,63 +178,24 @@ object MockModeModule {
     @Provides
     @Singleton
     fun provideMockFixtures(flag: MockModeFlag): MockServerFixtures? {
-        if (flag.enabled) {
-            // Enable verbose logging so mock traffic is visible in Logcat
-            SyncLog.logger = PrintSyncLogger
-        }
-        return if (flag.enabled) MockServerFixtures() else null
-    }
-
-    @Provides
-    @Singleton
-    fun provideServerManagerForItems(
-        flag: MockModeFlag,
-        fixtures: MockServerFixtures?,
-    ): ItemServiceServerManager {
-        return if (flag.enabled && fixtures != null) {
-            ItemServiceServerManager(
-                fixtures.router.buildServerManager()
-            )
-        } else {
-            ItemServiceServerManager(
-                ServerManager(
-                    serviceBaseHeaders = RealApiConfig.headers,
-                )
-            )
-        }
-    }
-
-    @Provides
-    @Singleton
-    fun provideConnectivityChecker(flag: MockModeFlag): ConnectivityChecker {
-        return if (flag.enabled) {
-            // In mock mode, always report online so requests go through the mock
-            TestConnectivityChecker(online = true)
-        } else {
-            createPlatformConnectivityChecker()
-        }
+        if (!flag.enabled) return null
+        val fixtures = MockServerFixtures()
+        // Install the mock HTTP client globally — all services pick it up automatically
+        DataBuoy.httpClient = fixtures.router.buildHttpClient()
+        SyncLog.logger = PrintSyncLogger  // verbose logging for mock mode
+        return fixtures
     }
 }
 
 data class MockModeFlag(val enabled: Boolean)
-
-// Type wrapper to distinguish from other ServerManager instances in Hilt graph
-data class ItemServiceServerManager(val serverManager: ServerManager)
 ```
 
-Then inject into your service:
+Services are provided normally — no mock-specific constructor params needed:
 
 ```kotlin
 @Provides
 @IntoSet
-fun provideItemService(
-    sm: ItemServiceServerManager,
-    connectivity: ConnectivityChecker,
-): SyncableObjectService<*, *> = YourModelService(
-    serverProcessingConfig = YourModelServerProcessingConfig(),
-    serverManager = sm.serverManager,
-    connectivityChecker = connectivity,
-)
+fun provideItemService(): SyncableObjectService<*, *> = YourModelService()
 ```
 
 ### Option B: Simple factory (no Hilt)
@@ -244,25 +203,14 @@ fun provideItemService(
 ```kotlin
 object ServiceFactory {
 
-    var mockModeEnabled: Boolean = false
-
     private val mockFixtures by lazy { MockServerFixtures() }
 
-    fun createItemService(): YourModelService {
-        val config = YourModelServerProcessingConfig()
-        return if (mockModeEnabled) {
-            SyncLog.logger = PrintSyncLogger  // verbose logging for mock mode
-            YourModelService(
-                serverProcessingConfig = config,
-                serverManager = mockFixtures.router.buildServerManager(
-                    serviceBaseHeaders = config.serviceHeaders,
-                ),
-                connectivityChecker = TestConnectivityChecker(online = true),
-            )
-        } else {
-            YourModelService(serverProcessingConfig = config)
-        }
+    fun enableMockMode() {
+        DataBuoy.httpClient = mockFixtures.router.buildHttpClient()
+        SyncLog.logger = PrintSyncLogger
     }
+
+    fun createItemService(): YourModelService = YourModelService()
 }
 ```
 

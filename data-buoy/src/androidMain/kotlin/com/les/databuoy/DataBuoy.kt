@@ -1,6 +1,8 @@
 package com.les.databuoy
 
 import android.content.Context
+import com.les.databuoy.db.SyncDatabase
+import io.ktor.client.HttpClient
 
 /**
  * Main entry point for configuring data-buoy on Android.
@@ -37,6 +39,28 @@ object DataBuoy {
     var globalHeaderProvider: GlobalHeaderProvider?
         get() = GlobalHeaderProviderRegistry.provider
         set(value) { GlobalHeaderProviderRegistry.provider = value }
+
+    /**
+     * Override the [HttpClient] used by all services. When set, every [ServerManager]
+     * created after this point uses this client instead of a real Ktor HTTP client.
+     *
+     * Use this for mock mode (manual testing without a real backend):
+     * ```kotlin
+     * DataBuoy.httpClient = mockRouter.buildHttpClient()
+     * ```
+     */
+    var httpClient: HttpClient?
+        get() = HttpClientOverride.httpClient
+        set(value) { HttpClientOverride.httpClient = value }
+
+    /**
+     * Override the [SyncDatabase] used by all services. When set, every
+     * [LocalStoreManager] created after this point uses this database instead
+     * of the platform default.
+     */
+    var database: SyncDatabase?
+        get() = DatabaseOverride.database
+        set(value) { DatabaseOverride.database = value }
 
     /**
      * Register a fixed set of services for background sync.

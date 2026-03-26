@@ -228,15 +228,17 @@ There are also non-suspend flow-based variants — `createWithFlow()`, `updateWi
 
 ### Constructor
 
-The base class only requires three arguments — the serializer, server config, and service name. Everything else (connectivity checking, local storage, HTTP client) is constructed automatically with sensible defaults:
+The base class only requires three arguments — the serializer, server config, and service name. Everything else (local storage, HTTP client, sync scheduling) is constructed automatically with sensible defaults:
 
 ```kotlin
 class YourModelService(
     serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
+    connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
 ) : SyncableObjectService<YourModel, YourModelRequestTag>(
     serializer = YourModel.serializer(),
     serverProcessingConfig = serverProcessingConfig,
     serviceName = SERVICE_NAME,
+    connectivityChecker = connectivityChecker,
 ) {
     // operations go here
 }
@@ -244,11 +246,11 @@ class YourModelService(
 
 The `serviceName` must be unique across all services in the app — it's used as a partition key in the shared SQLite database.
 
-For **testing**, the constructor also accepts optional `connectivityChecker`, `localStoreManager`, and `serverManager` parameters so you can inject test doubles from `TestServiceEnvironment`. See `docs/integration-testing.md` for the test wiring pattern — you do **not** need to expose these in your service's own constructor.
+The optional `connectivityChecker` parameter lets tests control online/offline state per service. For **integration testing**, `TestServiceEnvironment` automatically installs a mock HTTP client and in-memory database as process-wide overrides — no per-service constructor injection needed. See `docs/integration-testing.md`.
 
 ### Pending request queue strategy
 
-When the device is offline (or a request times out), data-buoy queues pending requests in SQLite. The **queue strategy** controls how multiple pending requests for the same object are stored. You configure this via the `PendingRequestQueueManager.PendingRequestQueueStrategy` passed to `LocalStoreManager`.
+When the device is offline (or a request times out), data-buoy queues pending requests in SQLite. The **queue strategy** controls how multiple pending requests for the same object are stored. You configure this via the `queueStrategy` parameter on `SyncableObjectService`.
 
 There are two strategies:
 
@@ -273,16 +275,19 @@ There are two strategies:
 
 #### Configuring Squash
 
-To opt into squash, pass a `queueStrategy` to `LocalStoreManager`. You must provide a `SquashRequestMerger` — a `(createRequest, updateRequest) -> HttpRequest` function that merges an update request body into a pending create request:
+To opt into squash, pass a `queueStrategy` to your service's super constructor. You must provide a `SquashRequestMerger` — a `(createRequest, updateRequest) -> HttpRequest` function that merges an update request body into a pending create request:
 
 ```kotlin
-val localStoreManager = LocalStoreManager<YourModel, YourModelRequestTag>(
-    codec = SyncCodec(YourModel.serializer()),
-    serviceName = "your_model",
-    syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+class YourModelService(
+    serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
+    connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
+) : SyncableObjectService<YourModel, YourModelRequestTag>(
+    serializer = YourModel.serializer(),
+    serverProcessingConfig = serverProcessingConfig,
+    serviceName = SERVICE_NAME,
+    connectivityChecker = connectivityChecker,
     queueStrategy = PendingRequestQueueManager.PendingRequestQueueStrategy.Squash(
         squashUpdateIntoCreate = SquashRequestMerger { createRequest, updateRequest ->
-            // Replace the create body with the latest update body
             HttpRequest(
                 method = createRequest.method,
                 endpointUrl = createRequest.endpointUrl,
@@ -296,7 +301,7 @@ val localStoreManager = LocalStoreManager<YourModel, YourModelRequestTag>(
 
 For update-into-update squashing, the `UpdateRequestBuilder` you provide to `update()` is called with the previous pending data as `lastSyncedData` — the queue manager rebuilds the squashed request automatically. No extra configuration is needed beyond the `SquashRequestMerger` (which only handles the create-into-update case).
 
-> **Note:** `LocalStoreManager` defaults to `Queue`. You only need to pass `queueStrategy` when opting into `Squash`.
+> **Note:** The default strategy is `Queue`. You only need to pass `queueStrategy` when opting into `Squash`.
 
 ### Create operation
 

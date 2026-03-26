@@ -180,7 +180,6 @@ class SquashStrategyTest {
         assertTrue(mergedBody.toString().contains("Updated"),
             "Merged request body should contain the updated name")
 
-        env.serverManager.close()
     }
 
     @Test
@@ -405,6 +404,5 @@ class SquashStrategyTest {
         // Verify the mock server store has no records yet (nothing synced)
         assertEquals(0, collection.getAll().size)
 
-        env.serverManager.close()
     }
 }
