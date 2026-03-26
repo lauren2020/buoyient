@@ -2,7 +2,6 @@ package com.les.databuoy.managers
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
-import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.globalconfigs.DatabaseOverride
 import com.les.databuoy.serviceconfigs.EncryptionProvider
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
@@ -28,7 +27,6 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val serviceName: String,
     private val syncScheduleNotifier: SyncScheduleNotifier,
     private val codec: SyncCodec<O>,
-    private val status: DataBuoyStatus = DataBuoyStatus.Companion.shared,
     private val queueStrategy: PendingRequestQueueStrategy =
         PendingRequestQueueStrategy.Queue,
     encryptionProvider: EncryptionProvider? = null,
@@ -64,7 +62,6 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             serviceName = serviceName,
             strategy = queueStrategy,
             codec = codec,
-            status = status,
             storageCodec = storageCodec,
         )
 
@@ -247,9 +244,6 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         syncScheduleNotifier.scheduleSyncIfNeeded()
     }
 
-    internal fun refreshStatus() {
-        status.refresh()
-    }
 
     internal fun close() {
         // No-op: the database is application-scoped and outlives any

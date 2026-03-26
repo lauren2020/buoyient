@@ -11,6 +11,8 @@ import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.utils.SyncCodec
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -78,13 +80,11 @@ class PendingRequestQueueManagerTest {
         serviceName: String = "test-service",
         strategy: PendingRequestQueueStrategy =
             PendingRequestQueueStrategy.Queue,
-        status: DataBuoyStatus = DataBuoyStatus(database),
     ) = PendingRequestQueueManager<TestItem, TestRequestTag>(
         database = database,
         serviceName = serviceName,
         strategy = strategy,
         codec = codec,
-        status = status,
     )
 
     // endregion
@@ -178,8 +178,8 @@ class PendingRequestQueueManagerTest {
     @Test
     fun `data buoy status tracks pending requests and conflicts`() {
         val database = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(database)
-        val manager = createManager(database = database, status = status)
+        val status = DataBuoyStatus(database, CoroutineScope(Dispatchers.Unconfined))
+        val manager = createManager(database = database)
         val item = testItem(name = "local")
 
         manager.queueCreateRequest(

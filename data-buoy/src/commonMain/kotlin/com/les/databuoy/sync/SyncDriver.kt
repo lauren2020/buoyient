@@ -120,8 +120,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
      * The request structure used to fetch from the server is configured by [ServerProcessingConfig].
      */
     public suspend fun syncDownFromServer() {
-        try {
-            if (!connectivityChecker.isOnline()) {
+        if (!connectivityChecker.isOnline()) {
                 // If the client is not connected, do not bother trying to sync.
                 return
             }
@@ -192,9 +191,6 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
                     SyncLog.d(TAG, "Sync down complete: ${items.size} fetched, $upsertedCount upserted, $mergedCount merged, $conflictCount conflicts, $skippedCount skipped")
                 }
             }
-        } finally {
-            localStoreManager.refreshStatus()
-        }
     }
 
     /**
@@ -232,8 +228,6 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
             val clientId = entry?.data?.clientId ?: "unknown"
             SyncLog.e(TAG, "Error syncing $type for $clientId.", e)
             false
-        } finally {
-            localStoreManager.refreshStatus()
         }
     }
 

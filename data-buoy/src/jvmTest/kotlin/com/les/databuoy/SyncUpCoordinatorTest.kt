@@ -22,6 +22,8 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -106,14 +108,12 @@ class SyncUpCoordinatorTest {
         database: SyncDatabase,
         requestLog: MutableList<String>,
         responseQueue: ArrayDeque<String>,
-        status: DataBuoyStatus? = null,
     ): Pair<SyncDriver<TestItem, TestRequestTag>, LocalStoreManager<TestItem, TestRequestTag>> {
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = database,
             serviceName = serviceName,
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            status = status ?: DataBuoyStatus(database),
         )
 
         // Mock engine that logs which service handled the request.
@@ -161,7 +161,7 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll dispatches requests in global insertion order`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
+        val status = DataBuoyStatus(db, CoroutineScope(Dispatchers.Unconfined))
         val requestLog = mutableListOf<String>()
 
         // Pre-build responses for each CREATE, keyed to the expected client_id.
@@ -173,8 +173,8 @@ class SyncUpCoordinatorTest {
             wrapResponse(testItem(clientId = "b1", serverId = "server_b1")),
         ))
 
-        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses, status)
-        val (betaDriver, betaStore) = createDriver("beta", db, requestLog, betaResponses, status)
+        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses)
+        val (betaDriver, betaStore) = createDriver("beta", db, requestLog, betaResponses)
 
         // Queue requests in interleaved order across services.
         // 1. CREATE in alpha
@@ -212,7 +212,6 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             drivers = listOf(alphaDriver, betaDriver),
             database = db,
-            status = status,
         )
         val synced = coordinator.syncUpAll()
 
@@ -233,11 +232,10 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll with no participants returns zero`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
+        val status = DataBuoyStatus(db, CoroutineScope(Dispatchers.Unconfined))
         val coordinator = SyncUpCoordinator(
             drivers = emptyList(),
             database = db,
-            status = status,
         )
         val synced = coordinator.syncUpAll()
         assertEquals(0, synced)
@@ -251,14 +249,13 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll with participant but no pending requests returns zero`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
+        val status = DataBuoyStatus(db, CoroutineScope(Dispatchers.Unconfined))
         val requestLog = mutableListOf<String>()
-        val (driver, _) = createDriver("alpha", db, requestLog, ArrayDeque(), status)
+        val (driver, _) = createDriver("alpha", db, requestLog, ArrayDeque())
 
         val coordinator = SyncUpCoordinator(
             drivers = listOf(driver),
             database = db,
-            status = status,
         )
         val synced = coordinator.syncUpAll()
 
@@ -276,13 +273,13 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll skips requests for unregistered services`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
+        val status = DataBuoyStatus(db, CoroutineScope(Dispatchers.Unconfined))
         val requestLog = mutableListOf<String>()
 
         val alphaResponses = ArrayDeque(listOf(
             wrapResponse(testItem(clientId = "a1", serverId = "server_a1")),
         ))
-        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses, status)
+        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses)
 
         // Also create a store for an unregistered service ("ghost") and queue a request.
         val ghostStore = LocalStoreManager<TestItem, TestRequestTag>(
@@ -290,7 +287,6 @@ class SyncUpCoordinatorTest {
             serviceName = "ghost",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            status = status,
         )
 
         // 1. Queue in ghost (no participant will be registered for this)
@@ -312,7 +308,6 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             drivers = listOf(alphaDriver),
             database = db,
-            status = status,
         )
         val synced = coordinator.syncUpAll()
 
@@ -329,13 +324,13 @@ class SyncUpCoordinatorTest {
     @Test
     fun `syncUpAll blocks all uploads when unresolved conflict exists`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
+        val status = DataBuoyStatus(db, CoroutineScope(Dispatchers.Unconfined))
         val requestLog = mutableListOf<String>()
 
         val alphaResponses = ArrayDeque(listOf(
             wrapResponse(testItem(clientId = "a1", serverId = "server_a1")),
         ))
-        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses, status)
+        val (alphaDriver, alphaStore) = createDriver("alpha", db, requestLog, alphaResponses)
 
         // Queue a create in alpha.
         alphaStore.insertLocalData(
@@ -354,7 +349,6 @@ class SyncUpCoordinatorTest {
         val coordinator = SyncUpCoordinator(
             drivers = listOf(alphaDriver),
             database = db,
-            status = status,
         )
         val synced = coordinator.syncUpAll()
 

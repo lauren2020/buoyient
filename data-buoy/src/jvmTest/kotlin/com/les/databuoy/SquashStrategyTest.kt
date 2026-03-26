@@ -1,6 +1,5 @@
 package com.les.databuoy
 
-import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.managers.LocalStoreManager
 import com.les.databuoy.managers.PendingRequestQueueManager
 import com.les.databuoy.managers.PendingSyncRequest
@@ -106,7 +105,6 @@ class SquashStrategyTest {
             serviceName = "test-items",
             syncScheduleNotifier = env.syncScheduleNotifier,
             codec = codec,
-            status = DataBuoyStatus(env.database),
             // Use squash strategy
         )
 
@@ -119,7 +117,6 @@ class SquashStrategyTest {
                 squashUpdateIntoCreate = squashMerger,
             ),
             codec = codec,
-            status = DataBuoyStatus(env.database),
         )
 
         val item = testItem(clientId = "c1", name = "Original", value = 10)
@@ -206,7 +203,6 @@ class SquashStrategyTest {
                 },
             ),
             codec = codec,
-            status = DataBuoyStatus(env.database),
         )
 
         val item = testItem(clientId = "c1", serverId = "s1", name = "V1", value = 1)
@@ -285,7 +281,6 @@ class SquashStrategyTest {
                 },
             ),
             codec = codec,
-            status = DataBuoyStatus(env.database),
         )
 
         val item = testItem(clientId = "c1", name = "Original")
@@ -355,7 +350,6 @@ class SquashStrategyTest {
                 },
             ),
             codec = codec,
-            status = DataBuoyStatus(env.database),
         )
 
         val item = testItem(clientId = "c1", name = "Original", value = 10)

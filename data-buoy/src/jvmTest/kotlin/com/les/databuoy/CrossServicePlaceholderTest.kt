@@ -23,6 +23,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -443,14 +445,12 @@ class CrossServicePlaceholderTest {
         database: SyncDatabase,
         requestLog: MutableList<Pair<String, String>>,
         responseQueue: ArrayDeque<String>,
-        status: DataBuoyStatus? = null,
     ): Pair<SyncDriver<TestItem, TestRequestTag>, LocalStoreManager<TestItem, TestRequestTag>> {
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = database,
             serviceName = serviceName,
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            status = status ?: DataBuoyStatus(database),
         )
 
         val mockEngine = MockEngine { request ->
@@ -490,7 +490,6 @@ class CrossServicePlaceholderTest {
     @Test
     fun `syncUpAll resolves cross-service placeholders across services`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
         val requestLog = mutableListOf<Pair<String, String>>()
 
         val orderServerId = "server-order-42"
@@ -501,8 +500,8 @@ class CrossServicePlaceholderTest {
             wrapResponse(testItem(clientId = "payment-1", serverId = "server-payment-99", name = "Payment")),
         ))
 
-        val (orderDriver, orderStore) = createDriver("orders", db, requestLog, orderResponses, status)
-        val (paymentDriver, paymentStore) = createDriver("payments", db, requestLog, paymentResponses, status)
+        val (orderDriver, orderStore) = createDriver("orders", db, requestLog, orderResponses)
+        val (paymentDriver, paymentStore) = createDriver("payments", db, requestLog, paymentResponses)
 
         // 1. Queue order CREATE offline.
         orderStore.insertLocalData(
@@ -542,7 +541,6 @@ class CrossServicePlaceholderTest {
         val coordinator = SyncUpCoordinator(
             drivers = listOf(orderDriver, paymentDriver),
             database = db,
-            status = status,
         )
         val synced = coordinator.syncUpAll()
 
@@ -571,7 +569,7 @@ class CrossServicePlaceholderTest {
     @Test
     fun `syncUpAll skips requests with unresolved cross-service dependencies`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
+        val status = DataBuoyStatus(db, CoroutineScope(Dispatchers.Unconfined))
         val requestLog = mutableListOf<Pair<String, String>>()
 
         // Payment response won't be consumed because the request should be skipped.
@@ -579,7 +577,7 @@ class CrossServicePlaceholderTest {
             wrapResponse(testItem(clientId = "payment-1", serverId = "server-payment-99")),
         ))
 
-        val (paymentDriver, paymentStore) = createDriver("payments", db, requestLog, paymentResponses, status)
+        val (paymentDriver, paymentStore) = createDriver("payments", db, requestLog, paymentResponses)
 
         // Queue payment CREATE with cross-service placeholder, but DON'T create the order.
         paymentStore.insertLocalData(
@@ -602,7 +600,6 @@ class CrossServicePlaceholderTest {
         val coordinator = SyncUpCoordinator(
             drivers = listOf(paymentDriver),
             database = db,
-            status = status,
         )
         val synced = coordinator.syncUpAll()
 

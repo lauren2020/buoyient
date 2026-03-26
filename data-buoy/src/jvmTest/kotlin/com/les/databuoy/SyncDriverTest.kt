@@ -23,6 +23,8 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -102,13 +104,11 @@ class SyncDriverTest {
         mockEngine: MockEngine,
         online: Boolean = true,
         connectivityChecker: ConnectivityChecker? = null,
-        status: DataBuoyStatus? = null,
     ): Pair<SyncDriver<TestItem, TestRequestTag>, LocalStoreManager<TestItem, TestRequestTag>> {
         val localStore = LocalStoreManager<TestItem, TestRequestTag>(
             database = database, serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            status = status ?: DataBuoyStatus(database),
         )
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(),
@@ -136,7 +136,7 @@ class SyncDriverTest {
     @Test
     fun `syncDownFromServer - clean upsert inserts server items as SYNCED`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
+        val status = DataBuoyStatus(db, CoroutineScope(Dispatchers.Unconfined))
         val serverItems = listOf(
             testItem(clientId = "c1", serverId = "s1", name = "Item 1", value = 10),
             testItem(clientId = "c2", serverId = "s2", name = "Item 2", value = 20),
@@ -148,7 +148,7 @@ class SyncDriverTest {
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
         }
-        val (driver, localStore) = createDriver(db, mockEngine = mockEngine, status = status)
+        val (driver, localStore) = createDriver(db, mockEngine = mockEngine)
 
         driver.syncDownFromServer()
 
@@ -170,7 +170,7 @@ class SyncDriverTest {
     @Test
     fun `syncDownFromServer refreshes conflict status after a conflicting merge`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
+        val status = DataBuoyStatus(db, CoroutineScope(Dispatchers.Unconfined))
         val serverItem = testItem(clientId = "c1", serverId = "s1", name = "Server", value = 1)
         val mockEngine = MockEngine {
             respond(
@@ -179,7 +179,7 @@ class SyncDriverTest {
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
         }
-        val (driver, localStore) = createDriver(db, mockEngine = mockEngine, status = status)
+        val (driver, localStore) = createDriver(db, mockEngine = mockEngine)
 
         localStore.insertLocalData(
             data = testItem(clientId = "c1", name = "Local", value = 1),
@@ -480,7 +480,6 @@ class SyncDriverTest {
     @Test
     fun `syncDownFromServer - PostFetchConfig sends POST with request body`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
         val serverItems = listOf(
             testItem(clientId = "c1", serverId = "s1", name = "Post Item", value = 42),
         )
@@ -519,7 +518,6 @@ class SyncDriverTest {
             database = db, serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            status = status,
         )
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(),
@@ -554,7 +552,6 @@ class SyncDriverTest {
     @Test
     fun `syncDownFromServer - PostFetchConfig merges with pending local changes`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
         val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = "1")
         val serverItem = localItem.copy(name = "ServerEdit", value = 10, version = "2")
 
@@ -589,7 +586,6 @@ class SyncDriverTest {
             database = db, serviceName = "test",
             syncScheduleNotifier = noOpNotifier,
             codec = SyncCodec(TestItem.serializer()),
-            status = status,
         )
         val serverManager = ServerManager(
             serviceBaseHeaders = emptyList(),
@@ -816,7 +812,6 @@ class SyncDriverTest {
     @Test
     fun `concurrent syncUp and syncDown on same clientId are serialized by withClientLock`() = runBlocking {
         val db = TestDatabaseFactory.createInMemory()
-        val status = DataBuoyStatus(db)
         val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = "1")
         val serverItem = localItem.copy(name = "ServerV2", version = "2")
         val createResponse = wrapResponse(localItem.copy(serverId = "s1"))
@@ -837,7 +832,7 @@ class SyncDriverTest {
                     headers = headersOf(HttpHeaders.ContentType, "application/json"))
             }
         }
-        val (driver, localStore) = createDriver(db, mockEngine = mockEngine, status = status)
+        val (driver, localStore) = createDriver(db, mockEngine = mockEngine)
 
         // Set up: insert and sync-up a CREATE
         localStore.insertLocalData(

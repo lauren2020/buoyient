@@ -45,7 +45,6 @@ internal object SyncRunner {
             database = database,
         )
         val totalSynced = coordinator.syncUpAll()
-        DataBuoyStatus.shared.refresh()
         val remainingPendingCount = DataBuoyStatus.shared.pendingRequestCount.value
         val hasPendingConflicts = DataBuoyStatus.shared.hasPendingConflicts.value
 

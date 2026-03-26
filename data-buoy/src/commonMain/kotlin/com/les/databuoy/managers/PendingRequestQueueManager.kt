@@ -1,6 +1,5 @@
 package com.les.databuoy.managers
 
-import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.ServiceRequestTag
@@ -18,7 +17,6 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
     internal val serviceName: String,
     internal val strategy: PendingRequestQueueStrategy,
     internal val codec: SyncCodec<O>,
-    private val status: DataBuoyStatus = DataBuoyStatus(database),
     internal val storageCodec: StorageCodec = StorageCodec(),
 ) {
     internal sealed class QueueResult {
@@ -176,7 +174,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
             base_data = storageCodec.encodeForStorageOrNull(pendingSyncRequest.baseData?.let { codec.encodeToString(it) }),
             request_tag = pendingSyncRequest.requestTag,
         )
-        status.refresh()
+
         QueueResult.Stored
     } catch (e: Exception) {
         SyncLog.e(TAG, "storeEntry failed for service $serviceName", e)
@@ -198,7 +196,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
             request_tag = pendingSyncRequest.requestTag,
             pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
         )
-        status.refresh()
+
         QueueResult.Stored
     } catch (e: Exception) {
         SyncLog.e(TAG, "replaceEntry failed for service $serviceName", e)
@@ -296,7 +294,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
             service_name = serviceName,
             client_id = clientId,
         )
-        status.refresh()
+
     }
 
     internal fun clearPendingRequestAfterUpload(
@@ -313,7 +311,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
             PendingSyncRequest.Type.VOID -> SyncableObject.SyncStatus.PENDING_VOID
             null -> SyncableObject.SyncStatus.SYNCED
         }
-        status.refresh()
+
         ClearRequestResult.Cleared(updatedSyncStatus = updatedSyncStatus)
     } catch (e: Exception) {
         SyncLog.e(TAG, "clearPendingRequestAfterUpload failed for service $serviceName (pendingRequestId=$pendingRequestId)", e)
@@ -360,7 +358,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
                 }
             }
         }
-        status.refresh()
+
         return RebasePendingRequestsResult.RebasedRemainingPendingRequests(
             rebasedLatestData = nextBase,
         )
@@ -436,7 +434,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
                 pending_request_id = pendingRequestId.toLong(),
             )
         }
-        status.refresh()
+
     }
 
     private fun handlePendingRequestRebaseConflict(
@@ -461,7 +459,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
                 conflict_info = storageCodec.encodeForStorage(conflict.conflict.toJson(codec).toString()),
                 pending_request_id = pendingSyncRequest.pendingRequestId.toLong(),
             )
-            status.refresh()
+    
         }
     }
 
@@ -497,7 +495,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
             base_data = storageCodec.encodeForStorage(codec.encodeToString(newServerBaseline)),
             pending_request_id = pendingRequest.pendingRequestId.toLong(),
         )
-        status.refresh()
+
     }
 
     internal fun hasAnyConflictsGlobally(): Boolean =
