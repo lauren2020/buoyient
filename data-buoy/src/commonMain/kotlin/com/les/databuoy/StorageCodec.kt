@@ -1,5 +1,7 @@
 package com.les.databuoy
 
+import com.les.databuoy.publicconfigs.EncryptionProvider
+
 /**
  * Thin wrapper that applies optional encryption at the database boundary.
  * When [encryptionProvider] is `null` (the default), all methods are

@@ -4,6 +4,7 @@ import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.publicconfigs.EncryptionProvider
 import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.publicconfigs.createPlatformConnectivityChecker
 import com.les.databuoy.sync.SyncDriver
@@ -31,7 +32,7 @@ import kotlinx.serialization.KSerializer
  *   for local storage.
  * @param connectivityChecker - Determines whether the device is online. Defaults to the
  *   platform-specific implementation; override in tests to simulate offline scenarios.
- * @param encryptionProvider - Optional [EncryptionProvider] for encrypting data at rest in the
+ * @param encryptionProvider - Optional [com.les.databuoy.publicconfigs.EncryptionProvider] for encrypting data at rest in the
  *   local store. Pass `null` (the default) to store data unencrypted.
  * @param queueStrategy - Controls how offline requests are queued. [PendingRequestQueueStrategy.Queue]
  *   (default) keeps one entry per operation; [PendingRequestQueueStrategy.Squash]

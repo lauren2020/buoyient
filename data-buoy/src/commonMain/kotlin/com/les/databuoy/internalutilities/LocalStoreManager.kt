@@ -4,7 +4,7 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.les.databuoy.DataBuoyStatus
 import com.les.databuoy.DatabaseOverride
-import com.les.databuoy.EncryptionProvider
+import com.les.databuoy.publicconfigs.EncryptionProvider
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.PendingRequestQueueStrategy

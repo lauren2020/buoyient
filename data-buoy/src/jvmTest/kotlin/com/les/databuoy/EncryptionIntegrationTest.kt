@@ -1,6 +1,7 @@
 package com.les.databuoy
 
 import com.les.databuoy.internalutilities.LocalStoreManager
+import com.les.databuoy.publicconfigs.EncryptionProvider
 import com.les.databuoy.testing.TestDatabaseFactory
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -12,7 +13,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * A trivial [EncryptionProvider] that wraps plaintext in a recognizable prefix
+ * A trivial [com.les.databuoy.publicconfigs.EncryptionProvider] that wraps plaintext in a recognizable prefix
  * and Base64-encodes it. Not real crypto — just enough to verify round-tripping
  * and confirm that raw DB values differ from plaintext.
  */
