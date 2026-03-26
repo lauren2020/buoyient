@@ -722,6 +722,48 @@ put("version", HttpRequest.VERSION_PLACEHOLDER)
 
 ---
 
+## Cross-service dependencies
+
+When an offline operation in one service depends on another service's server ID (e.g., creating a Payment that references an Order), use `HttpRequest.crossServicePlaceholder()`. The placeholder is resolved automatically during sync-up by looking up the referenced object's server ID from the local database.
+
+Because `SyncUpCoordinator` processes pending requests in global insertion order, the dependency (Order CREATE) is guaranteed to be attempted before the dependent (Payment CREATE). If the dependency hasn't synced yet (e.g., the server was unreachable), the dependent request is skipped and retried on the next sync cycle.
+
+### Usage
+
+In the dependent service's `CreateRequestBuilder`:
+
+```kotlin
+// OrderService created the order offline — it has a clientId but no serverId yet.
+// Use a cross-service placeholder so the Payment request gets the Order's
+// server ID filled in automatically once the Order syncs.
+val orderServerIdOrPlaceholder = order.serverId
+    ?: HttpRequest.crossServicePlaceholder("orders", order.clientId)
+
+HttpRequest(
+    method = HttpRequest.HttpMethod.POST,
+    endpointUrl = "https://api.example.com/v2/payments",
+    requestBody = buildJsonObject {
+        put("order_id", orderServerIdOrPlaceholder)
+        put("amount", data.amount)
+    },
+)
+```
+
+### How it works
+
+1. The placeholder `{cross:orders:abc-123}` is stored in the pending request's `HttpRequest`.
+2. During sync-up, `SyncUpCoordinator` provides a resolver that queries `sync_data` for the referenced service + client ID.
+3. If the server ID is available, the placeholder is replaced and the request proceeds.
+4. If the server ID is `null` (dependency not yet synced), the request is skipped — it stays in the queue and is retried next cycle.
+
+### Constraints
+
+- The referenced object must be created through data-buoy (so it exists in `sync_data`).
+- The placeholder resolves to the object's `server_id` column — it does not support resolving other fields.
+- Circular dependencies will deadlock (both requests skip forever). Design your data flow to be acyclic.
+
+---
+
 ## Conflict Resolution
 
 When a sync-down detects that both the local client and server changed the same fields, the object enters `SyncStatus.Conflict`. The conflict contains `FieldConflictInfo` entries describing each conflicting field with base, local, and server values.

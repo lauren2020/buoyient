@@ -144,6 +144,13 @@ SET sync_status = ?,
     data_blob = ?
 WHERE service_name = ? AND client_id = ?;
 
+-- Look up a server ID by service name and client ID (for cross-service placeholder resolution).
+getServerIdByServiceAndClientId:
+SELECT server_id
+FROM sync_data
+WHERE service_name = ? AND client_id = ?
+LIMIT 1;
+
 -- Fetch all entries for a service.
 getAllData:
 SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data

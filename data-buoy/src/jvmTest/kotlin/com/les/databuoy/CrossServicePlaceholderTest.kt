@@ -1,0 +1,380 @@
+package com.les.databuoy
+
+import com.les.databuoy.db.SyncDatabase
+import com.les.databuoy.testing.NoOpSyncScheduleNotifier
+import com.les.databuoy.testing.TestDatabaseFactory
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
+import io.ktor.http.headersOf
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Tests for cross-service placeholder resolution: [HttpRequest.crossServicePlaceholder],
+ * [HttpRequest.containsCrossServicePlaceholders], [HttpRequest.resolveCrossServicePlaceholders],
+ * and end-to-end resolution through [SyncUpCoordinator].
+ */
+class CrossServicePlaceholderTest {
+
+    // region HttpRequest unit tests
+
+    @Test
+    fun `crossServicePlaceholder creates correct placeholder string`() {
+        val placeholder = HttpRequest.crossServicePlaceholder("orders", "abc-123")
+        assertEquals("{cross:orders:abc-123}", placeholder)
+    }
+
+    @Test
+    fun `containsCrossServicePlaceholders returns true when placeholder in endpoint`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments?order_id={cross:orders:abc-123}",
+            requestBody = JsonObject(emptyMap()),
+        )
+        assertTrue(request.containsCrossServicePlaceholders())
+    }
+
+    @Test
+    fun `containsCrossServicePlaceholders returns true when placeholder in body`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments",
+            requestBody = buildJsonObject {
+                put("order_id", HttpRequest.crossServicePlaceholder("orders", "abc-123"))
+            },
+        )
+        assertTrue(request.containsCrossServicePlaceholders())
+    }
+
+    @Test
+    fun `containsCrossServicePlaceholders returns false when no placeholders`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments",
+            requestBody = buildJsonObject { put("order_id", "server-order-1") },
+        )
+        assertFalse(request.containsCrossServicePlaceholders())
+    }
+
+    @Test
+    fun `resolveCrossServicePlaceholders resolves placeholder in endpoint`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/orders/{cross:orders:abc-123}/payments",
+            requestBody = JsonObject(emptyMap()),
+        )
+        val resolved = request.resolveCrossServicePlaceholders { _, _ -> "server-order-1" }
+        assertEquals(
+            "https://api.test.com/orders/server-order-1/payments",
+            resolved!!.endpointUrl,
+        )
+    }
+
+    @Test
+    fun `resolveCrossServicePlaceholders resolves placeholder in body`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments",
+            requestBody = buildJsonObject {
+                put("order_id", HttpRequest.crossServicePlaceholder("orders", "abc-123"))
+                put("amount", 100)
+            },
+        )
+        val resolved = request.resolveCrossServicePlaceholders { _, _ -> "server-order-1" }
+        assertEquals("server-order-1", resolved!!.requestBody["order_id"]!!.toString().trim('"'))
+    }
+
+    @Test
+    fun `resolveCrossServicePlaceholders returns null when dependency unresolved`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments",
+            requestBody = buildJsonObject {
+                put("order_id", HttpRequest.crossServicePlaceholder("orders", "abc-123"))
+            },
+        )
+        val resolved = request.resolveCrossServicePlaceholders { _, _ -> null }
+        assertNull(resolved)
+    }
+
+    @Test
+    fun `resolveCrossServicePlaceholders resolves multiple different placeholders`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/line-items",
+            requestBody = buildJsonObject {
+                put("order_id", HttpRequest.crossServicePlaceholder("orders", "order-1"))
+                put("product_id", HttpRequest.crossServicePlaceholder("products", "prod-1"))
+            },
+        )
+        val resolved = request.resolveCrossServicePlaceholders { serviceName, _ ->
+            when (serviceName) {
+                "orders" -> "server-order-1"
+                "products" -> "server-prod-1"
+                else -> null
+            }
+        }
+        assertEquals("server-order-1", resolved!!.requestBody["order_id"]!!.toString().trim('"'))
+        assertEquals("server-prod-1", resolved.requestBody["product_id"]!!.toString().trim('"'))
+    }
+
+    @Test
+    fun `resolveCrossServicePlaceholders returns null if any dependency unresolved`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/line-items",
+            requestBody = buildJsonObject {
+                put("order_id", HttpRequest.crossServicePlaceholder("orders", "order-1"))
+                put("product_id", HttpRequest.crossServicePlaceholder("products", "prod-1"))
+            },
+        )
+        // orders resolved, products not
+        val resolved = request.resolveCrossServicePlaceholders { serviceName, _ ->
+            when (serviceName) {
+                "orders" -> "server-order-1"
+                else -> null
+            }
+        }
+        assertNull(resolved)
+    }
+
+    @Test
+    fun `resolveCrossServicePlaceholders returns null when no placeholders present`() {
+        val request = HttpRequest(
+            method = HttpRequest.HttpMethod.POST,
+            endpointUrl = "https://api.test.com/payments",
+            requestBody = buildJsonObject { put("amount", 100) },
+        )
+        val resolved = request.resolveCrossServicePlaceholders { _, _ -> "any" }
+        assertNull(resolved)
+    }
+
+    // endregion
+
+    // region SyncUpCoordinator integration test
+
+    private enum class TestRequestTag(override val value: String) : ServiceRequestTag {
+        DEFAULT("default"),
+    }
+
+    private val noOpNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier
+
+    private val offlineChecker = object : ConnectivityChecker {
+        override fun isOnline(): Boolean = false
+    }
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    private fun testItem(
+        clientId: String,
+        serverId: String? = null,
+        version: Int = 1,
+        name: String = "Test",
+        value: Int = 0,
+        syncStatus: SyncableObject.SyncStatus = SyncableObject.SyncStatus.LocalOnly,
+    ) = TestItem(serverId, clientId, version, syncStatus, name, value)
+
+    private fun wrapResponse(item: TestItem): String = buildJsonObject {
+        put("data", json.encodeToJsonElement(TestItem.serializer(), item))
+    }.toString()
+
+    private fun testServerConfig() = object : ServerProcessingConfig<TestItem> {
+        override val syncFetchConfig = SyncFetchConfig.GetFetchConfig<TestItem>(
+            endpoint = "https://api.test.com/items",
+            syncCadenceSeconds = 999_999,
+            transformResponse = { emptyList() },
+        )
+        override val syncUpConfig = object : SyncUpConfig<TestItem>() {
+            override fun fromResponseBody(requestTag: String, responseBody: JsonObject): SyncUpResult<TestItem> {
+                val data = responseBody["data"]?.jsonObject ?: return SyncUpResult.Failed.RemovePendingRequest()
+                return SyncUpResult.Success(
+                    Json.decodeFromJsonElement(TestItem.serializer(), data)
+                        .withSyncStatus(SyncableObject.SyncStatus.Synced(""))
+                )
+            }
+        }
+        override val serviceHeaders: List<Pair<String, String>> = emptyList()
+    }
+
+    private fun createDriver(
+        serviceName: String,
+        database: SyncDatabase,
+        requestLog: MutableList<Pair<String, String>>,
+        responseQueue: ArrayDeque<String>,
+        status: DataBuoyStatus? = null,
+    ): Pair<SyncDriver<TestItem, TestRequestTag>, LocalStoreManager<TestItem, TestRequestTag>> {
+        val localStore = LocalStoreManager<TestItem, TestRequestTag>(
+            database = database,
+            serviceName = serviceName,
+            syncScheduleNotifier = noOpNotifier,
+            codec = SyncCodec(TestItem.serializer()),
+            status = status ?: DataBuoyStatus(database),
+        )
+
+        val mockEngine = MockEngine { request ->
+            val bodyText = (request.body as? TextContent)?.text ?: ""
+            requestLog.add(serviceName to bodyText)
+            respond(
+                content = responseQueue.removeFirst(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        val serverManager = ServerManager(
+            serviceBaseHeaders = emptyList(),
+            httpClient = HttpClient(mockEngine),
+        )
+
+        val driver = SyncDriver(
+            serverManager = serverManager,
+            connectivityChecker = offlineChecker,
+            codec = SyncCodec(TestItem.serializer()),
+            serverProcessingConfig = testServerConfig(),
+            localStoreManager = localStore,
+            serviceName = serviceName,
+            autoStart = false,
+        )
+
+        return driver to localStore
+    }
+
+    /**
+     * End-to-end test: Service A (orders) creates an item offline, then Service B
+     * (payments) creates an item whose request body contains a cross-service
+     * placeholder referencing Service A's object. After syncUpAll, the payment's
+     * request body should contain the order's server ID.
+     */
+    @Test
+    fun `syncUpAll resolves cross-service placeholders across services`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
+        val requestLog = mutableListOf<Pair<String, String>>()
+
+        val orderServerId = "server-order-42"
+        val orderResponses = ArrayDeque(listOf(
+            wrapResponse(testItem(clientId = "order-1", serverId = orderServerId, name = "Order")),
+        ))
+        val paymentResponses = ArrayDeque(listOf(
+            wrapResponse(testItem(clientId = "payment-1", serverId = "server-payment-99", name = "Payment")),
+        ))
+
+        val (orderDriver, orderStore) = createDriver("orders", db, requestLog, orderResponses, status)
+        val (paymentDriver, paymentStore) = createDriver("payments", db, requestLog, paymentResponses, status)
+
+        // 1. Queue order CREATE offline.
+        orderStore.insertLocalData(
+            data = testItem(clientId = "order-1", name = "Order"),
+            httpRequest = HttpRequest(
+                method = HttpRequest.HttpMethod.POST,
+                endpointUrl = "https://api.test.com/orders",
+                requestBody = buildJsonObject {
+                    put("client_id", "order-1")
+                    put("name", "Order")
+                },
+            ),
+            idempotencyKey = "idem-order-1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        // 2. Queue payment CREATE offline with cross-service placeholder referencing order.
+        paymentStore.insertLocalData(
+            data = testItem(clientId = "payment-1", name = "Payment"),
+            httpRequest = HttpRequest(
+                method = HttpRequest.HttpMethod.POST,
+                endpointUrl = "https://api.test.com/payments",
+                requestBody = buildJsonObject {
+                    put("client_id", "payment-1")
+                    put("order_id", HttpRequest.crossServicePlaceholder("orders", "order-1"))
+                    put("amount", 5000)
+                },
+            ),
+            idempotencyKey = "idem-payment-1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        // Act
+        val coordinator = SyncUpCoordinator(
+            drivers = listOf(orderDriver, paymentDriver),
+            database = db,
+            status = status,
+        )
+        val synced = coordinator.syncUpAll()
+
+        // Assert
+        assertEquals(2, synced, "Both requests should have synced")
+        assertEquals(2, requestLog.size, "Two HTTP requests should have been made")
+        assertEquals("orders", requestLog[0].first, "Order should sync first")
+        assertEquals("payments", requestLog[1].first, "Payment should sync second")
+
+        // Verify the payment request body contains the resolved order server ID.
+        val paymentRequestBody = requestLog[1].second
+        assertTrue(
+            paymentRequestBody.contains(orderServerId),
+            "Payment request body should contain the order's server ID ($orderServerId), got: $paymentRequestBody"
+        )
+        assertFalse(
+            paymentRequestBody.contains("{cross:"),
+            "Payment request body should not contain unresolved cross-service placeholders, got: $paymentRequestBody"
+        )
+    }
+
+    /**
+     * When the dependency hasn't synced yet (e.g., order CREATE failed),
+     * the dependent request (payment) should be skipped.
+     */
+    @Test
+    fun `syncUpAll skips requests with unresolved cross-service dependencies`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+        val status = DataBuoyStatus(db)
+        val requestLog = mutableListOf<Pair<String, String>>()
+
+        // Payment response won't be consumed because the request should be skipped.
+        val paymentResponses = ArrayDeque(listOf(
+            wrapResponse(testItem(clientId = "payment-1", serverId = "server-payment-99")),
+        ))
+
+        val (paymentDriver, paymentStore) = createDriver("payments", db, requestLog, paymentResponses, status)
+
+        // Queue payment CREATE with cross-service placeholder, but DON'T create the order.
+        paymentStore.insertLocalData(
+            data = testItem(clientId = "payment-1", name = "Payment"),
+            httpRequest = HttpRequest(
+                method = HttpRequest.HttpMethod.POST,
+                endpointUrl = "https://api.test.com/payments",
+                requestBody = buildJsonObject {
+                    put("client_id", "payment-1")
+                    put("order_id", HttpRequest.crossServicePlaceholder("orders", "order-1"))
+                },
+            ),
+            idempotencyKey = "idem-payment-1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        val coordinator = SyncUpCoordinator(
+            drivers = listOf(paymentDriver),
+            database = db,
+            status = status,
+        )
+        val synced = coordinator.syncUpAll()
+
+        assertEquals(0, synced, "Payment should be skipped because order hasn't synced")
+        assertEquals(0, requestLog.size, "No HTTP requests should have been made")
+        assertEquals(1, status.pendingRequestCount.value, "Payment request should remain in queue")
+    }
+
+    // endregion
+}

@@ -208,8 +208,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 // after acquiring exclusive access for this clientId.
                 val lockedEntry = localStoreManager.pendingRequestQueueManager
                     .getPendingRequestById(pendingRequestId) ?: return@withClientLock
-                syncUpPendingData(lockedEntry)
-                synced = true
+                synced = syncUpPendingData(lockedEntry)
             }
             synced
         } catch (e: SyncUpRetryLaterException) {
@@ -254,7 +253,11 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     // Sync Up Region
 
-    private suspend fun syncUpPendingData(row: PendingSyncRequest<O>) {
+    /**
+     * @return `true` if the request was successfully uploaded, `false` if it was
+     *   skipped (e.g., unresolved placeholders) or failed without throwing.
+     */
+    private suspend fun syncUpPendingData(row: PendingSyncRequest<O>): Boolean {
         var request = row.request
         // If the request contains placeholders, updates those based on the latest server context.
         if (row.request.endpointUrl.contains(HttpRequest.SERVER_ID_PLACEHOLDER)) {
@@ -265,7 +268,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 // This can happen if the preceding CREATE hasn't synced yet (e.g., it failed).
                 // The entry stays in the queue and will be retried on the next sync cycle.
                 SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
-                return
+                return false
             } else {
                 request = request.resolveEndpoint(serverId) ?: request
             }
@@ -280,7 +283,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                 // This can happen if the preceding CREATE hasn't synced yet (e.g., it failed).
                 // The entry stays in the queue and will be retried on the next sync cycle.
                 SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
-                return
+                return false
             } else {
                 request = request.resolveBodyServerId(serverId) ?: request
             }
@@ -290,7 +293,16 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
             val version = row.lastSyncedData?.version ?: row.data.version
             request = request.resolveBodyVersion(version.toString()) ?: request
         }
-        when (val response = serverManager.sendRequest(request)) {
+        // Resolve cross-service placeholders (e.g., {cross:orders:abc-123} → server ID from orders service).
+        if (request.containsCrossServicePlaceholders()) {
+            val resolved = request.resolveCrossServicePlaceholders(localStoreManager.crossServiceIdResolver)
+            if (resolved == null) {
+                SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: cross-service dependency not yet resolved")
+                return false
+            }
+            request = resolved
+        }
+        return when (val response = serverManager.sendRequest(request)) {
             is ServerManager.ServerManagerResponse.ConnectionError,
             is ServerManager.ServerManagerResponse.RequestTimedOut -> {
                 SyncLog.w(TAG, "Sync up failed due to connection error. Trying again later.")
@@ -305,6 +317,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                 }
                 SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
+                false
             }
 
             is ServerManager.ServerManagerResponse.Failed -> {
@@ -313,6 +326,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                     localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                 }
                 SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
+                false
             }
 
             is ServerManager.ServerManagerResponse.Success -> {
@@ -330,6 +344,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                         localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                     }
                     SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
+                    false
                 } else {
                     // 3. Parse the response and mark as synced
                     val result = serverProcessingConfig.syncUpConfig.fromResponseBody(
@@ -350,6 +365,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                                 mergeHandler = rebaseHandler,
                             )
                             SyncLog.d(TAG, "Synced ${row.type} for ${row.data.clientId} (server_id=${result.data.serverId})")
+                            true
                         }
                         is SyncUpResult.Failed.Retry -> {
                             if (!row.serverAttemptMade) {
@@ -367,6 +383,7 @@ class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag>(
                                 syncedPendingRequest = row,
                             )
                             SyncLog.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId}, pending request is being removed.")
+                            false
                         }
                     }
                 }

@@ -76,9 +76,93 @@ class HttpRequest(
         )
     }
 
+    /**
+     * Returns `true` if this request's endpoint URL or request body contains any
+     * cross-service placeholders (i.e., `{cross:serviceName:clientId}`).
+     */
+    fun containsCrossServicePlaceholders(): Boolean {
+        return endpointUrl.contains(CROSS_SERVICE_PLACEHOLDER_PREFIX) ||
+            requestBody.toString().contains(CROSS_SERVICE_PLACEHOLDER_PREFIX)
+    }
+
+    /**
+     * Resolves all cross-service placeholders in this request's endpoint URL and body.
+     *
+     * Each placeholder has the form `{cross:serviceName:clientId}` and is replaced with
+     * the server ID returned by [resolver]. If the resolver returns `null` for any
+     * placeholder (meaning the dependency hasn't synced yet), this method returns `null`
+     * to signal that the request should be skipped until its dependencies are ready.
+     *
+     * @param resolver looks up a server ID by (serviceName, clientId). Returns `null`
+     *   if the referenced object hasn't been assigned a server ID yet.
+     * @return a new [HttpRequest] with all cross-service placeholders resolved,
+     *   or `null` if any dependency is unresolved.
+     */
+    fun resolveCrossServicePlaceholders(
+        resolver: (serviceName: String, clientId: String) -> String?,
+    ): HttpRequest? {
+        val fullText = endpointUrl + requestBody.toString()
+        val matches = CROSS_SERVICE_PATTERN.findAll(fullText).toList()
+        if (matches.isEmpty()) return null
+
+        // Resolve all unique placeholders up front so we fail fast.
+        val replacements = mutableMapOf<String, String>()
+        for (match in matches) {
+            val placeholder = match.value
+            if (placeholder in replacements) continue
+            val serviceName = match.groupValues[1]
+            val clientId = match.groupValues[2]
+            val serverId = resolver(serviceName, clientId) ?: return null
+            replacements[placeholder] = serverId
+        }
+
+        // Apply replacements to endpoint URL.
+        var resolvedUrl = endpointUrl
+        for ((placeholder, serverId) in replacements) {
+            resolvedUrl = resolvedUrl.replace(placeholder, serverId)
+        }
+
+        // Apply replacements to request body.
+        var resolvedBody = requestBody
+        for ((placeholder, serverId) in replacements) {
+            resolvedBody = replacePlaceholderInJson(resolvedBody, placeholder, serverId) ?: resolvedBody
+        }
+
+        return HttpRequest(
+            method = method,
+            endpointUrl = resolvedUrl,
+            requestBody = resolvedBody,
+            additionalHeaders = additionalHeaders,
+        )
+    }
+
     companion object {
         const val SERVER_ID_PLACEHOLDER = "{serverId}"
         const val VERSION_PLACEHOLDER = "{version}"
+        private const val CROSS_SERVICE_PLACEHOLDER_PREFIX = "{cross:"
+        private val CROSS_SERVICE_PATTERN = Regex("""\{cross:([^:}]+):([^}]+)\}""")
+
+        /**
+         * Creates a cross-service placeholder that will be resolved at sync-up time
+         * to the server ID of the referenced object.
+         *
+         * Use this when building an [HttpRequest] for an operation that depends on
+         * another service's object being synced first. For example, creating a Payment
+         * that references an Order's server ID:
+         *
+         * ```kotlin
+         * val orderIdField = HttpRequest.crossServicePlaceholder("orders", order.clientId)
+         * // Use orderIdField in the request body where the order's server ID is needed
+         * ```
+         *
+         * The placeholder is resolved automatically during sync-up. If the referenced
+         * object hasn't synced yet, the request is skipped and retried on the next cycle.
+         *
+         * @param serviceName the [SyncableObjectService.serviceName] of the dependency
+         * @param clientId the [SyncableObject.clientId] of the referenced object
+         */
+        fun crossServicePlaceholder(serviceName: String, clientId: String): String =
+            "{cross:$serviceName:$clientId}"
 
         /**
          * Walks a [JsonElement] tree and replaces [JsonPrimitive] string values that contain

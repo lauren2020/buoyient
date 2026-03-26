@@ -583,9 +583,9 @@ class SyncDriverTest {
         assertFalse(pending.first().serverAttemptMade, "serverAttemptMade should start as false")
 
         // syncUpSinglePendingRequest completes without throwing — the 503 is handled gracefully.
-        // It returns true because the operation completed (even though the response wasn't accepted).
+        // It returns false because the upload was not accepted by the server.
         val synced = driver.syncUpSinglePendingRequest(pending.first().pendingRequestId)
-        assertTrue(synced, "syncUpSinglePendingRequest returns true when operation completes without error")
+        assertFalse(synced, "syncUpSinglePendingRequest returns false when the server does not accept the upload")
 
         // The request should still be in the queue but marked as attempted
         val afterSync = localStore.pendingRequestQueueManager.getPendingRequests("c1")
@@ -636,7 +636,7 @@ class SyncDriverTest {
         val pending = localStore.pendingRequestQueueManager.getPendingRequests("c1")
         // 429 is not accepted, so the request stays in queue and is marked as attempted
         val synced = driver.syncUpSinglePendingRequest(pending.first().pendingRequestId)
-        assertTrue(synced, "syncUpSinglePendingRequest returns true (operation completed without error)")
+        assertFalse(synced, "syncUpSinglePendingRequest returns false when the server does not accept the upload")
 
         val afterSync = localStore.pendingRequestQueueManager.getPendingRequests("c1")
         assertEquals(1, afterSync.size, "Request should remain in queue after 429")
@@ -686,7 +686,7 @@ class SyncDriverTest {
         val pending = localStore.pendingRequestQueueManager.getPendingRequests("c1")
         // 408 is not accepted, so the request stays in queue and is marked as attempted
         val synced = driver.syncUpSinglePendingRequest(pending.first().pendingRequestId)
-        assertTrue(synced, "syncUpSinglePendingRequest returns true (operation completed without error)")
+        assertFalse(synced, "syncUpSinglePendingRequest returns false when the server does not accept the upload")
 
         val afterSync = localStore.pendingRequestQueueManager.getPendingRequests("c1")
         assertEquals(1, afterSync.size, "Request should remain in queue after 408")

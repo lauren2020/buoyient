@@ -49,6 +49,7 @@ These guides contain complete templates, required field tables, and common patte
 
 - `serviceName` must be unique per service — it's the SQLite partition key.
 - Use `HttpRequest.SERVER_ID_PLACEHOLDER` (`{serverId}`) and `HttpRequest.VERSION_PLACEHOLDER` (`{version}`) in requests for objects that may not have synced yet.
+- Use `HttpRequest.crossServicePlaceholder(serviceName, clientId)` to reference another service's server ID in an offline request (e.g., a Payment referencing an Order). Resolved automatically during sync-up; skipped if the dependency hasn't synced yet. See `docs/creating-a-service.md` § "Cross-service dependencies".
 - Data models must be `@Serializable` and implement `withSyncStatus()`. Mark `syncStatus` as `@Transient` — data-buoy manages it separately.
 - The service constructor takes a `KSerializer<O>` (from `kotlinx.serialization`) — not a manual deserializer.
 - `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.

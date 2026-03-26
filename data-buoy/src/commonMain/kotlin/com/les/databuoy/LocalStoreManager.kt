@@ -31,6 +31,18 @@ class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
+    /**
+     * Resolves a cross-service placeholder by looking up the server ID for a
+     * given (serviceName, clientId) pair in the shared `sync_data` table.
+     * Returns `null` if the referenced object hasn't been assigned a server ID yet.
+     */
+    internal val crossServiceIdResolver: (String, String) -> String? = { svcName, clientId ->
+        database.syncDataQueries
+            .getServerIdByServiceAndClientId(svcName, clientId)
+            .executeAsOneOrNull()
+            ?.server_id
+    }
+
     internal val pendingRequestQueueManager: PendingRequestQueueManager<O, T> = PendingRequestQueueManager(
         database = database,
         serviceName = serviceName,
