@@ -228,31 +228,23 @@ There are also non-suspend flow-based variants — `createWithFlow()`, `updateWi
 
 ### Constructor
 
+The base class only requires three arguments — the serializer, server config, and service name. Everything else (connectivity checking, local storage, HTTP client) is constructed automatically with sensible defaults:
+
 ```kotlin
 class YourModelService(
     serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
-    connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
-    ),
-    localStoreManager: LocalStoreManager<YourModel, YourModelRequestTag> = LocalStoreManager(
-        codec = SyncCodec(YourModel.serializer()),
-        serviceName = "your_model",
-        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
-    ),
 ) : SyncableObjectService<YourModel, YourModelRequestTag>(
     serializer = YourModel.serializer(),
     serverProcessingConfig = serverProcessingConfig,
-    serviceName = "your_model",
-    connectivityChecker = connectivityChecker,
-    serverManager = serverManager,
-    localStoreManager = localStoreManager,
+    serviceName = SERVICE_NAME,
 ) {
     // operations go here
 }
 ```
 
 The `serviceName` must be unique across all services in the app — it's used as a partition key in the shared SQLite database.
+
+For **testing**, the constructor also accepts optional `connectivityChecker`, `localStoreManager`, and `serverManager` parameters so you can inject test doubles from `TestServiceEnvironment`. See `docs/integration-testing.md` for the test wiring pattern — you do **not** need to expose these in your service's own constructor.
 
 ### Pending request queue strategy
 

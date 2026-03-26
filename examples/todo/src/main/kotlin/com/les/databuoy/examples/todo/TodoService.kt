@@ -18,22 +18,24 @@ import kotlinx.serialization.json.put
 
 class TodoService(
     serverProcessingConfig: ServerProcessingConfig<Todo> = createTodoServerProcessingConfig(),
+    // Optional — for injecting test doubles from TestServiceEnvironment.
+    // Production callers just use TodoService() and get sensible defaults.
     connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
-    ),
     localStoreManager: LocalStoreManager<Todo, TodoRequestTag> = LocalStoreManager(
         codec = SyncCodec(Todo.serializer()),
         serviceName = SERVICE_NAME,
         syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+    ),
+    serverManager: ServerManager = ServerManager(
+        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
     ),
 ) : SyncableObjectService<Todo, TodoRequestTag>(
     serializer = Todo.serializer(),
     serverProcessingConfig = serverProcessingConfig,
     serviceName = SERVICE_NAME,
     connectivityChecker = connectivityChecker,
-    serverManager = serverManager,
     localStoreManager = localStoreManager,
+    serverManager = serverManager,
 ) {
 
     suspend fun createTodo(todo: Todo): SyncableObjectServiceResponse<Todo> = create(

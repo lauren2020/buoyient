@@ -43,7 +43,6 @@ class YourModelServiceTest {
                 codec = SyncCodec(YourModel.serializer()),
                 serviceName = "your_model",
             ),
-            logger = env.logger,
         ).also {
             it.stopPeriodicSyncDown()
             env.mockRouter.clearRequestLog()
@@ -51,7 +50,7 @@ class YourModelServiceTest {
 
         val result = service.createYourModel(YourModel(name = "Test item"))
 
-        assertIs<SyncableObjectServiceResponse.Finished.NetworkResponseReceived<YourModel>>(result)
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<YourModel>>(result)
         assertEquals("srv-1", result.updatedData?.serverId)
         assertEquals(1, env.mockRouter.requestLog.size)
 

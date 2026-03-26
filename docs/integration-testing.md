@@ -84,6 +84,38 @@ env.mockRouter.onPost("https://api.example.com/items") { throw MockConnectionExc
 
 ---
 
+## Making your service testable
+
+In production, your service constructor can be minimal (see `docs/creating-a-service.md`). To support integration testing, expose `connectivityChecker`, `serverManager`, and `localStoreManager` as optional constructor parameters so `TestServiceEnvironment` can inject test doubles:
+
+```kotlin
+class YourModelService(
+    serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
+    // Optional — only needed for injecting test doubles from TestServiceEnvironment.
+    // Production callers just use YourModelService() and get sensible defaults.
+    connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
+    localStoreManager: LocalStoreManager<YourModel, YourModelRequestTag> = LocalStoreManager(
+        codec = SyncCodec(YourModel.serializer()),
+        serviceName = "your_model",
+        syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
+    ),
+    serverManager: ServerManager = ServerManager(
+        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
+    ),
+) : SyncableObjectService<YourModel, YourModelRequestTag>(
+    serializer = YourModel.serializer(),
+    serverProcessingConfig = serverProcessingConfig,
+    serviceName = "your_model",
+    connectivityChecker = connectivityChecker,
+    localStoreManager = localStoreManager,
+    serverManager = serverManager,
+)
+```
+
+Production code still just calls `YourModelService()` — the extra parameters only matter in tests.
+
+---
+
 ## Test Structure Template
 
 Every integration test follows the same pattern:
@@ -131,7 +163,7 @@ class YourModelServiceTest {
             MockResponse(200, buildJsonObject { put("items", JsonArray(emptyList())) })
         }
 
-        // 3. Construct service
+        // 3. Construct service with test doubles
         val service = YourModelService(
             serverProcessingConfig = YourModelServerProcessingConfig(),
             connectivityChecker = env.connectivityChecker,

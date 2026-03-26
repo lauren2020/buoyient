@@ -1,23 +1,14 @@
 package com.example.yourapp.data.services
 
 import com.example.yourapp.data.models.YourModel
-import com.les.databuoy.ConnectivityChecker
 import com.les.databuoy.CreateRequestBuilder
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.IdGenerator
-import com.les.databuoy.LocalStoreManager
 import com.les.databuoy.ResponseUnpacker
-import com.les.databuoy.ServerManager
 import com.les.databuoy.ServerProcessingConfig
-import com.les.databuoy.SyncCodec
-import com.les.databuoy.SyncLogger
 import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.SyncableObjectServiceResponse
 import com.les.databuoy.UpdateRequestBuilder
 import com.les.databuoy.VoidRequestBuilder
-import com.les.databuoy.createPlatformConnectivityChecker
-import com.les.databuoy.createPlatformIdGenerator
-import com.les.databuoy.createPlatformSyncLogger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -26,17 +17,10 @@ import kotlinx.serialization.json.put
 
 class YourModelService(
     serverProcessingConfig: ServerProcessingConfig<YourModel> = YourModelServerProcessingConfig(),
-    logger: SyncLogger = createPlatformSyncLogger(),
-    serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
-        logger = logger,
-    ),
 ) : SyncableObjectService<YourModel, YourModelRequestTag>(
     serializer = YourModel.serializer(),
     serverProcessingConfig = serverProcessingConfig,
     serviceName = SERVICE_NAME,
-    logger = logger,
-    serverManager = serverManager,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }

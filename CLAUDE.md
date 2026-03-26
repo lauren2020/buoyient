@@ -51,7 +51,7 @@ These guides contain complete templates, required field tables, and common patte
 - Use `HttpRequest.SERVER_ID_PLACEHOLDER` (`{serverId}`) and `HttpRequest.VERSION_PLACEHOLDER` (`{version}`) in requests for objects that may not have synced yet.
 - Use `HttpRequest.crossServicePlaceholder(serviceName, clientId)` to reference another service's server ID in an offline request (e.g., a Payment referencing an Order). Resolved automatically during sync-up; skipped if the dependency hasn't synced yet. See `docs/creating-a-service.md` § "Cross-service dependencies".
 - Data models must be `@Serializable` and implement `withSyncStatus()`. Mark `syncStatus` as `@Transient` — data-buoy manages it separately.
-- The service constructor takes a `KSerializer<O>` (from `kotlinx.serialization`) — not a manual deserializer.
+- The `SyncableObjectService` constructor requires only three arguments: `serializer` (`KSerializer<O>`), `serverProcessingConfig`, and `serviceName`. Internal dependencies (`SyncCodec`, `ServerManager`, `BackgroundRequestScheduler`) are constructed automatically — do not pass them. Optional params (`connectivityChecker`, `localStoreManager`, `serverManager`) exist for injecting test doubles; production services should use defaults.
 - `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.
 - Every operation (`create`, `update`, `void`) requires a `ServiceRequestTag` and uses functional interfaces: `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`.
 - `SyncUpConfig.fromResponseBody(requestTag, responseBody)` returns `SyncUpResult<O>`: `Success(data)`, `Failed.Retry` (re-queue), or `Failed.RemovePendingRequest` (drop from queue).

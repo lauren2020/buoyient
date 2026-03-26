@@ -21,19 +21,21 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
     val serviceName: String,
     private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
-    private val codec: SyncCodec<O> = SyncCodec(serializer),
-    private val serverManager: ServerManager = ServerManager(
-        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
-    ),
     encryptionProvider: EncryptionProvider? = null,
     private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
-        codec = codec,
+        codec = SyncCodec(serializer),
         serviceName = serviceName,
         syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
         encryptionProvider = encryptionProvider,
     ),
-    private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler(),
+    private val serverManager: ServerManager = ServerManager(
+        serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
+    ),
 ) : Service<O> {
+
+    private val codec: SyncCodec<O> = SyncCodec(serializer)
+
+    private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler()
 
     /**
      * Handles 3-way merge conflict detection and resolution during sync-down.
