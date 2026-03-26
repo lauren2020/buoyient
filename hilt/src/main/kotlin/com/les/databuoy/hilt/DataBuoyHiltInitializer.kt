@@ -6,6 +6,7 @@ import com.les.databuoy.DataBuoy
 import com.les.databuoy.DataBuoyInitializer
 import com.les.databuoy.SyncDriver
 import com.les.databuoy.SyncServiceRegistryProvider
+import com.les.databuoy.registerServiceProvider
 import dagger.hilt.android.EntryPointAccessors
 
 /**

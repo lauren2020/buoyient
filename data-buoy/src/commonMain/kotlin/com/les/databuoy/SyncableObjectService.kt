@@ -15,23 +15,46 @@ import kotlinx.serialization.KSerializer
  * **AI agents:** See `CLAUDE.md` / `CODEX.md` at the repository root (or under `META-INF/`
  * in the published JAR) and `docs/creating-a-service.md` for a step-by-step guide to
  * implementing a service.
+ *
+ * @param serializer - The [KSerializer] for the domain model [O], used to construct the
+ *   internal [SyncCodec] for serialization and deserialization.
+ * @property serverProcessingConfig - Defines how this service communicates with the remote API:
+ *   endpoints, headers, request builders, and response unpacking.
+ * @property serviceName - A unique identifier for this service, used as the SQLite partition key
+ *   for local storage.
+ * @param connectivityChecker - Determines whether the device is online. Defaults to the
+ *   platform-specific implementation; override in tests to simulate offline scenarios.
+ * @param encryptionProvider - Optional [EncryptionProvider] for encrypting data at rest in the
+ *   local store. Pass `null` (the default) to store data unencrypted.
+ * @param queueStrategy - Controls how offline requests are queued. [PendingRequestQueueManager.PendingRequestQueueStrategy.Queue]
+ *   (default) keeps one entry per operation; [PendingRequestQueueManager.PendingRequestQueueStrategy.Squash]
+ *   collapses consecutive offline edits into a single request.
+ * @param rebaseHandler - Handles 3-way merge conflict detection and resolution during sync-up.
+ *   Defaults to a standard handler built from the provided [serializer].
  */
 abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTag>(
     serializer: KSerializer<O>,
     protected val serverProcessingConfig: ServerProcessingConfig<O>,
-    val serviceName: String,
-    private val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
+    protected val serviceName: String,
+    protected val connectivityChecker: ConnectivityChecker = createPlatformConnectivityChecker(),
     encryptionProvider: EncryptionProvider? = null,
     queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
         PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
+    protected val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(SyncCodec(serializer)),
 ) : Service<O> {
 
     private val codec: SyncCodec<O> = SyncCodec(serializer)
 
+    /**
+     * Manages the online server interactions.
+     */
     private val serverManager: ServerManager = ServerManager(
         serviceBaseHeaders = serverProcessingConfig.serviceHeaders,
     )
 
+    /**
+     * Manages the local data store interactions.
+     */
     private val localStoreManager: LocalStoreManager<O, T> = LocalStoreManager(
         codec = codec,
         serviceName = serviceName,
@@ -40,44 +63,25 @@ abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRequestTa
         queueStrategy = queueStrategy,
     )
 
-    private val backgroundRequestScheduler: BackgroundRequestScheduler = createPlatformBackgroundRequestScheduler()
-
-    /**
-     * Handles 3-way merge conflict detection and resolution during sync-down.
-     * Override this property in a service subclass to provide a custom [SyncableObjectRebaseHandler]
-     * with domain-specific merge policies.
-     */
-    protected open val rebaseHandler: SyncableObjectRebaseHandler<O> by lazy {
-        SyncableObjectRebaseHandler(codec)
-    }
+    private val backgroundRequestScheduler: BackgroundRequestScheduler =
+        createPlatformBackgroundRequestScheduler()
 
     /**
      * The sync engine that handles sync-down, sync-up, conflict resolution, and periodic
-     * scheduling. Constructed lazily so that subclass property overrides (e.g., [rebaseHandler])
-     * are fully initialized before the sync engine starts.
+     * scheduling.
      *
      * Register this with [DataBuoy.registerDrivers] or include it in your Hilt multibinding
      * set so background sync picks up pending requests for this service.
      */
-    val syncDriver: SyncDriver<O, T> by lazy {
-        SyncDriver(
-            serverManager = serverManager,
-            connectivityChecker = connectivityChecker,
-            codec = codec,
-            serverProcessingConfig = serverProcessingConfig,
-            localStoreManager = localStoreManager,
-            serviceName = serviceName,
-            rebaseHandler = rebaseHandler,
-        )
-    }
-
-    init {
-        // Force lazy initialization of syncDriver, which starts periodic sync.
-        // By this point, subclass property initializers (including rebaseHandler overrides)
-        // are complete because Kotlin evaluates lazy properties on first access, not at
-        // declaration time.
-        syncDriver
-    }
+    val syncDriver: SyncDriver<O, T> = SyncDriver(
+        serverManager = serverManager,
+        connectivityChecker = connectivityChecker,
+        codec = codec,
+        serverProcessingConfig = serverProcessingConfig,
+        localStoreManager = localStoreManager,
+        serviceName = serviceName,
+        rebaseHandler = rebaseHandler,
+    )
 
     /**
      * Stops the periodic sync-down loop.

@@ -788,19 +788,24 @@ fun resolveItemConflict(
 
 ### Custom merge policies
 
-Override the `rebaseHandler` property in your service to provide a custom `SyncableObjectRebaseHandler` with domain-specific merge logic:
+Pass a custom `SyncableObjectRebaseHandler` via the `rebaseHandler` constructor parameter to provide domain-specific merge logic:
 
 ```kotlin
-override val rebaseHandler = object : SyncableObjectRebaseHandler<YourModel>(SyncCodec(YourModel.serializer())) {
-    override fun handleMergeConflict(
-        rebaseResult: RebaseResult<YourModel>,
-        requestTag: String?,
-    ): ConflictResolution<YourModel> {
-        // Example: auto-resolve by always taking the server's value for "status"
-        // Return ConflictResolution.Resolved(...) or ConflictResolution.Unresolved()
-        return ConflictResolution.Unresolved()
-    }
-}
+class YourModelService(...) : SyncableObjectService<YourModel, YourModelRequestTag>(
+    serializer = YourModel.serializer(),
+    serverProcessingConfig = yourConfig,
+    serviceName = "your-model",
+    rebaseHandler = object : SyncableObjectRebaseHandler<YourModel>(SyncCodec(YourModel.serializer())) {
+        override fun handleMergeConflict(
+            rebaseResult: RebaseResult<YourModel>,
+            requestTag: String?,
+        ): ConflictResolution<YourModel> {
+            // Example: auto-resolve by always taking the server's value for "status"
+            // Return ConflictResolution.Resolved(...) or ConflictResolution.Unresolved()
+            return ConflictResolution.Unresolved()
+        }
+    },
+)
 ```
 
 ---
