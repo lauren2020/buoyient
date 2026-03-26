@@ -1,4 +1,4 @@
-package com.les.databuoy.publicconfigs
+package com.les.databuoy.serviceconfigs
 
 public actual fun createPlatformConnectivityChecker(): ConnectivityChecker = object :
     ConnectivityChecker {

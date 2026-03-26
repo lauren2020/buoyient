@@ -1,4 +1,4 @@
-package com.les.databuoy.publicconfigs
+package com.les.databuoy.serviceconfigs
 
 import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
 import com.les.databuoy.SyncableObject

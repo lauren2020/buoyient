@@ -1,10 +1,10 @@
 package com.les.databuoy
 
-import com.les.databuoy.publicconfigs.ConnectivityChecker
-import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
-import com.les.databuoy.publicconfigs.SyncFetchConfig
-import com.les.databuoy.publicconfigs.SyncUpConfig
-import com.les.databuoy.publicconfigs.SyncUpResult
+import com.les.databuoy.serviceconfigs.ConnectivityChecker
+import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
+import com.les.databuoy.serviceconfigs.SyncFetchConfig
+import com.les.databuoy.serviceconfigs.SyncUpConfig
+import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.syncableobjectservicedatatypes.CreateRequestBuilder
 import com.les.databuoy.syncableobjectservicedatatypes.GetResponse
 import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker

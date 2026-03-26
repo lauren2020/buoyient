@@ -1,10 +1,8 @@
 package com.les.databuoy
 
-import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
+import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.utils.SyncCodec
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

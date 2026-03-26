@@ -1,6 +1,6 @@
 package com.les.databuoy.examples.todo
 
-import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.serviceconfigs.ConnectivityChecker
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.ServerProcessingConfig
 import com.les.databuoy.SyncableObjectService
@@ -8,7 +8,7 @@ import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceResp
 import com.les.databuoy.syncableobjectservicedatatypes.UpdateRequestBuilder
 import com.les.databuoy.syncableobjectservicedatatypes.VoidRequestBuilder
 import com.les.databuoy.syncableobjectservicedatatypes.CreateRequestBuilder
-import com.les.databuoy.publicconfigs.createPlatformConnectivityChecker
+import com.les.databuoy.serviceconfigs.createPlatformConnectivityChecker
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 

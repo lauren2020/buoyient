@@ -1,6 +1,6 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.serviceconfigs.ConnectivityChecker
 
 /**
  * A [ConnectivityChecker] with mutable state for controlling online/offline

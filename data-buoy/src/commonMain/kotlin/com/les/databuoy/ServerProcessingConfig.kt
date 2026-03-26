@@ -1,8 +1,8 @@
 package com.les.databuoy
 
-import com.les.databuoy.publicconfigs.SyncFetchConfig
-import com.les.databuoy.publicconfigs.SyncUpConfig
-import com.les.databuoy.publicconfigs.SyncUpResult
+import com.les.databuoy.serviceconfigs.SyncFetchConfig
+import com.les.databuoy.serviceconfigs.SyncUpConfig
+import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
 import kotlinx.serialization.json.JsonObject
 

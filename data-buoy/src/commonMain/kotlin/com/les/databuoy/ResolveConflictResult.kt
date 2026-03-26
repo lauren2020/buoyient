@@ -1,6 +1,6 @@
 package com.les.databuoy
 
-import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
+import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 
 public sealed class ResolveConflictResult<O : SyncableObject<O>> {
     public class Resolved<O : SyncableObject<O>>(public val resolvedData: O) : ResolveConflictResult<O>()

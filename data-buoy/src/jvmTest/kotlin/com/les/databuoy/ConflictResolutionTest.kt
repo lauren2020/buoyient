@@ -2,7 +2,7 @@ package com.les.databuoy
 
 import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
-import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
+import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.sync.UpsertResult
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier

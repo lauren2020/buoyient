@@ -4,7 +4,7 @@ import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
-import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
+import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.utils.SyncCodec
 import kotlinx.serialization.json.JsonObject

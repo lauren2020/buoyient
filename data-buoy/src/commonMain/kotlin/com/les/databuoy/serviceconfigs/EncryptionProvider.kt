@@ -1,4 +1,4 @@
-package com.les.databuoy.publicconfigs
+package com.les.databuoy.serviceconfigs
 
 /**
  * Pluggable encryption for data at rest. When supplied to a service, all JSON

@@ -3,10 +3,10 @@ package com.les.databuoy
 import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
-import com.les.databuoy.publicconfigs.ConnectivityChecker
-import com.les.databuoy.publicconfigs.SyncFetchConfig
-import com.les.databuoy.publicconfigs.SyncUpConfig
-import com.les.databuoy.publicconfigs.SyncUpResult
+import com.les.databuoy.serviceconfigs.ConnectivityChecker
+import com.les.databuoy.serviceconfigs.SyncFetchConfig
+import com.les.databuoy.serviceconfigs.SyncUpConfig
+import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.sync.SyncUpCoordinator

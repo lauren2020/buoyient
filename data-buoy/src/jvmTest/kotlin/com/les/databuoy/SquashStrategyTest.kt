@@ -2,10 +2,10 @@ package com.les.databuoy
 
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
-import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
-import com.les.databuoy.publicconfigs.SyncFetchConfig
-import com.les.databuoy.publicconfigs.SyncUpConfig
-import com.les.databuoy.publicconfigs.SyncUpResult
+import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
+import com.les.databuoy.serviceconfigs.SyncFetchConfig
+import com.les.databuoy.serviceconfigs.SyncUpConfig
+import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
 import com.les.databuoy.testing.TestServiceEnvironment
 import com.les.databuoy.testing.registerCrudHandlers
@@ -22,7 +22,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Tests for the [com.les.databuoy.publicconfigs.PendingRequestQueueStrategy.Squash] strategy
+ * Tests for the [com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy.Squash] strategy
  * wired through [MockServerStoreRouter.registerCrudHandlers].
  *
  * These verify that multiple offline updates to the same object are squashed into a single

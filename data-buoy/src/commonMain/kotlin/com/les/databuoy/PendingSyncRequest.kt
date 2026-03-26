@@ -1,6 +1,6 @@
 package com.les.databuoy
 
-import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
+import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 
 /**
  * Represents a pending sync work item stored in the database. This
