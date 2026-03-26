@@ -1,5 +1,7 @@
-package com.les.databuoy
+package com.les.databuoy.internalutilities
 
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.SyncableObject
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 
 /**
@@ -11,11 +13,11 @@ import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
  * Stored as a single JSON TEXT column (`pending_sync_request`) — when
  * the column is NULL the row has no pending work.
  *
- * @param O the [SyncableObject] type this request operates on.
+ * @param O the [com.les.databuoy.SyncableObject] type this request operates on.
  * @property pendingRequestId database row ID for this pending request, or `-1` if not yet persisted.
  * @property type the operation type ([Type.CREATE], [Type.UPDATE], or [Type.VOID]).
  * @property idempotencyKey unique key used to deduplicate retries of the same operation on the server.
- * @property request the [HttpRequest] to replay when connectivity returns.
+ * @property request the [com.les.databuoy.HttpRequest] to replay when connectivity returns.
  * @property serverAttemptMade whether a sync-up attempt has been attempted for this request. If
  *  a sync-up attempt was sent and was accepted as completed this row would just be removed, but
  *  if a sync-up attempt was sent and failed as being unconfirmed if it processed
@@ -27,7 +29,7 @@ import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
  *  This is used for three-way merge conflict detection. `null` for create operations since creates
  *  are by definition instantiating something new that does not exist yet.
  * @property conflict any field-level conflict detected during rebase, or `null` if no conflict exists.
- * @property requestTag the [ServiceRequestTag.tagValue] identifying which operation produced this request.
+ * @property requestTag the [com.les.databuoy.ServiceRequestTag.tagValue] identifying which operation produced this request.
  */
 public data class PendingSyncRequest<O : SyncableObject<O>>(
     public val pendingRequestId: Int = -1,

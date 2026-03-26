@@ -3,6 +3,7 @@ package com.les.databuoy
 import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.internalutilities.LocalStoreManager
+import com.les.databuoy.internalutilities.PendingSyncRequest
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
 import com.les.databuoy.serviceconfigs.ServerProcessingConfig

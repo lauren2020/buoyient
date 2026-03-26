@@ -3,6 +3,7 @@ package com.les.databuoy
 import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
+import com.les.databuoy.internalutilities.PendingSyncRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
@@ -179,7 +180,8 @@ class SquashStrategyTest {
         // With squash, there should still be only 1 pending request (the merged CREATE)
         val pending = squashQueueManager.getPendingRequests("c1")
         assertEquals(1, pending.size, "Squash should merge update into create, keeping only 1 entry")
-        assertEquals(PendingSyncRequest.Type.CREATE, pending.first().type,
+        assertEquals(
+            PendingSyncRequest.Type.CREATE, pending.first().type,
             "Merged entry should still be a CREATE")
 
         // The merged request body should contain the updated data

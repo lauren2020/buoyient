@@ -4,6 +4,7 @@ import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
+import com.les.databuoy.internalutilities.PendingSyncRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger

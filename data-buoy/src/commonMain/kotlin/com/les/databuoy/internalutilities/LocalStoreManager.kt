@@ -7,7 +7,7 @@ import com.les.databuoy.globalconfigs.DatabaseOverride
 import com.les.databuoy.serviceconfigs.EncryptionProvider
 import com.les.databuoy.HttpRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
-import com.les.databuoy.PendingSyncRequest
+import com.les.databuoy.internalutilities.PendingSyncRequest
 import com.les.databuoy.ResolveConflictResult
 import com.les.databuoy.ServiceRequestTag
 import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
