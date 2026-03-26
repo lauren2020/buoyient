@@ -4,6 +4,7 @@ import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.sync.SyncUpCoordinator
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import io.ktor.client.HttpClient
@@ -29,7 +30,7 @@ import kotlin.test.assertTrue
 /**
  * Tests for cross-service placeholder resolution: [HttpRequest.crossServiceServerIdPlaceholder],
  * [HttpRequest.containsCrossServicePlaceholders], [HttpRequest.resolveCrossServicePlaceholders],
- * and end-to-end resolution through [SyncUpCoordinator].
+ * and end-to-end resolution through [com.les.databuoy.sync.SyncUpCoordinator].
  */
 class CrossServicePlaceholderTest {
 

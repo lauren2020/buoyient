@@ -4,6 +4,7 @@ import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.sync.SyncUpCoordinator
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import io.ktor.client.HttpClient
@@ -24,7 +25,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Tests for [SyncUpCoordinator] — verifies that pending requests across
+ * Tests for [com.les.databuoy.sync.SyncUpCoordinator] — verifies that pending requests across
  * multiple services are uploaded in global insertion order rather than
  * per-service order.
  */
@@ -137,7 +138,7 @@ class SyncUpCoordinatorTest {
     // endregion
 
     /**
-     * Verifies that [SyncUpCoordinator.syncUpAll] dispatches pending requests
+     * Verifies that [com.les.databuoy.sync.SyncUpCoordinator.syncUpAll] dispatches pending requests
      * in global insertion order across multiple services.
      *
      * Setup:
@@ -200,7 +201,7 @@ class SyncUpCoordinatorTest {
 
         // Act — use the coordinator for globally-ordered sync.
         val coordinator = SyncUpCoordinator(
-            drivers =listOf(alphaDriver, betaDriver),
+            drivers = listOf(alphaDriver, betaDriver),
             database = db,
             status = status,
         )
@@ -225,7 +226,7 @@ class SyncUpCoordinatorTest {
         val db = TestDatabaseFactory.createInMemory()
         val status = DataBuoyStatus(db)
         val coordinator = SyncUpCoordinator(
-            drivers =emptyList(),
+            drivers = emptyList(),
             database = db,
             status = status,
         )
@@ -300,7 +301,7 @@ class SyncUpCoordinatorTest {
 
         // Only register alpha — ghost has no participant.
         val coordinator = SyncUpCoordinator(
-            drivers =listOf(alphaDriver),
+            drivers = listOf(alphaDriver),
             database = db,
             status = status,
         )
@@ -342,7 +343,7 @@ class SyncUpCoordinatorTest {
         )
 
         val coordinator = SyncUpCoordinator(
-            drivers =listOf(alphaDriver),
+            drivers = listOf(alphaDriver),
             database = db,
             status = status,
         )

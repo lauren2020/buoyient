@@ -4,6 +4,7 @@ import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker
+import com.les.databuoy.sync.SyncUpCoordinator
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import io.ktor.client.HttpClient
@@ -98,7 +99,7 @@ class SyncUpRegressionTest {
     }
 
     /**
-     * Runs a single-service [SyncUpCoordinator] sync pass — the same path production code takes.
+     * Runs a single-service [com.les.databuoy.sync.SyncUpCoordinator] sync pass — the same path production code takes.
      */
     private suspend fun syncUpViaCoordinator(
         driver: SyncDriver<TestItem, TestRequestTag>,

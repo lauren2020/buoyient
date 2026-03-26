@@ -1,14 +1,18 @@
-package com.les.databuoy
+package com.les.databuoy.sync
 
+import com.les.databuoy.DataBuoyStatus
+import com.les.databuoy.SyncDriver
+import com.les.databuoy.SyncLog
+import com.les.databuoy.SyncUpRetryLaterException
 import com.les.databuoy.db.SyncDatabase
 
 /**
  * Coordinates sync-up across multiple services, dispatching pending
  * requests in global insertion order rather than per-service order.
  *
- * Each [SyncDriver] handles sync-up for its own service. The coordinator
+ * Each [com.les.databuoy.SyncDriver] handles sync-up for its own service. The coordinator
  * queries the global pending-request queue and dispatches each entry to
- * the correct driver by [SyncDriver.serviceName].
+ * the correct driver by [com.les.databuoy.SyncDriver.serviceName].
  */
 public class SyncUpCoordinator(
     private val drivers: List<SyncDriver<*, *>>,

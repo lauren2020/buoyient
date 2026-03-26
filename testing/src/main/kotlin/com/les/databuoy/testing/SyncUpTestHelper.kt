@@ -1,7 +1,7 @@
 package com.les.databuoy.testing
 
 import com.les.databuoy.DatabaseOverride
-import com.les.databuoy.SyncUpCoordinator
+import com.les.databuoy.sync.SyncUpCoordinator
 import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.createSyncDatabase
 
