@@ -120,6 +120,8 @@ enum class YourModelRequestTag(override val value: String) : ServiceRequestTag {
 
 Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch data from and push data to your server.
 
+> **Import note:** `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, and other service-level configuration classes live in the `com.les.databuoy.serviceconfigs` package. Other optional service constructor params — `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, and `SyncableObjectRebaseHandler` — are also in `serviceconfigs`.
+
 ### Required members
 
 | Member | Type | Purpose |
@@ -933,7 +935,7 @@ data-buoy can optionally encrypt all persisted JSON blobs in SQLite on a per-ser
 ### Implement `EncryptionProvider`
 
 ```kotlin
-import com.les.databuoy.EncryptionProvider
+import com.les.databuoy.serviceconfigs.EncryptionProvider
 
 class AesGcmEncryptionProvider(
     private val keyAlias: String,

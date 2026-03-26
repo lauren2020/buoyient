@@ -9,6 +9,7 @@ Key points to remember:
 - The `:data-buoy` artifact (`com.les.databuoy:data-buoy`) is the only required dependency. Add `:data-buoy-hilt` for Hilt apps, `:testing` for tests and mock mode.
 - Initialization is automatic via `androidx.startup` — no manifest changes or `Application.onCreate()` code needed for the library itself.
 - Services must be registered so `SyncWorker` can include them in background sync. Three approaches: Hilt `@IntoSet` multibinding (recommended), `DataBuoy.registerServices()`, or `SyncWorker.registerServiceProvider()`.
+- Project-level configuration classes (`DataBuoy`, `GlobalHeaderProvider`, `DatabaseProvider`, etc.) are in the `com.les.databuoy.globalconfigs` package.
 - `DataBuoyHiltInitializer` registers a lazy provider that resolves Hilt bindings when `SyncWorker` runs — no eager initialization.
 - Transitive dependencies (Ktor, SQLDelight, WorkManager, kotlinx.serialization) are pulled in automatically.
 - After setup, proceed to `docs/creating-a-service.md` to build your first service.

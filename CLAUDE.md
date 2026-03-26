@@ -13,30 +13,53 @@ If you are integrating data-buoy into an application, **read the guides in `docs
 
 These guides contain complete templates, required field tables, and common patterns. Use them instead of copying from the example services in this repo (which talk to a Square sandbox API — your endpoints, auth, and field names will be different).
 
+## Package organization
+
+The `:data-buoy` module organizes its public API into packages by role:
+
+| Package | Purpose |
+|---------|---------|
+| `com.les.databuoy` (top level) | Primary classes consumers build on: `SyncableObject`, `SyncableObjectService`, `ServiceRequestTag`, `Service` |
+| `com.les.databuoy.globalconfigs` | Project-level configuration: `DataBuoy`, `GlobalHeaderProvider`, `DatabaseProvider`, `HttpClientOverride`, `DatabaseOverride` |
+| `com.les.databuoy.serviceconfigs` | Per-service configuration: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler` |
+| `com.les.databuoy.syncableobjectservicedatatypes` | Data types for interacting with `SyncableObjectService`: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger` |
+| `com.les.databuoy.utils` | Utilities: `SyncCodec`, `SyncLog`, `SyncLogger` |
+
+Internal packages (`managers`, `sync`) are not part of the public API.
+
 ## Key classes
 
-| Class | Purpose |
-|-------|---------|
-| `SyncableObject<O>` | Interface for your domain model (`@Serializable` data class) |
-| `SyncableObjectService<O, T>` | Base class for services — exposes `create()`, `update()`, `void()`, `get()` and flow-based variants `createWithFlow()`, `updateWithFlow()`, `voidWithFlow()` |
-| `SyncableObjectServiceRequestState<O>` | Sealed state type for flow-based operations: `Loading` or `Result(response)` |
-| `getFromLocalStore()` | Overloaded query methods on `SyncableObjectService` — filter by `syncStatus` string / `includeVoided` flag (SQL-level), or by `(O) -> Boolean` predicate (in-memory) |
-| `ServiceRequestTag` | Interface for request type enums — passed to every operation |
-| `ServerProcessingConfig<O>` | Tells the sync engine how to talk to your API |
-| `SyncFetchConfig<O>` | Configures periodic sync-down (GET or POST) |
-| `SyncUpConfig<O>` | Controls sync-up retry logic and response parsing via `fromResponseBody()` |
-| `SyncUpResult<O>` | Sealed return type for `fromResponseBody()`: `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest` |
-| `SyncCodec<O>` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
-| `PendingRequestQueueStrategy` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
-| `SquashRequestMerger` | Functional interface for merging an update into a pending create when using `Squash` strategy |
-| `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
-| `SyncLog` | Process-wide logger singleton — set `SyncLog.logger` to swap the backing `SyncLogger` |
-| `EncryptionProvider` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
-| `GlobalHeaderProvider` | Functional interface for dynamic global headers (e.g., auth tokens) — set via `DataBuoy.globalHeaderProvider` |
-| `DataBuoy` | Convenience API for service registration and global header configuration |
-| `TestServiceEnvironment` | All-in-one test harness (`:testing` module) |
-| `MockEndpointRouter` | Mock HTTP server for tests and mock mode (`:testing` module) |
-| `MockServerStore` | Stateful mock server with collections (`:testing` module) |
+| Class | Package | Purpose |
+|-------|---------|---------|
+| `SyncableObject<O>` | top level | Interface for your domain model (`@Serializable` data class) |
+| `SyncableObjectService<O, T>` | top level | Base class for services — exposes `create()`, `update()`, `void()`, `get()` and flow-based variants `createWithFlow()`, `updateWithFlow()`, `voidWithFlow()` |
+| `ServiceRequestTag` | top level | Interface for request type enums — passed to every operation |
+| `DataBuoy` | `globalconfigs` | Convenience API for service registration and global header configuration |
+| `GlobalHeaderProvider` | `globalconfigs` | Functional interface for dynamic global headers (e.g., auth tokens) — set via `DataBuoy.globalHeaderProvider` |
+| `ServerProcessingConfig<O>` | `serviceconfigs` | Tells the sync engine how to talk to your API |
+| `SyncFetchConfig<O>` | `serviceconfigs` | Configures periodic sync-down (GET or POST) |
+| `SyncUpConfig<O>` | `serviceconfigs` | Controls sync-up retry logic and response parsing via `fromResponseBody()` |
+| `SyncUpResult<O>` | `serviceconfigs` | Sealed return type for `fromResponseBody()`: `Success(data)`, `Failed.Retry`, or `Failed.RemovePendingRequest` |
+| `PendingRequestQueueStrategy` | `serviceconfigs` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
+| `SyncableObjectRebaseHandler<O>` | `serviceconfigs` | 3-way merge conflict detection and resolution |
+| `EncryptionProvider` | `serviceconfigs` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
+| `ConnectivityChecker` | `serviceconfigs` | Interface for online/offline detection — pass to service constructor |
+| `HttpRequest` | `syncableobjectservicedatatypes` | HTTP request builder with placeholder resolution for offline requests |
+| `SyncableObjectServiceResponse<O>` | `syncableobjectservicedatatypes` | Sealed response type for all service operations |
+| `SyncableObjectServiceRequestState<O>` | `syncableobjectservicedatatypes` | Sealed state type for flow-based operations: `Loading` or `Result(response)` |
+| `GetResponse<O>` | `syncableobjectservicedatatypes` | Sealed response type for `get()` operations |
+| `ResolveConflictResult<O>` | `syncableobjectservicedatatypes` | Sealed result type for conflict resolution |
+| `CreateRequestBuilder` | `syncableobjectservicedatatypes` | Functional interface for building create requests |
+| `UpdateRequestBuilder` | `syncableobjectservicedatatypes` | Functional interface for building update requests |
+| `VoidRequestBuilder` | `syncableobjectservicedatatypes` | Functional interface for building void requests |
+| `ResponseUnpacker` | `syncableobjectservicedatatypes` | Functional interface for extracting objects from server responses |
+| `SquashRequestMerger` | `syncableobjectservicedatatypes` | Functional interface for merging an update into a pending create when using `Squash` strategy |
+| `getFromLocalStore()` | (on `SyncableObjectService`) | Overloaded query methods — filter by `syncStatus` string / `includeVoided` flag (SQL-level), or by `(O) -> Boolean` predicate (in-memory) |
+| `SyncCodec<O>` | `utils` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
+| `SyncLog` | `utils` | Process-wide logger singleton — set `SyncLog.logger` to swap the backing `SyncLogger` |
+| `TestServiceEnvironment` | `:testing` module | All-in-one test harness |
+| `MockEndpointRouter` | `:testing` module | Mock HTTP server for tests and mock mode |
+| `MockServerStore` | `:testing` module | Stateful mock server with collections |
 
 ## Modules
 
@@ -52,7 +75,7 @@ These guides contain complete templates, required field tables, and common patte
 - Use `HttpRequest.serverIdOrPlaceholder(serverId)` and `HttpRequest.versionOrPlaceholder(version)` in requests for objects that may not have synced yet. These return the real value when non-null, or a placeholder that data-buoy resolves at sync time. The raw constants `HttpRequest.SERVER_ID_PLACEHOLDER` / `HttpRequest.VERSION_PLACEHOLDER` also work but the helper methods are preferred for discoverability.
 - Use `HttpRequest.crossServiceServerIdPlaceholder(serviceName, clientId)` to reference another service's server ID in an offline request (e.g., a Payment referencing an Order). The first arg is the dependency's `serviceName` string; the second is the specific object's `clientId`. Resolved automatically during sync-up; skipped if the dependency hasn't synced yet. See `docs/creating-a-service.md` § "Cross-service dependencies" for a full two-service example.
 - Data models must be `@Serializable` and implement `withSyncStatus()`. Mark `syncStatus` as `@Transient` — data-buoy manages it separately.
-- The `SyncableObjectService` constructor requires only three arguments: `serializer` (`KSerializer<O>`), `serverProcessingConfig`, and `serviceName`. Internal dependencies (`SyncCodec`, `ServerManager`, `LocalStoreManager`, `BackgroundRequestScheduler`) are constructed automatically — do not pass them. Optional params: `connectivityChecker` (for per-service online/offline control in tests), `encryptionProvider` (encryption at rest), `queueStrategy` (pending request queue behavior), `rebaseHandler` (custom 3-way merge conflict resolution). For mock mode and integration testing, use `DataBuoy.httpClient` and `DataBuoy.database` (or `TestServiceEnvironment` which sets them automatically).
+- The `SyncableObjectService` constructor requires only three arguments: `serializer` (`KSerializer<O>`), `serverProcessingConfig`, and `serviceName`. Internal dependencies are constructed automatically — do not pass them. Optional params (from `serviceconfigs`): `connectivityChecker` (for per-service online/offline control in tests), `encryptionProvider` (encryption at rest), `queueStrategy` (pending request queue behavior), `rebaseHandler` (custom 3-way merge conflict resolution). For mock mode and integration testing, use `DataBuoy.httpClient` and `DataBuoy.database` (or `TestServiceEnvironment` which sets them automatically).
 - `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.
 - Every operation (`create`, `update`, `void`) requires a `ServiceRequestTag` and uses functional interfaces: `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`.
 - `SyncUpConfig.fromResponseBody(requestTag, responseBody)` returns `SyncUpResult<O>`: `Success(data)`, `Failed.Retry` (re-queue), or `Failed.RemovePendingRequest` (drop from queue).

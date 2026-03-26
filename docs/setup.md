@@ -89,6 +89,8 @@ AppInitializer.getInstance(this)
 
 Before data-buoy can sync anything, you need to register your services' `SyncDriver<*, *>` instances for background sync. Choose the approach that fits your app:
 
+> **Import note:** `DataBuoy`, `GlobalHeaderProvider`, and other project-level configuration classes live in the `com.les.databuoy.globalconfigs` package.
+
 ### Option A: Hilt multibinding (recommended for Hilt apps)
 
 If you added the `data-buoy-hilt` artifact, registration is fully automatic. Just provide `@IntoSet` bindings in a Hilt module:
