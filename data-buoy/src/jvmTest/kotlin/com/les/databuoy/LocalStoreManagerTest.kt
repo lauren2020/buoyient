@@ -150,7 +150,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val item = testItem(clientId = "c-1", serverId = "s-1", version = "2", name = "Synced")
 
-        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = item.clientId)
 
         val entry = manager.getData(clientId = "c-1", serverId = "s-1")
         assertNotNull(entry)
@@ -166,7 +166,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val item = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "FromServer")
 
-        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = item.clientId)
 
         val entry = manager.getData(clientId = "c-1", serverId = "s-1")
         assertNotNull(entry)
@@ -182,6 +182,7 @@ class LocalStoreManagerTest {
         manager.insertFromServerResponse(
             serverData = testItem(clientId = "c-1", serverId = "s-1"),
             responseTimestamp = "2024-01-01T00:00:00Z",
+            originalClientId = "c-1",
         )
 
         assertFalse(manager.hasPendingRequests("c-1"))
@@ -197,7 +198,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original")
 
-        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = original.clientId)
 
         val updated = original.copy(version = "2", name = "Updated")
         val (returnedItem, result) = manager.updateLocalData(
@@ -221,7 +222,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original")
 
-        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = original.clientId)
 
         manager.updateLocalData(
             data = original.copy(version = "2", name = "Updated"),
@@ -246,7 +247,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original")
 
-        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = original.clientId)
         manager.voidData(
             data = original,
             httpRequest = makeRequest(method = HttpRequest.HttpMethod.DELETE),
@@ -284,7 +285,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db, syncScheduleNotifier = notifier)
         val original = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
-        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = original.clientId)
 
         manager.updateLocalData(
             data = original.copy(version = "2", name = "Updated"), idempotencyKey = "key-2",
@@ -309,10 +310,10 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "V1")
 
-        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = original.clientId)
 
         val serverUpdate = original.copy(version = "2", name = "V2")
-        manager.upsertFromServerResponse(serverData = serverUpdate, responseTimestamp = "2024-01-02T00:00:00Z")
+        manager.upsertFromServerResponse(serverData = serverUpdate, responseTimestamp = "2024-01-02T00:00:00Z", originalClientId = serverUpdate.clientId)
 
         val entry = manager.getData(clientId = "c-1", serverId = "s-1")
         assertNotNull(entry)
@@ -331,7 +332,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val item = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
-        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = item.clientId)
 
         val (_, result) = manager.voidData(
             data = item, httpRequest = makeRequest(method = HttpRequest.HttpMethod.DELETE),
@@ -348,7 +349,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val item = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
-        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = item.clientId)
 
         manager.voidData(
             data = item,
@@ -368,7 +369,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val item = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
-        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = item.clientId)
 
         manager.voidData(
             data = item, httpRequest = makeRequest(method = HttpRequest.HttpMethod.DELETE),
@@ -421,6 +422,7 @@ class LocalStoreManagerTest {
         manager.insertFromServerResponse(
             serverData = testItem(clientId = "c-1", serverId = "s-1"),
             responseTimestamp = "2024-06-15T12:00:00Z",
+            originalClientId = "c-1",
         )
 
         val entry = manager.getData(clientId = "c-1", serverId = "s-1")
@@ -442,10 +444,12 @@ class LocalStoreManagerTest {
         manager.insertFromServerResponse(
             serverData = testItem(clientId = "c-1", serverId = "s-1", name = "First"),
             responseTimestamp = "2024-01-01T00:00:00Z",
+            originalClientId = "c-1",
         )
         manager.insertFromServerResponse(
             serverData = testItem(clientId = "c-2", serverId = "s-2", name = "Second"),
             responseTimestamp = "2024-01-02T00:00:00Z",
+            originalClientId = "c-2",
         )
 
         assertEquals(2, manager.getAllData(limit = 100).size)
@@ -460,6 +464,7 @@ class LocalStoreManagerTest {
             manager.insertFromServerResponse(
                 serverData = testItem(clientId = "c-$i", serverId = "s-$i"),
                 responseTimestamp = "2024-01-0${i}T00:00:00Z",
+                originalClientId = "c-$i",
             )
         }
 
@@ -480,10 +485,12 @@ class LocalStoreManagerTest {
         managerA.insertFromServerResponse(
             serverData = testItem(clientId = "c-1", serverId = "s-1", name = "A"),
             responseTimestamp = "2024-01-01T00:00:00Z",
+            originalClientId = "c-1",
         )
         managerB.insertFromServerResponse(
             serverData = testItem(clientId = "c-2", serverId = "s-2", name = "B"),
             responseTimestamp = "2024-01-01T00:00:00Z",
+            originalClientId = "c-2",
         )
 
         assertEquals(1, managerA.getAllData(limit = 100).size)
@@ -521,6 +528,7 @@ class LocalStoreManagerTest {
         manager.insertFromServerResponse(
             serverData = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original"),
             responseTimestamp = "2024-01-01T00:00:00Z",
+            originalClientId = "c-1",
         )
 
         manager.upsertEntry(
@@ -545,7 +553,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val item = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "ServerV1")
 
-        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = item.clientId)
 
         val base = manager.getEffectiveBaseDataForUpdate(item, PendingRequestQueueStrategy.Queue)
         assertEquals("ServerV1", base.name)
@@ -573,7 +581,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val original = testItem(clientId = "c-1", serverId = "s-1", version = "1", name = "Original")
 
-        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = original, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = original.clientId)
 
         val updated = original.copy(version = "2", name = "Updated")
         manager.updateLocalData(
@@ -596,7 +604,7 @@ class LocalStoreManagerTest {
         val manager = createManager(database = db)
         val item = testItem(clientId = "c-1", serverId = "s-1", version = "1")
 
-        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z")
+        manager.insertFromServerResponse(serverData = item, responseTimestamp = "2024-01-01T00:00:00Z", originalClientId = item.clientId)
         manager.voidData(
             data = item, httpRequest = makeRequest(method = HttpRequest.HttpMethod.DELETE),
             idempotencyKey = "void-key-1", requestTag = TestRequestTag.DEFAULT,
@@ -638,6 +646,7 @@ class LocalStoreManagerTest {
         managerA.insertFromServerResponse(
             serverData = testItem(clientId = "c-1", serverId = "s-1", name = "OnlyInA"),
             responseTimestamp = "2024-01-01T00:00:00Z",
+            originalClientId = "c-1",
         )
 
         assertNull(managerB.getData(clientId = "c-1", serverId = "s-1"))

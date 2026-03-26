@@ -304,17 +304,24 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     /**
      * Persist the data back from the server after processing a CREATE request synchronously with
      * the server while online.
+     *
+     * @param originalClientId the client_id that originated the request — used as the SQL key
+     *   regardless of what [serverData.clientId] contains, so the server cannot change our
+     *   primary key.
      */
     internal fun insertFromServerResponse(
         serverData: O,
         responseTimestamp: String,
+        originalClientId: String,
     ) {
         try {
             val serverDataJson = codec.encodeToString(serverData)
             val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
-            database.syncDataQueries.insertFromServerResponse(
+            // Use upsertEntry (INSERT … ON CONFLICT DO UPDATE) so that if a sync-down
+            // already inserted a row for this client_id, we update it instead of crashing.
+            database.syncDataQueries.upsertEntry(
                 service_name = serviceName,
-                client_id = serverData.clientId,
+                client_id = originalClientId,
                 server_id = serverData.serverId,
                 version = serverData.version,
                 last_synced_timestamp = responseTimestamp,
@@ -372,8 +379,11 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     /**
      * Persist the data back from the server after processing an UPDATE request synchronously with
      * the server while online.
+     *
+     * @param originalClientId the client_id that originated the request — used as the SQL key
+     *   regardless of what [serverData.clientId] contains.
      */
-    internal fun upsertFromServerResponse(serverData: O, responseTimestamp: String) {
+    internal fun upsertFromServerResponse(serverData: O, responseTimestamp: String, originalClientId: String) {
         try {
             val serverDataJson = codec.encodeToString(serverData)
             val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
@@ -384,7 +394,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 data_blob = encryptedServerDataJson,
                 last_synced_server_data = encryptedServerDataJson,
                 service_name = serviceName,
-                client_id = serverData.clientId,
+                client_id = originalClientId,
             )
         } catch (e: Exception) {
             SyncLog.e(TAG, "Failed to upsert data from [update] response (server_id: ${serverData.serverId}): $e")
@@ -445,7 +455,11 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    internal fun upsertFromVoidServerResponse(serverData: O, responseTimestamp: String) {
+    /**
+     * @param originalClientId the client_id that originated the request — used as the SQL key
+     *   regardless of what [serverData.clientId] contains.
+     */
+    internal fun upsertFromVoidServerResponse(serverData: O, responseTimestamp: String, originalClientId: String) {
         try {
             val serverDataJson = codec.encodeToString(serverData)
             val encryptedServerDataJson = storageCodec.encodeForStorage(serverDataJson)
@@ -456,7 +470,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 data_blob = encryptedServerDataJson,
                 last_synced_server_data = encryptedServerDataJson,
                 service_name = serviceName,
-                client_id = serverData.clientId,
+                client_id = originalClientId,
             )
         } catch (e: Exception) {
             SyncLog.e(TAG, "Failed to upsert data from [void] response (server_id: ${serverData.serverId}): $e")
@@ -1040,6 +1054,18 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             SyncLog.e(TAG, "Failed to repair orphaned conflict for client_id: $clientId", e)
             ResolveConflictResult.Failed(e)
         }
+    }
+
+    /**
+     * Looks up the canonical [client_id] for a given [serverId]. Returns null if no row
+     * exists for that server_id, meaning this is a genuinely new item from the server.
+     */
+    internal fun getExistingClientId(serverId: String?): String? {
+        if (serverId == null) return null
+        return database.syncDataQueries.getClientIdByServerId(
+            service_name = serviceName,
+            server_id = serverId,
+        ).executeAsOneOrNull()
     }
 
     internal class LocalStoreEntry<O>(

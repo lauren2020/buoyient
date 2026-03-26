@@ -1308,4 +1308,73 @@ class SyncableObjectServiceTest {
     }
 
     // endregion
+
+    // region server client_id mismatch — no duplication
+
+    @Test
+    fun `create online - server returning different clientId does not create duplicate`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        // Server response has a different client_id than what we sent
+        val serverItem = testItem(
+            clientId = "server-assigned-id", serverId = "server-1", version = "1",
+            name = "Created",
+        )
+        env.mockRouter.onPost("https://api.test.com/items") { _ ->
+            MockResponse(201, wrapResponse(serverItem))
+        }
+
+        val result = service.testCreate(testItem(clientId = "client-1", name = "Created"))
+
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
+        // Should have exactly 1 item, stored under the original client_id
+        val allItems = service.getAllFromLocalStore()
+        assertEquals(1, allItems.size, "Should have 1 row, not a duplicate")
+        service.close()
+    }
+
+    @Test
+    fun `update online - server returning different clientId updates correct row`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val seeded = seedSyncedItem(service, env, clientId = "client-1", serverId = "server-1")
+
+        // Server returns updated item with a different client_id
+        val serverUpdated = testItem(
+            clientId = "server-assigned-id", serverId = "server-1", version = "2",
+            name = "Updated",
+        )
+        env.mockRouter.onPut("https://api.test.com/items/server-1") { _ ->
+            MockResponse(200, wrapResponse(serverUpdated))
+        }
+
+        val result = service.testUpdate(seeded.copy(name = "Updated"))
+
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
+        val allItems = service.getAllFromLocalStore()
+        assertEquals(1, allItems.size, "Should have 1 row, not a duplicate")
+        service.close()
+    }
+
+    @Test
+    fun `void online - server returning different clientId updates correct row`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = true)
+        val seeded = seedSyncedItem(service, env, clientId = "client-1", serverId = "server-1")
+
+        // Server returns voided item with a different client_id
+        val serverVoided = testItem(
+            clientId = "server-assigned-id", serverId = "server-1", version = "2",
+            name = "Test Item",
+        )
+        env.mockRouter.onDelete("https://api.test.com/items/server-1") { _ ->
+            MockResponse(200, wrapResponse(serverVoided))
+        }
+
+        val result = service.testVoid(seeded)
+
+        assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
+        val allItems = service.getAllFromLocalStore()
+        assertEquals(1, allItems.size, "Should have 1 row, not a duplicate")
+        service.close()
+    }
+
+    // endregion
 }

@@ -278,6 +278,94 @@ class SyncDriverTest {
         driver.close()
     }
 
+    @Test
+    fun `syncDownFromServer - does not duplicate when server returns different clientId for same serverId`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+        // Pre-populate: local row with client_id="c1", server_id="s1"
+        val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = "1")
+
+        val mockEngine = MockEngine { request ->
+            // First request: sync-up create response
+            // Second request: sync-down returns same server_id but different client_id
+            val serverItems = listOf(
+                testItem(clientId = "different-client-id", serverId = "s1", name = "ServerUpdate", value = 20, version = "2"),
+            )
+            respond(
+                content = wrapListResponse(serverItems),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val (driver, localStore) = createDriver(db, mockEngine = mockEngine)
+
+        // Insert the item as if it was already synced
+        localStore.upsertEntry(
+            serverObj = localItem,
+            syncedAtTimestamp = "2024-01-01T00:00:00Z",
+            clientId = "c1",
+        )
+
+        // Sync down — server returns same server_id but different client_id
+        driver.syncDownFromServer()
+
+        // Should only have one row, not two
+        val allItems = localStore.getAllData(100)
+        assertEquals(1, allItems.size, "Should have exactly 1 row, not a duplicate")
+
+        // The row should be updated with server data
+        val item = allItems.first()
+        assertEquals("ServerUpdate", item.data.name)
+        assertEquals(20, item.data.value)
+
+        driver.close()
+    }
+
+    @Test
+    fun `syncDownFromServer - does not duplicate when local row created offline has server_id=null`() = runBlocking {
+        val db = TestDatabaseFactory.createInMemory()
+
+        // Simulate: item created offline (no server_id yet), then sync-up assigns server_id,
+        // then sync-down returns the item with a different client_id.
+        val createResponse = wrapResponse(
+            testItem(clientId = "c1", serverId = "s1", name = "Created", value = 10, version = "1"),
+        )
+        val syncDownResponse = wrapListResponse(listOf(
+            testItem(clientId = "server-assigned-id", serverId = "s1", name = "FromServer", value = 10, version = "1"),
+        ))
+
+        var requestIndex = 0
+        val responses = listOf(createResponse, syncDownResponse)
+        val mockEngine = MockEngine {
+            respond(
+                content = responses[requestIndex++],
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val (driver, localStore) = createDriver(db, mockEngine = mockEngine)
+
+        // Step 1: Create offline
+        localStore.insertLocalData(
+            data = testItem(clientId = "c1", name = "Created", value = 10),
+            httpRequest = makeRequest(),
+            idempotencyKey = "idem-1",
+            requestTag = TestRequestTag.DEFAULT,
+        )
+
+        // Step 2: Sync up the create (assigns server_id="s1")
+        val coordinator = SyncUpCoordinator(drivers = listOf(driver), database = db)
+        coordinator.syncUpAll()
+
+        // Step 3: Sync down — server returns same item with different client_id
+        driver.syncDownFromServer()
+
+        // Should still be exactly 1 row
+        val allItems = localStore.getAllData(100)
+        assertEquals(1, allItems.size, "Should have exactly 1 row after sync-down with mismatched client_id")
+
+        driver.close()
+    }
+
     // endregion
 
     // region syncUpSinglePendingRequest

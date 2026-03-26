@@ -242,8 +242,13 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
         serverObj: O,
         syncedAtTimestamp: String,
     ): UpsertResult {
+        // Resolve the canonical client_id by server_id first. If a row already exists
+        // for this server_id, we must upsert to that row — never create a duplicate.
+        val existingClientId = localStoreManager.getExistingClientId(serverObj.serverId)
+        val canonicalClientId = existingClientId ?: serverObj.clientId
+
         val currentLocalData = localStoreManager.getData(
-            clientId = serverObj.clientId,
+            clientId = canonicalClientId,
             serverId = serverObj.serverId,
         )
         return if (currentLocalData == null) {
@@ -251,12 +256,12 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
             localStoreManager.upsertEntry(
                 serverObj = serverObj,
                 syncedAtTimestamp = syncedAtTimestamp,
-                clientId = serverObj.clientId,
+                clientId = canonicalClientId,
             )
             UpsertResult.CleanUpsert
         } else {
             localStoreManager.upsertSyncDownResponseData(
-                clientId = currentLocalData.data.clientId,
+                clientId = canonicalClientId,
                 lastSyncedTimestamp = syncedAtTimestamp,
                 updatedServerData = serverObj,
                 mergeHandler = rebaseHandler,

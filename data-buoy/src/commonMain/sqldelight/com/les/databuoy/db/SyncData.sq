@@ -143,6 +143,14 @@ SET sync_status = ?,
     server_id = ?
 WHERE service_name = ? AND client_id = ?;
 
+-- Look up the canonical client_id for a given server_id (prevents duplication when
+-- the server returns a different client_id than the one stored locally).
+getClientIdByServerId:
+SELECT client_id
+FROM sync_data
+WHERE service_name = ? AND server_id = ?
+LIMIT 1;
+
 -- Look up a server ID by service name and client ID (for cross-service placeholder resolution).
 getServerIdByServiceAndClientId:
 SELECT server_id

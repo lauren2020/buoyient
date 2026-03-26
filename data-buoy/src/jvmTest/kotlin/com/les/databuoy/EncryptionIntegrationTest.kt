@@ -119,6 +119,7 @@ class EncryptionIntegrationTest {
         manager.insertFromServerResponse(
             serverData = serverItem,
             responseTimestamp = "2026-01-01T00:00:00Z",
+            originalClientId = serverItem.clientId,
         )
 
         val rawRow = db.syncDataQueries.getData(
@@ -141,6 +142,7 @@ class EncryptionIntegrationTest {
         manager.insertFromServerResponse(
             serverData = serverItem,
             responseTimestamp = "2026-01-01T00:00:00Z",
+            originalClientId = serverItem.clientId,
         )
 
         val entry = manager.getData(clientId = "c1", serverId = "s1")
@@ -157,8 +159,8 @@ class EncryptionIntegrationTest {
 
         val item1 = testItem(name = "first", clientId = "c1").copy(serverId = "s1")
         val item2 = testItem(name = "second", clientId = "c2").copy(serverId = "s2")
-        manager.insertFromServerResponse(item1, "2026-01-01T00:00:00Z")
-        manager.insertFromServerResponse(item2, "2026-01-01T00:00:01Z")
+        manager.insertFromServerResponse(item1, "2026-01-01T00:00:00Z", originalClientId = item1.clientId)
+        manager.insertFromServerResponse(item2, "2026-01-01T00:00:01Z", originalClientId = item2.clientId)
 
         val all = manager.getAllData(limit = 10)
         assertEquals(2, all.size)

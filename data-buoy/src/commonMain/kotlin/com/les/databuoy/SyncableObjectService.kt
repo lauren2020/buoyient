@@ -276,6 +276,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                     localStoreManager.insertFromServerResponse(
                         serverData = it,
                         responseTimestamp = lastSyncedTimestamp,
+                        originalClientId = data.clientId,
                     )
                 }
                 return SyncableObjectServiceResponse.Success.NetworkResponseReceived(
@@ -511,6 +512,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                     localStoreManager.upsertFromServerResponse(
                         serverData = it,
                         responseTimestamp = lastSyncedTimestamp,
+                        originalClientId = data.clientId,
                     )
                 }
                 return SyncableObjectServiceResponse.Success.NetworkResponseReceived(
@@ -696,6 +698,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                     localStoreManager.upsertFromVoidServerResponse(
                         serverData = it,
                         responseTimestamp = lastSyncedTimestamp,
+                        originalClientId = data.clientId,
                     )
                 }
                 return SyncableObjectServiceResponse.Success.NetworkResponseReceived(
