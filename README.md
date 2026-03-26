@@ -5,12 +5,6 @@
 # data-buoy
 Keep data floating even when network conditions are rough.
 
-> 🚧 **Under Construction** 🚧
->
-> This library is still being actively developed and is not yet ready for production use.
-> APIs may change, features may be incomplete, and here be dragons. Contributions and
-> feedback are welcome!
-
 ## What
 An offline first Kotlin Multiplatform SDK that keeps a local data store in sync with a remote server for a seamless client experience on- or off-line. App code performs CRUD operations through a single API regardless of connectivity - changes persist locally immediately, queue for server transport when offline, and reconcile automatically when connectivity returns. Includes conflict resolution, automatic retries, and periodic sync-down from the server.
 
@@ -55,7 +49,6 @@ This is intended to be an agent optimized SDK.
 
 - Ktor Darwin client for networking
 - SQLDelight Native driver for local storage
-- Connectivity and background sync scheduling are stubbed (TODO)
 
 ## Architecture
 
