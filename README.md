@@ -54,7 +54,7 @@ This is intended to be an agent optimized SDK.
 
 ![img.png](img.png)
 
-## Usage
+## Getting started with data-buoy
 
 ### 1. Define your data model
 
@@ -176,7 +176,7 @@ DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
 })
 ```
 
-## Usage Examples
+## Usage
 
 ### CREATE
 SyncableObjectService offers a create() method. This is intended to be used for any request
