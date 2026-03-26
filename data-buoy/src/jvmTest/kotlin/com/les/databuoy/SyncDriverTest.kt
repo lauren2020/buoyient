@@ -5,6 +5,7 @@ import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
+import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
 import com.les.databuoy.serviceconfigs.SyncUpConfig
 import com.les.databuoy.serviceconfigs.SyncUpResult

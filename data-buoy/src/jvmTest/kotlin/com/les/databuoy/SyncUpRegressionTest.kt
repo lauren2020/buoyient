@@ -4,6 +4,7 @@ import com.les.databuoy.db.SyncDatabase
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
+import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
 import com.les.databuoy.serviceconfigs.SyncUpConfig
 import com.les.databuoy.serviceconfigs.SyncUpResult
@@ -82,7 +83,7 @@ class SyncUpRegressionTest {
     }.toString()
 
     /**
-     * Creates a [ServerProcessingConfig] suitable for tests. The
+     * Creates a [com.les.databuoy.serviceconfigs.ServerProcessingConfig] suitable for tests. The
      * [syncFetchConfig] uses an extremely long cadence so the periodic
      * sync-down never fires during the test.
      */

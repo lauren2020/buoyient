@@ -1,8 +1,6 @@
-package com.les.databuoy
+package com.les.databuoy.serviceconfigs
 
-import com.les.databuoy.serviceconfigs.SyncFetchConfig
-import com.les.databuoy.serviceconfigs.SyncUpConfig
-import com.les.databuoy.serviceconfigs.SyncUpResult
+import com.les.databuoy.SyncableObject
 import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
 import kotlinx.serialization.json.JsonObject
 
@@ -115,7 +113,7 @@ public interface ServerProcessingConfig<O : SyncableObject<O>> {
          *
          * At request time, headers are concatenated in order: global headers
          * ([com.les.databuoy.globalconfigs.DataBuoy.globalHeaderProvider]), then these service headers, then per-request
-         * headers ([HttpRequest.additionalHeaders]). If the same header name appears in
+         * headers ([com.les.databuoy.HttpRequest.additionalHeaders]). If the same header name appears in
          * multiple lists, both values are sent — they are not deduplicated. Avoid setting
          * the same header name here and in the global provider.
          */

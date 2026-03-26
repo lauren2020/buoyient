@@ -2,7 +2,7 @@ package com.les.databuoy.examples.todo
 
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.ServerProcessingConfig
+import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.SyncableObjectService
 import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceResponse
 import com.les.databuoy.syncableobjectservicedatatypes.UpdateRequestBuilder

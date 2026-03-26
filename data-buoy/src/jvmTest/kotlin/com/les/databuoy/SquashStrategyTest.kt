@@ -4,6 +4,7 @@ import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
+import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
 import com.les.databuoy.serviceconfigs.SyncUpConfig
 import com.les.databuoy.serviceconfigs.SyncUpResult
@@ -55,7 +56,8 @@ class SquashStrategyTest {
         put("data", json.encodeToJsonElement(TestItem.serializer(), item))
     }
 
-    private fun testServerConfig(squashMerger: SquashRequestMerger) = object : ServerProcessingConfig<TestItem> {
+    private fun testServerConfig(squashMerger: SquashRequestMerger) = object :
+        ServerProcessingConfig<TestItem> {
         override val syncFetchConfig = SyncFetchConfig.GetFetchConfig<TestItem>(
             endpoint = "https://api.test.com/items",
             syncCadenceSeconds = 999_999,

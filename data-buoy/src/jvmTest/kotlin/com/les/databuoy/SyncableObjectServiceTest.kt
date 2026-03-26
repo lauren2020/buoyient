@@ -2,6 +2,7 @@ package com.les.databuoy
 
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
+import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
 import com.les.databuoy.serviceconfigs.SyncUpConfig
 import com.les.databuoy.serviceconfigs.SyncUpResult
