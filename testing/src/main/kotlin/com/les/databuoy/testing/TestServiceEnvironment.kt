@@ -2,9 +2,9 @@ package com.les.databuoy.testing
 
 import com.les.databuoy.DatabaseOverride
 import com.les.databuoy.HttpClientOverride
-import com.les.databuoy.IdGenerator
-import com.les.databuoy.SyncLog
-import com.les.databuoy.SyncLogger
+import com.les.databuoy.utils.IdGenerator
+import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.SyncLogger
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.db.SyncDatabase
 

@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.utils
 
 /**
  * Platform-agnostic logging interface for the sync SDK.

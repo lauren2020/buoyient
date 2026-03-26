@@ -1,7 +1,7 @@
 package com.les.databuoy.publicconfigs
 
 import com.les.databuoy.HttpRequest
-import com.les.databuoy.SyncCodec
+import com.les.databuoy.utils.SyncCodec
 import com.les.databuoy.SyncableObject
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement

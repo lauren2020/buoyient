@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.utils
 
 public actual fun createPlatformSyncLogger(): SyncLogger = object : SyncLogger {
     override fun d(tag: String, message: String) { println("D/$tag: $message") }

@@ -10,6 +10,10 @@ import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.publicconfigs.createPlatformConnectivityChecker
 import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.createPlatformSyncScheduleNotifier
+import com.les.databuoy.utils.IdGenerator
+import com.les.databuoy.utils.SyncCodec
+import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.TimestampFormatter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +31,7 @@ import kotlinx.serialization.KSerializer
  * implementing a service.
  *
  * @param serializer - The [KSerializer] for the domain model [O], used to construct the
- *   internal [SyncCodec] for serialization and deserialization.
+ *   internal [com.les.databuoy.utils.SyncCodec] for serialization and deserialization.
  * @property serverProcessingConfig - Defines how this service communicates with the remote API:
  *   endpoints, headers, request builders, and response unpacking.
  * @property serviceName - A unique identifier for this service, used as the SQLite partition key

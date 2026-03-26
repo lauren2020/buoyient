@@ -7,6 +7,7 @@ import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.sync.UpsertResult
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
+import com.les.databuoy.utils.SyncCodec
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put

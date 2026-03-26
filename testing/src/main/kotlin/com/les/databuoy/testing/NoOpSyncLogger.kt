@@ -1,6 +1,6 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.SyncLogger
+import com.les.databuoy.utils.SyncLogger
 
 /**
  * A [SyncLogger] that silently discards all log messages.

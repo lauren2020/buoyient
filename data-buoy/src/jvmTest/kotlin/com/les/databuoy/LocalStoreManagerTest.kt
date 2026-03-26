@@ -6,6 +6,7 @@ import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.sync.SyncScheduleNotifier
+import com.les.databuoy.utils.SyncCodec
 import kotlinx.serialization.json.JsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals

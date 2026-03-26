@@ -1,6 +1,6 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.IdGenerator
+import com.les.databuoy.utils.IdGenerator
 import java.util.concurrent.atomic.AtomicInteger
 
 /**

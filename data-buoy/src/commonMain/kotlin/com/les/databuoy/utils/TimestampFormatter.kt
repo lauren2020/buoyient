@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.utils
 
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -9,8 +9,8 @@ public object TimestampFormatter {
      * Formats an epoch seconds timestamp into a UTC string with the format 'yyyy-MM-dd HH:mm:ss'.
      */
     public fun fromEpochSeconds(epochSeconds: Long): String {
-        val instant = Instant.fromEpochSeconds(epochSeconds)
-        val dt = instant.toLocalDateTime(TimeZone.UTC)
+        val instant = Instant.Companion.fromEpochSeconds(epochSeconds)
+        val dt = instant.toLocalDateTime(TimeZone.Companion.UTC)
         return "%04d-%02d-%02d %02d:%02d:%02d".format(
             dt.year, dt.monthNumber, dt.dayOfMonth,
             dt.hour, dt.minute, dt.second

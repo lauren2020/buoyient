@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.utils
 
 import com.les.databuoy.publicconfigs.EncryptionProvider
 

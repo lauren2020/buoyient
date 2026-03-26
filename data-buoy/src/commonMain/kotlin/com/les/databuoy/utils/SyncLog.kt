@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.utils
 
 /**
  * Process-wide logger for the data-buoy sync engine.

@@ -6,6 +6,7 @@ import com.les.databuoy.internalutilities.PendingRequestQueueManager
 import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.testing.TestDatabaseFactory
+import com.les.databuoy.utils.SyncCodec
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put

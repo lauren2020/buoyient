@@ -5,9 +5,9 @@ import com.les.databuoy.HttpRequest
 import com.les.databuoy.publicconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.PendingSyncRequest
 import com.les.databuoy.ServiceRequestTag
-import com.les.databuoy.StorageCodec
-import com.les.databuoy.SyncCodec
-import com.les.databuoy.SyncLog
+import com.les.databuoy.utils.StorageCodec
+import com.les.databuoy.utils.SyncCodec
+import com.les.databuoy.utils.SyncLog
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.publicconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.db.SyncDatabase

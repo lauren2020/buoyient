@@ -1,9 +1,9 @@
-package com.les.databuoy
+package com.les.databuoy.utils
 
 import android.util.Log
 
 /**
- * Android implementation of [SyncLogger] backed by [android.util.Log].
+ * Android implementation of [com.les.databuoy.utils.SyncLogger] backed by [android.util.Log].
  */
 public actual fun createPlatformSyncLogger(): SyncLogger = AndroidSyncLogger()
 

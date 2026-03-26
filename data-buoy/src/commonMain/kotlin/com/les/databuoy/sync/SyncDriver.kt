@@ -4,13 +4,12 @@ import com.les.databuoy.HttpRequest
 import com.les.databuoy.PendingSyncRequest
 import com.les.databuoy.ServerProcessingConfig
 import com.les.databuoy.ServiceRequestTag
-import com.les.databuoy.SyncCodec
+import com.les.databuoy.utils.SyncCodec
 import com.les.databuoy.publicconfigs.SyncFetchConfig
-import com.les.databuoy.SyncLog
+import com.les.databuoy.utils.SyncLog
 import com.les.databuoy.publicconfigs.SyncUpResult
 import com.les.databuoy.SyncableObject
-import com.les.databuoy.TimestampFormatter
-import com.les.databuoy.sync.UpsertResult
+import com.les.databuoy.utils.TimestampFormatter
 import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.internalutilities.ServerManager
 import com.les.databuoy.publicconfigs.ConnectivityChecker

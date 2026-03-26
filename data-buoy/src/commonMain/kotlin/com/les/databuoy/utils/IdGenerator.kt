@@ -1,4 +1,4 @@
-package com.les.databuoy
+package com.les.databuoy.utils
 
 /**
  * Platform-agnostic interface for generating unique identifiers.
