@@ -1,5 +1,6 @@
 package com.les.databuoy
 
+import com.les.databuoy.internalutilities.LocalStoreManager
 import com.les.databuoy.testing.TestDatabaseFactory
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi

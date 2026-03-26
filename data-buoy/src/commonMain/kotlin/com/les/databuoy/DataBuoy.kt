@@ -54,7 +54,7 @@ public object DataBuoy {
 
     /**
      * Override the [SyncDatabase] used by all services. When set, every
-     * [LocalStoreManager] created after this point uses this database instead
+     * [com.les.databuoy.internalutilities.LocalStoreManager] created after this point uses this database instead
      * of the platform default.
      */
     public var database: SyncDatabase?

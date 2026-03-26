@@ -2,6 +2,7 @@ package com.les.databuoy
 
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.db.SyncDatabase
+import com.les.databuoy.internalutilities.LocalStoreManager
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put

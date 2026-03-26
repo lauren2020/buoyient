@@ -1,19 +1,35 @@
-package com.les.databuoy
+package com.les.databuoy.internalutilities
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.les.databuoy.DataBuoyStatus
+import com.les.databuoy.DatabaseOverride
+import com.les.databuoy.EncryptionProvider
+import com.les.databuoy.HttpRequest
+import com.les.databuoy.PendingRequestQueueManager
+import com.les.databuoy.PendingSyncRequest
+import com.les.databuoy.ResolveConflictResult
+import com.les.databuoy.ServiceRequestTag
+import com.les.databuoy.SquashRequestMerger
+import com.les.databuoy.StorageCodec
+import com.les.databuoy.SyncCodec
+import com.les.databuoy.SyncLog
+import com.les.databuoy.SyncScheduleNotifier
+import com.les.databuoy.SyncableObject
+import com.les.databuoy.SyncableObjectRebaseHandler
+import com.les.databuoy.UpsertResult
+import com.les.databuoy.createSyncDatabase
 import com.les.databuoy.db.SyncDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlin.jvm.Throws
 
 internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val database: SyncDatabase = DatabaseOverride.database ?: createSyncDatabase(),
     private val serviceName: String,
     private val syncScheduleNotifier: SyncScheduleNotifier,
     private val codec: SyncCodec<O>,
-    private val status: DataBuoyStatus = DataBuoyStatus.shared,
+    private val status: DataBuoyStatus = DataBuoyStatus.Companion.shared,
     private val queueStrategy: PendingRequestQueueManager.PendingRequestQueueStrategy =
         PendingRequestQueueManager.PendingRequestQueueStrategy.Queue,
     encryptionProvider: EncryptionProvider? = null,
@@ -43,14 +59,15 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             ?.server_id
     }
 
-    internal val pendingRequestQueueManager: PendingRequestQueueManager<O, T> = PendingRequestQueueManager(
-        database = database,
-        serviceName = serviceName,
-        strategy = queueStrategy,
-        codec = codec,
-        status = status,
-        storageCodec = storageCodec,
-    )
+    internal val pendingRequestQueueManager: PendingRequestQueueManager<O, T> =
+        PendingRequestQueueManager(
+            database = database,
+            serviceName = serviceName,
+            strategy = queueStrategy,
+            codec = codec,
+            status = status,
+            storageCodec = storageCodec,
+        )
 
     /**
      * Runs [block] inside a SQLite transaction using SQLDelight's built-in
@@ -559,7 +576,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     }
 
     /**
-     * Returns a [Flow] that emits the current list of all [LocalStoreEntry] items for this
+     * Returns a [kotlinx.coroutines.flow.Flow] that emits the current list of all [LocalStoreEntry] items for this
      * service whenever the underlying database table changes. Backed by SQLDelight's
      * query-observation mechanism.
      */
