@@ -179,6 +179,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
         status.refresh()
         QueueResult.Stored
     } catch (e: Exception) {
+        SyncLog.e(TAG, "storeEntry failed for service $serviceName", e)
         QueueResult.StoreFailed
     }
 
@@ -200,6 +201,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
         status.refresh()
         QueueResult.Stored
     } catch (e: Exception) {
+        SyncLog.e(TAG, "replaceEntry failed for service $serviceName", e)
         QueueResult.StoreFailed
     }
 
@@ -314,6 +316,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
         status.refresh()
         ClearRequestResult.Cleared(updatedSyncStatus = updatedSyncStatus)
     } catch (e: Exception) {
+        SyncLog.e(TAG, "clearPendingRequestAfterUpload failed for service $serviceName (pendingRequestId=$pendingRequestId)", e)
         ClearRequestResult.FailedToRemoveEntry
     }
 

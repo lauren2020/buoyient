@@ -14,6 +14,9 @@ CREATE TABLE sync_data (
 CREATE INDEX idx_sync_data_service_server
     ON sync_data(service_name, server_id);
 
+CREATE INDEX idx_sync_data_service_status_voided
+    ON sync_data(service_name, sync_status, voided);
+
 -- Insert a new locally-created row (pending upload).
 insertLocalData:
 INSERT INTO sync_data (
@@ -58,12 +61,6 @@ ON CONFLICT(service_name, client_id) DO UPDATE SET
     data_blob = excluded.data_blob,
     sync_status = excluded.sync_status,
     last_synced_server_data = excluded.last_synced_server_data;
-
--- Mark a row as conflicting during sync-down merge.
-upsertConflictingServerData:
-UPDATE sync_data
-SET sync_status = ?
-WHERE service_name = ? AND (client_id = ? OR server_id = ?);
 
 -- Mark a row as conflicting after a rebase conflict during pending request sync.
 markConflictAfterRebase:
