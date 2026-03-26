@@ -881,8 +881,22 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
      * Returns a [Flow] that emits the current list of all [O] items from the local store
      * whenever the underlying data changes (after sync-down, create, update, void, etc.).
      *
-     * Ideal for Compose or other reactive UIs that need to stay in sync with local state
-     * without manual refresh calls.
+     * The returned flow is **fully reactive** — backed by SQLDelight's query-observation
+     * mechanism, it automatically re-emits an updated list every time data is written to
+     * the local store (including writes from background sync). There is no need to manually
+     * trigger a refresh or re-collect after calling [create], [update], or [void].
+     *
+     * Typical ViewModel usage:
+     * ```kotlin
+     * val items: StateFlow<List<YourModel>> = yourService
+     *     .getAllFromLocalStoreAsFlow()
+     *     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+     * ```
+     *
+     * The [StateFlow] will update automatically whenever data changes — no `refreshTrigger`,
+     * `flatMapLatest`, or manual re-query needed.
+     *
+     * @param limit maximum number of rows to return from the database.
      */
     public fun getAllFromLocalStoreAsFlow(limit: Int = 100): Flow<List<O>> =
         localStoreManager.getAllDataAsFlow(limit = limit).map { entries -> entries.map { it.data } }
