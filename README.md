@@ -3,7 +3,7 @@
 </p>
 
 # buoyient
-Keep data floating even when network conditions are rough.
+keep your client up when the connectivity is down.
 
 ## What
 An offline first Kotlin Multiplatform SDK that keeps a local data store in sync with a remote server for a seamless client experience on- or off-line. App code performs data operations through a single API regardless of connectivity - changes persist locally immediately, queue for server transport when offline, and reconcile automatically when connectivity returns. Includes conflict resolution, automatic retries, and periodic sync-down from the server.
