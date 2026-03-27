@@ -1,11 +1,14 @@
-package com.les.databuoy
+package com.les.databuoy.managers
 
+import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry
+import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.utils.SyncLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import platform.Foundation.NSLog
 
-actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler =
+public actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler =
     IosBackgroundRequestScheduler()
 
 /**
@@ -23,7 +26,7 @@ actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestSchedule
  * SQLite queue and will be retried on the next sync-up pass (triggered
  * by [IosSyncScheduleNotifier]).
  */
-class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
+public class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -58,7 +61,7 @@ class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
         }
     }
 
-    companion object {
+    public companion object {
         private const val TAG = "IosBackgroundRequestScheduler"
     }
 }

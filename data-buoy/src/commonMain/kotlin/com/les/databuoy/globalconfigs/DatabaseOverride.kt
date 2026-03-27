@@ -1,6 +1,7 @@
 package com.les.databuoy.globalconfigs
 
 import com.les.databuoy.db.SyncDatabase
+import kotlin.concurrent.Volatile
 
 /**
  * Process-wide [SyncDatabase] override. When set, [com.les.databuoy.managers.LocalStoreManager] and other

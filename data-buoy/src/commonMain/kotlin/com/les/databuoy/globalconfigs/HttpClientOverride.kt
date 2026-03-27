@@ -1,6 +1,7 @@
 package com.les.databuoy.globalconfigs
 
 import io.ktor.client.HttpClient
+import kotlin.concurrent.Volatile
 
 /**
  * Process-wide [HttpClient] override. When set, [com.les.databuoy.managers.ServerManager] uses this client

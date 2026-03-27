@@ -18,7 +18,7 @@ import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.sync.UpsertResult
 import com.les.databuoy.globalconfigs.createSyncDatabase
 import com.les.databuoy.db.SyncDatabase
-import kotlinx.coroutines.Dispatchers
+import com.les.databuoy.utils.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -471,7 +471,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
-    @Throws
+    @Throws(Exception::class)
     internal fun voidLocalOnlyData(data: O): O {
         val jsonData = codec.encode(data)
         transaction {
@@ -591,7 +591,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         return database.syncDataQueries.getAllData(
             service_name = serviceName,
             limit = limit.toLong(),
-        ).asFlow().mapToList(Dispatchers.IO).map { rows ->
+        ).asFlow().mapToList(ioDispatcher).map { rows ->
             rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
         }
     }
@@ -629,22 +629,22 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         return when {
             syncStatus != null && !includeVoided ->
                 q.getDataBySyncStatusExcludingVoided(serviceName, syncStatus, l)
-                    .asFlow().mapToList(Dispatchers.IO).map { rows ->
+                    .asFlow().mapToList(ioDispatcher).map { rows ->
                         rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
                     }
             syncStatus != null ->
                 q.getDataBySyncStatus(serviceName, syncStatus, l)
-                    .asFlow().mapToList(Dispatchers.IO).map { rows ->
+                    .asFlow().mapToList(ioDispatcher).map { rows ->
                         rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
                     }
             !includeVoided ->
                 q.getDataExcludingVoided(serviceName, l)
-                    .asFlow().mapToList(Dispatchers.IO).map { rows ->
+                    .asFlow().mapToList(ioDispatcher).map { rows ->
                         rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
                     }
             else ->
                 q.getAllData(serviceName, l)
-                    .asFlow().mapToList(Dispatchers.IO).map { rows ->
+                    .asFlow().mapToList(ioDispatcher).map { rows ->
                         rows.map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
                     }
         }

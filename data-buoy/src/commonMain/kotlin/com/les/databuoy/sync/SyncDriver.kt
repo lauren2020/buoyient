@@ -10,10 +10,12 @@ import com.les.databuoy.utils.SyncLog
 import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.utils.TimestampFormatter
+import com.les.databuoy.utils.ioDispatcher
 import com.les.databuoy.managers.LocalStoreManager
 import com.les.databuoy.managers.ServerManager
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -53,7 +55,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
     autoStart: Boolean = true,
 ) {
 
-    public val serviceScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    public val serviceScope: CoroutineScope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
     // Per-clientId Mutex map for application-level mutual exclusion.
     // Serializes all operations (CRUD, sync-down, sync-up) on the same object

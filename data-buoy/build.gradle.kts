@@ -24,11 +24,9 @@ kotlin {
 
     jvm()
 
-    // iOS targets — requires full Xcode installation (not just Command Line Tools).
-    // Uncomment when Xcode with iOS SDK is installed:
-    // iosX64()
-    // iosArm64()
-    // iosSimulatorArm64()
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         val commonMain by getting {
@@ -69,20 +67,19 @@ kotlin {
             }
         }
 
-        // iOS source sets — uncomment together with iOS targets above:
-        // val iosX64Main by getting
-        // val iosArm64Main by getting
-        // val iosSimulatorArm64Main by getting
-        // val iosMain by creating {
-        //     dependsOn(commonMain)
-        //     iosX64Main.dependsOn(this)
-        //     iosArm64Main.dependsOn(this)
-        //     iosSimulatorArm64Main.dependsOn(this)
-        //     dependencies {
-        //         implementation(libs.ktor.client.darwin)
-        //         implementation(libs.sqldelight.native.driver)
-        //     }
-        // }
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+        val iosMain by creating {
+            dependsOn(commonMain)
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
+            dependencies {
+                implementation(libs.ktor.client.darwin)
+                implementation(libs.sqldelight.native.driver)
+            }
+        }
     }
 }
 

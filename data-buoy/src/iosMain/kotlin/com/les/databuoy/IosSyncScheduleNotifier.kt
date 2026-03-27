@@ -1,11 +1,10 @@
-package com.les.databuoy
+package com.les.databuoy.sync
 
-import com.les.databuoy.sync.SyncRunner
 import platform.BackgroundTasks.BGProcessingTaskRequest
 import platform.BackgroundTasks.BGTaskScheduler
 import platform.Foundation.NSLog
 
-actual fun createPlatformSyncScheduleNotifier(): SyncScheduleNotifier = IosSyncScheduleNotifier()
+public actual fun createPlatformSyncScheduleNotifier(): SyncScheduleNotifier = IosSyncScheduleNotifier()
 
 /**
  * iOS implementation of [SyncScheduleNotifier] using BGTaskScheduler.
@@ -17,8 +16,9 @@ actual fun createPlatformSyncScheduleNotifier(): SyncScheduleNotifier = IosSyncS
  *    (e.g. in `application(_:didFinishLaunchingWithOptions:)`) to wire up
  *    the handler that performs the actual sync.
  */
-class IosSyncScheduleNotifier : SyncScheduleNotifier {
+public class IosSyncScheduleNotifier : SyncScheduleNotifier {
 
+    @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
     override fun scheduleSyncIfNeeded() {
         val request = BGProcessingTaskRequest(TASK_IDENTIFIER)
         request.requiresNetworkConnectivity = true
@@ -35,14 +35,14 @@ class IosSyncScheduleNotifier : SyncScheduleNotifier {
         }
     }
 
-    companion object {
+    public companion object {
         private const val TAG = "IosSyncScheduleNotifier"
 
         /**
          * The BGTask identifier. The host app must include this value in its
          * Info.plist under the `BGTaskSchedulerPermittedIdentifiers` array.
          */
-        const val TASK_IDENTIFIER = "com.les.databuoy.sync"
+        public const val TASK_IDENTIFIER: String = "com.les.databuoy.sync"
 
         /**
          * Registers the BGTask handler. Call once at app launch.
@@ -56,7 +56,7 @@ class IosSyncScheduleNotifier : SyncScheduleNotifier {
          * }
          * ```
          */
-        fun registerHandler() {
+        public fun registerHandler() {
             BGTaskScheduler.sharedScheduler.registerForTaskWithIdentifier(
                 TASK_IDENTIFIER,
                 usingQueue = null,

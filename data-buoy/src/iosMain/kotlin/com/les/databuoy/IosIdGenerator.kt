@@ -1,9 +1,9 @@
-package com.les.databuoy
+package com.les.databuoy.utils
 
 import platform.Foundation.NSUUID
 
-actual fun createPlatformIdGenerator(): IdGenerator = IosIdGenerator()
+public actual fun createPlatformIdGenerator(): IdGenerator = IosIdGenerator()
 
-class IosIdGenerator : IdGenerator {
+public class IosIdGenerator : IdGenerator {
     override fun generateId(): String = NSUUID().UUIDString()
 }

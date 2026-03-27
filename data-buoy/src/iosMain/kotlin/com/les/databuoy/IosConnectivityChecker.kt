@@ -1,5 +1,6 @@
-package com.les.databuoy
+package com.les.databuoy.serviceconfigs
 
+import kotlin.concurrent.Volatile
 import platform.Network.nw_path_get_status
 import platform.Network.nw_path_monitor_cancel
 import platform.Network.nw_path_monitor_create
@@ -9,9 +10,9 @@ import platform.Network.nw_path_monitor_start
 import platform.Network.nw_path_status_satisfied
 import platform.darwin.dispatch_queue_create
 
-actual fun createPlatformConnectivityChecker(): ConnectivityChecker = IosConnectivityChecker()
+public actual fun createPlatformConnectivityChecker(): ConnectivityChecker = IosConnectivityChecker()
 
-class IosConnectivityChecker : ConnectivityChecker {
+public class IosConnectivityChecker : ConnectivityChecker {
 
     private val monitor = nw_path_monitor_create()
     private val queue = dispatch_queue_create("com.les.databuoy.connectivity", null)
@@ -29,7 +30,7 @@ class IosConnectivityChecker : ConnectivityChecker {
 
     override fun isOnline(): Boolean = currentStatus
 
-    fun cancel() {
+    public fun cancel() {
         nw_path_monitor_cancel(monitor)
     }
 }

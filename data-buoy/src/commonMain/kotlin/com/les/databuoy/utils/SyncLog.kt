@@ -1,5 +1,7 @@
 package com.les.databuoy.utils
 
+import kotlin.concurrent.Volatile
+
 /**
  * Process-wide logger for the data-buoy sync engine.
  *

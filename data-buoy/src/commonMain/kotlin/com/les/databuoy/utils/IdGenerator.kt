@@ -1,5 +1,7 @@
 package com.les.databuoy.utils
 
+import kotlin.concurrent.Volatile
+
 /**
  * Platform-agnostic interface for generating unique identifiers.
  * On Android/JVM, this wraps java.util.UUID. On iOS, this wraps NSUUID.
