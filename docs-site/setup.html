@@ -118,11 +118,13 @@
           <div class="field-row">
             <input class="input-field" placeholder="field name" value="title" oninput="updateModelPreview()">
             <input class="input-field" placeholder="type" value="String" oninput="updateModelPreview()" style="max-width: 120px;">
+            <input class="input-field" placeholder="server name" value="title" oninput="updateModelPreview()" style="max-width: 120px;">
             <button class="remove-field" onclick="removeField(this)">&times;</button>
           </div>
           <div class="field-row">
             <input class="input-field" placeholder="field name" value="completed" oninput="updateModelPreview()">
             <input class="input-field" placeholder="type" value="Boolean" oninput="updateModelPreview()" style="max-width: 120px;">
+            <input class="input-field" placeholder="server name" value="is_completed" oninput="updateModelPreview()" style="max-width: 120px;">
             <button class="remove-field" onclick="removeField(this)">&times;</button>
           </div>
         </div>
@@ -368,6 +370,10 @@ function getModelName() {
   return (document.getElementById('modelName').value || 'Todo').trim();
 }
 
+function toSnakeCase(s) {
+  return s.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+}
+
 function getFields() {
   const rows = document.querySelectorAll('#fieldsList .field-row');
   const fields = [];
@@ -375,7 +381,8 @@ function getFields() {
     const inputs = row.querySelectorAll('.input-field');
     const name = (inputs[0].value || '').trim();
     const type = (inputs[1].value || 'String').trim();
-    if (name) fields.push({ name, type });
+    const serverName = (inputs[2].value || '').trim() || toSnakeCase(name);
+    if (name) fields.push({ name, type, serverName });
   });
   return fields;
 }
@@ -399,15 +406,15 @@ function updateModelPreview() {
   document.getElementById('serviceFileName').textContent = name + 'Service.kt';
 
   // Model code
-  let fieldLines = fields.map(f => `    <span class="kw">val</span> ${f.name}: <span class="typ">${f.type}</span> = ${defaultValue(f.type)},`).join('\n');
+  let fieldLines = fields.map(f => `    <span class="ann">@SerialName</span>(<span class="str">"${esc(f.serverName)}"</span>) <span class="kw">val</span> ${f.name}: <span class="typ">${f.type}</span> = ${defaultValue(f.type)},`).join('\n');
   if (fields.length === 0) fieldLines = `    <span class="cmt">// add your fields above</span>`;
 
   document.getElementById('modelPreview').innerHTML =
 `<span class="ann">@Serializable</span>
 <span class="kw">data class</span> <span class="typ">${esc(name)}</span>(
-    <span class="kw">override val</span> serverId: <span class="typ">String</span>? = <span class="kw">null</span>,
+    <span class="ann">@SerialName</span>(<span class="str">"id"</span>) <span class="kw">override val</span> serverId: <span class="typ">String</span>? = <span class="kw">null</span>,
     <span class="kw">override val</span> clientId: <span class="typ">String</span> = UUID.<span class="fn">randomUUID</span>().<span class="fn">toString</span>(),
-    <span class="kw">override val</span> version: <span class="typ">String</span>? = <span class="kw">null</span>,
+    <span class="ann">@SerialName</span>(<span class="str">"version"</span>) <span class="kw">override val</span> version: <span class="typ">String</span>? = <span class="kw">null</span>,
     <span class="ann">@Transient</span> <span class="kw">override val</span> syncStatus: <span class="typ">SyncStatus</span> = <span class="typ">SyncStatus</span>.LocalOnly,
 ${fieldLines}
 ) : <span class="typ">SyncableObject</span>&lt;<span class="typ">${esc(name)}</span>&gt; {
@@ -491,7 +498,7 @@ function addField() {
   const list = document.getElementById('fieldsList');
   const row = document.createElement('div');
   row.className = 'field-row';
-  row.innerHTML = `<input class="input-field" placeholder="field name" oninput="updateModelPreview()"><input class="input-field" placeholder="type" value="String" oninput="updateModelPreview()" style="max-width: 120px;"><button class="remove-field" onclick="removeField(this)">&times;</button>`;
+  row.innerHTML = `<input class="input-field" placeholder="field name" oninput="updateModelPreview()"><input class="input-field" placeholder="type" value="String" oninput="updateModelPreview()" style="max-width: 120px;"><input class="input-field" placeholder="server name" oninput="updateModelPreview()" style="max-width: 120px;"><button class="remove-field" onclick="removeField(this)">&times;</button>`;
   list.appendChild(row);
   row.querySelector('.input-field').focus();
 }

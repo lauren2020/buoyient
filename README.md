@@ -8,7 +8,8 @@ keep your client up even when the network is down
 Offline-first Kotlin Multiplatform SDK that keeps a local data store in sync with a remote server. App code performs data operations through a single API regardless of connectivity — changes persist locally immediately, queue for server transport when offline, and reconcile automatically when connectivity returns. Includes conflict resolution, automatic retries, and periodic sync-down from the server.
 
 ## For Humans: start here
-This README is optimized for AI agents. For an interactive walkthrough covering why buoyient, how it works, and setup guidance, see: [Why buoyient?](https://lauren2020.github.io/buoyient/why-buoyient.html)
+This README is optimized for AI agents. For humans, we created something more human optimized: an interactive html walkthrough (ironically, it's agent generated).
+For an interactive walkthrough covering why buoyient, how it works, and setup guidance, see: [Why buoyient?](https://lauren2020.github.io/buoyient/why-buoyient.html)
 
 ---
 
