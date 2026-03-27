@@ -28,7 +28,7 @@ The `:testing` module transitively provides everything from `:syncable-objects`,
 |----------|------|---------|---------|
 | `mockRouter` | `MockEndpointRouter` | empty router | Register mock endpoint handlers |
 | `connectivityChecker` | `TestConnectivityChecker` | `online = true` | Control online/offline state |
-| `logger` | `SyncLogger` | `NoOpSyncLogger` (silent) | Installed into `SyncLog.logger`. Swap to `PrintSyncLogger` for debugging |
+| `logger` | `DataBuoyLogger` | `NoOpSyncLogger` (silent) | Installed into `DataBuoyLog.logger`. Swap to `PrintSyncLogger` for debugging |
 | `syncScheduleNotifier` | `SyncScheduleNotifier` | `NoOpSyncScheduleNotifier` | No-op (no WorkManager in tests) |
 | `idGenerator` | `IdGenerator` | `IncrementingIdGenerator` | Deterministic IDs: `test-id-1`, `test-id-2`, ... Installed as the global `IdGenerator.generator` |
 | `database` | `SyncDatabase` | in-memory SQLite | Isolated per `TestServiceEnvironment` instance |
@@ -364,7 +364,7 @@ Since `TestServiceEnvironment` installs `idGenerator` as the global `IdGenerator
 
 ## Debugging Failing Tests
 
-Pass `PrintSyncLogger` to `TestServiceEnvironment` to see all internal sync engine logs (it sets `SyncLog.logger` automatically):
+Pass `PrintSyncLogger` to `TestServiceEnvironment` to see all internal sync engine logs (it sets `DataBuoyLog.logger` automatically):
 
 ```kotlin
 val env = TestServiceEnvironment(logger = PrintSyncLogger)

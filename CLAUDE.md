@@ -23,7 +23,7 @@ The `:syncable-objects` module organizes its public API into packages by role:
 | `com.les.databuoy.globalconfigs` | Project-level configuration: `DataBuoy`, `GlobalHeaderProvider`, `DatabaseProvider`, `HttpClientOverride`, `DatabaseOverride` |
 | `com.les.databuoy.serviceconfigs` | Per-service configuration: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler` |
 | `com.les.databuoy.syncableobjectservicedatatypes` | Data types for interacting with `SyncableObjectService`: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger` |
-| `com.les.databuoy.utils` | Utilities: `SyncCodec`, `SyncLog`, `SyncLogger` |
+| `com.les.databuoy.utils` | Utilities: `SyncCodec`, `DataBuoyLog`, `DataBuoyLogger` |
 
 Internal packages (`managers`, `sync`) are not part of the public API.
 
@@ -56,7 +56,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `SquashRequestMerger` | `syncableobjectservicedatatypes` | Functional interface for merging an update into a pending create when using `Squash` strategy |
 | `getFromLocalStore()` | (on `SyncableObjectService`) | Overloaded query methods — filter by `syncStatus` string / `includeVoided` flag (SQL-level), or by `(O) -> Boolean` predicate (in-memory) |
 | `SyncCodec<O>` | `utils` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
-| `SyncLog` | `utils` | Process-wide logger singleton — set `SyncLog.logger` to swap the backing `SyncLogger` |
+| `DataBuoyLog` | `utils` | Process-wide logger singleton — set `DataBuoyLog.logger` to swap the backing `DataBuoyLogger` |
 | `TestServiceEnvironment` | `:testing` module | All-in-one test harness |
 | `MockEndpointRouter` | `:testing` module | Mock HTTP server for tests and mock mode |
 | `MockServerStore` | `:testing` module | Stateful mock server with collections |

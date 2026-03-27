@@ -24,7 +24,7 @@ import com.les.databuoy.syncableobjectservicedatatypes.UpdateRequestBuilder
 import com.les.databuoy.syncableobjectservicedatatypes.VoidRequestBuilder
 import com.les.databuoy.utils.IdGenerator
 import com.les.databuoy.utils.SyncCodec
-import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.DataBuoyLog
 import com.les.databuoy.utils.TimestampFormatter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -352,7 +352,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                     // to be queued so it is processed after the pending requests during sync-up.
                     // However - caller explicitly requires online-only processing, but we can't safely
                     // send online while prior requests are still queued.
-                    SyncLog.e(TAG, "Cannot process OnlineOnly update for (client_id: ${data.clientId}) " +
+                    DataBuoyLog.e(TAG, "Cannot process OnlineOnly update for (client_id: ${data.clientId}) " +
                             "while pending async requests exist.")
                     return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
                 }
@@ -388,7 +388,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
             }
 
             is LocalStoreManager.UpdateContext.InvalidState -> {
-                SyncLog.e(TAG, "Failed to execute update due to being in an invalid state")
+                DataBuoyLog.e(TAG, "Failed to execute update due to being in an invalid state")
                 return@withClientLock SyncableObjectServiceResponse.InvalidRequest()
             }
         }
@@ -504,7 +504,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                 )
 
             is ServerManager.ServerManagerResponse.Success -> {
-                SyncLog.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
+                DataBuoyLog.d(TAG, "[update] response received (${response.statusCode}): ${response.responseBody}")
                 val lastSyncedTimestamp = TimestampFormatter.fromEpochSeconds(response.responseEpochTimestamp)
                 val updatedData = unpackData.unpack(response.responseBody, response.statusCode, data.syncStatus)
                 updatedData?.let {
@@ -584,7 +584,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                 val updatedData = localStoreManager.voidLocalOnlyData(data = data)
                 SyncableObjectServiceResponse.Success.StoredLocally(updatedData = updatedData)
             } catch (e: Exception) {
-                SyncLog.e(TAG, "Failed to void local-only object (client_id: ${data.clientId}): ", e)
+                DataBuoyLog.e(TAG, "Failed to void local-only object (client_id: ${data.clientId}): ", e)
                 SyncableObjectServiceResponse.Failed.LocalStoreFailed(exception = e)
             }
         }
@@ -842,7 +842,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
             // may be stuck in CONFLICT without a corresponding conflicting request. Self-heal
             // by rebasing any pending requests to verify no real conflicts and restoring the
             // correct sync_status.
-            SyncLog.w(TAG, "No conflicting pending request found for (client_id: $clientId), repairing orphaned conflict status.")
+            DataBuoyLog.w(TAG, "No conflicting pending request found for (client_id: $clientId), repairing orphaned conflict status.")
             return localStoreManager.repairOrphanedConflictStatus(
                 clientId = clientId,
                 serverId = resolution.resolvedData.serverId,
@@ -859,13 +859,13 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
 
         when (result) {
             is ResolveConflictResult.Resolved ->
-                SyncLog.d(TAG, "Conflict resolved for (client_id: $clientId).")
+                DataBuoyLog.d(TAG, "Conflict resolved for (client_id: $clientId).")
 
             is ResolveConflictResult.RebaseConflict ->
-                SyncLog.w(TAG, "Conflict resolved for (client_id: $clientId) but a subsequent pending request also has a conflict.")
+                DataBuoyLog.w(TAG, "Conflict resolved for (client_id: $clientId) but a subsequent pending request also has a conflict.")
 
             is ResolveConflictResult.Failed ->
-                SyncLog.e(TAG, "Failed to resolve conflict for (client_id: $clientId): ${result.exception}")
+                DataBuoyLog.e(TAG, "Failed to resolve conflict for (client_id: $clientId): ${result.exception}")
         }
 
         return result
@@ -1038,7 +1038,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
             val response = try {
                 block()
             } catch (e: Exception) {
-                SyncLog.e(TAG, "Request flow failed: ${e.message}")
+                DataBuoyLog.e(TAG, "Request flow failed: ${e.message}")
                 SyncableObjectServiceResponse.Failed.LocalStoreFailed(e)
             }
             flow.value = SyncableObjectServiceRequestState.Result(response)
@@ -1057,17 +1057,17 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         queueResult: PendingRequestQueueManager.QueueResult,
     ): SyncableObjectServiceResponse<O> = when (queueResult) {
         is PendingRequestQueueManager.QueueResult.Stored -> {
-            SyncLog.d(TAG, "Queue for (client_id: ${data.clientId}) succeeded.")
+            DataBuoyLog.d(TAG, "Queue for (client_id: ${data.clientId}) succeeded.")
             SyncableObjectServiceResponse.Success.StoredLocally(updatedData = data)
         }
         is PendingRequestQueueManager.QueueResult.StoreFailed -> {
-            SyncLog.e(TAG, "Queue for (client_id: ${data.clientId}) failed.")
+            DataBuoyLog.e(TAG, "Queue for (client_id: ${data.clientId}) failed.")
             SyncableObjectServiceResponse.Failed.LocalStoreFailed(
                 exception = IllegalStateException("Failed to persist data locally for client_id: ${data.clientId}")
             )
         }
         is PendingRequestQueueManager.QueueResult.InvalidQueueRequest -> {
-            SyncLog.e(TAG, "Queue for (client_id: ${data.clientId}) was invalid: ${queueResult.errorMessage}")
+            DataBuoyLog.e(TAG, "Queue for (client_id: ${data.clientId}) was invalid: ${queueResult.errorMessage}")
             SyncableObjectServiceResponse.Failed.LocalStoreFailed(
                 exception = IllegalStateException(queueResult.errorMessage)
             )

@@ -5,7 +5,7 @@ import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.ServiceRequestTag
 import com.les.databuoy.utils.StorageCodec
 import com.les.databuoy.utils.SyncCodec
-import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.DataBuoyLog
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.db.SyncDatabase
@@ -177,7 +177,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
 
         QueueResult.Stored
     } catch (e: Exception) {
-        SyncLog.e(TAG, "storeEntry failed for service $serviceName", e)
+        DataBuoyLog.e(TAG, "storeEntry failed for service $serviceName", e)
         QueueResult.StoreFailed
     }
 
@@ -199,7 +199,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
 
         QueueResult.Stored
     } catch (e: Exception) {
-        SyncLog.e(TAG, "replaceEntry failed for service $serviceName", e)
+        DataBuoyLog.e(TAG, "replaceEntry failed for service $serviceName", e)
         QueueResult.StoreFailed
     }
 
@@ -316,7 +316,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
 
         ClearRequestResult.Cleared(updatedSyncStatus = updatedSyncStatus)
     } catch (e: Exception) {
-        SyncLog.e(TAG, "clearPendingRequestAfterUpload failed for service $serviceName (pendingRequestId=$pendingRequestId)", e)
+        DataBuoyLog.e(TAG, "clearPendingRequestAfterUpload failed for service $serviceName (pendingRequestId=$pendingRequestId)", e)
         ClearRequestResult.FailedToRemoveEntry
     }
 
@@ -351,7 +351,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
                     nextBase = rebaseMergeResult.mergedData
                 }
                 is SyncableObjectRebaseHandler.RebaseResult.Conflict -> {
-                    SyncLog.w(TAG, "PendingSyncRequest (pending_request_id: ${it.pendingRequestId}) encountered a conflict on rebase, aborting rebase of subsequent pending requests until resolved.")
+                    DataBuoyLog.w(TAG, "PendingSyncRequest (pending_request_id: ${it.pendingRequestId}) encountered a conflict on rebase, aborting rebase of subsequent pending requests until resolved.")
                     // Exit the loop early and abort attempting any further rebases until the
                     // current conflict is resolved.
                     return RebasePendingRequestsResult.AbortedRebaseToConflicts(

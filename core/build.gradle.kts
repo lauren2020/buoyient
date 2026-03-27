@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.android.library)
-    alias(libs.plugins.sqldelight)
     id("maven-publish")
     id("signing")
 }
@@ -31,42 +30,16 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(project(":core"))
                 implementation(libs.ktor.client.core)
                 implementation(libs.kotlinx.coroutines.core)
                 api(libs.kotlinx.serialization.json)
-                implementation(libs.sqldelight.runtime)
-                implementation(libs.sqldelight.coroutines.extensions)
                 implementation(libs.kotlinx.datetime)
             }
         }
 
-        val androidMain by getting {
-            dependencies {
-                implementation(libs.ktor.client.okhttp)
-                implementation(libs.sqldelight.android.driver)
-                implementation(libs.androidx.work)
-                implementation(libs.androidx.startup)
-            }
-        }
+        val androidMain by getting
 
-        val jvmMain by getting {
-            dependencies {
-                implementation(libs.sqldelight.sqlite.driver)
-                implementation(libs.ktor.client.cio)
-            }
-        }
-
-        val jvmTest by getting {
-            kotlin.srcDir("../examples/todo/src/main/kotlin")
-            kotlin.srcDir("../examples/todo/src/test/kotlin")
-            dependencies {
-                implementation(kotlin("test"))
-                implementation(libs.ktor.client.mock)
-                implementation(libs.kotlinx.coroutines.test)
-                implementation(project(":testing"))
-            }
-        }
+        val jvmMain by getting
 
         val iosX64Main by getting
         val iosArm64Main by getting
@@ -76,31 +49,12 @@ kotlin {
             iosX64Main.dependsOn(this)
             iosArm64Main.dependsOn(this)
             iosSimulatorArm64Main.dependsOn(this)
-            dependencies {
-                implementation(libs.ktor.client.darwin)
-                implementation(libs.sqldelight.native.driver)
-            }
-        }
-    }
-}
-
-// Bundle agent instruction files into the published JAR so agents consuming the dependency can find them.
-tasks.withType<Jar> {
-    from(rootProject.file("CLAUDE.md")) { into("META-INF") }
-    from(rootProject.file("CODEX.md")) { into("META-INF") }
-}
-
-sqldelight {
-    databases {
-        create("SyncDatabase") {
-            packageName.set("com.les.databuoy.db")
-            dialect(libs.sqldelight.dialect)
         }
     }
 }
 
 android {
-    namespace = "com.les.databuoy"
+    namespace = "com.les.databuoy.core"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -115,7 +69,6 @@ android {
 }
 
 signing {
-    // Only sign when credentials are available (CI or release builds).
     isRequired = !version.toString().endsWith("SNAPSHOT")
     sign(publishing.publications)
 }
@@ -138,8 +91,8 @@ publishing {
     }
     publications.withType<MavenPublication> {
         pom {
-            name.set("syncable-objects")
-            description.set("Kotlin Multiplatform offline-first sync library with bidirectional sync, conflict resolution, and automatic retries.")
+            name.set("core")
+            description.set("Core infrastructure for data-buoy: logging, connectivity, HTTP, and shared service abstractions.")
             url.set("https://github.com/lauren2020/data-buoy")
             licenses {
                 license {

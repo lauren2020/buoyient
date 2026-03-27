@@ -28,7 +28,7 @@ The `:testing` module transitively provides everything from `:syncable-objects`,
 Classes from the `:testing` module are in `com.les.databuoy.testing`. When writing tests you'll also need types from the core library — note the package reorganization:
 - Service configs (`ServerProcessingConfig`, `ConnectivityChecker`, etc.) are in `com.les.databuoy.serviceconfigs`
 - Data types for service operations (`HttpRequest`, `SyncableObjectServiceResponse`, etc.) are in `com.les.databuoy.syncableobjectservicedatatypes`
-- Utilities (`SyncCodec`, `SyncLog`) are in `com.les.databuoy.utils`
+- Utilities (`SyncCodec`, `DataBuoyLog`) are in `com.les.databuoy.utils`
 
 ---
 
@@ -42,7 +42,7 @@ Classes from the `:testing` module are in `com.les.databuoy.testing`. When writi
 |----------|------|---------|---------|
 | `mockRouter` | `MockEndpointRouter` | empty router | Register mock endpoint handlers |
 | `connectivityChecker` | `TestConnectivityChecker` | `online = true` | Control online/offline state |
-| `logger` | `SyncLogger` | `NoOpSyncLogger` (silent) | Swap to `PrintSyncLogger` for debugging |
+| `logger` | `DataBuoyLogger` | `NoOpSyncLogger` (silent) | Swap to `PrintSyncLogger` for debugging |
 | `syncScheduleNotifier` | `SyncScheduleNotifier` | `NoOpSyncScheduleNotifier` | No-op (no WorkManager in tests) |
 | `idGenerator` | `IdGenerator` | `IncrementingIdGenerator` | Deterministic IDs: `test-id-1`, `test-id-2`, ... Installed as the global `IdGenerator.generator` |
 | `database` | `SyncDatabase` | in-memory SQLite | Isolated per `TestServiceEnvironment` instance |

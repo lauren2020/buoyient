@@ -12,4 +12,4 @@ import kotlinx.coroutines.CoroutineDispatcher
  *
  * Remove this once the project upgrades to Kotlin 2.0+ / coroutines 1.9+.
  */
-internal expect val ioDispatcher: CoroutineDispatcher
+public expect val ioDispatcher: CoroutineDispatcher

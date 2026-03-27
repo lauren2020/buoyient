@@ -865,7 +865,7 @@ If Order CREATE fails (server error, network timeout):
 ### Debugging tips
 
 - **Payment stuck in pending queue?** Check that the referenced service's `serviceName` string in `crossServiceServerIdPlaceholder()` exactly matches the `serviceName` passed to the dependency's `SyncableObjectService` constructor.
-- **Enable logging** with `SyncLog.logger = ...` to see placeholder resolution attempts. Look for log messages about skipped requests due to unresolved dependencies.
+- **Enable logging** with `DataBuoyLog.logger = ...` to see placeholder resolution attempts. Look for log messages about skipped requests due to unresolved dependencies.
 - **Verify the dependency was created through data-buoy.** Cross-service resolution queries the `sync_data` table — the referenced object must exist there. Objects created outside data-buoy won't be found.
 
 ### Constraints

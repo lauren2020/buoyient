@@ -2,9 +2,9 @@ package com.les.databuoy.utils
 
 import platform.Foundation.NSLog
 
-public actual fun createPlatformSyncLogger(): SyncLogger = IosSyncLogger()
+public actual fun createPlatformDataBuoyLogger(): DataBuoyLogger = IosDataBuoyLogger()
 
-public class IosSyncLogger : SyncLogger {
+public class IosDataBuoyLogger : DataBuoyLogger {
     override fun d(tag: String, message: String) {
         NSLog("D/%s: %s", tag, message)
     }

@@ -6,7 +6,7 @@ import android.net.NetworkCapabilities
 import com.les.databuoy.DataBuoyPlatformContext
 
 /**
- * Android implementation of [com.les.databuoy.serviceconfigs.ConnectivityChecker] backed by [ConnectivityManager].
+ * Android implementation of [ConnectivityChecker] backed by [ConnectivityManager].
  */
 public actual fun createPlatformConnectivityChecker(): ConnectivityChecker =
     AndroidConnectivityChecker(DataBuoyPlatformContext.appContext)

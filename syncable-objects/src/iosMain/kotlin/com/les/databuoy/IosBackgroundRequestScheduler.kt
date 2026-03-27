@@ -2,7 +2,7 @@ package com.les.databuoy.managers
 
 import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry
 import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
-import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.DataBuoyLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -42,19 +42,19 @@ public class IosBackgroundRequestScheduler : BackgroundRequestScheduler {
             try {
                 when (val response = serverManager.sendRequest(httpRequest)) {
                     is ServerManager.ServerManagerResponse.Success -> {
-                        SyncLog.d(TAG, "Background request completed (${response.statusCode})")
+                        DataBuoyLog.d(TAG, "Background request completed (${response.statusCode})")
                     }
                     is ServerManager.ServerManagerResponse.Failed,
                     is ServerManager.ServerManagerResponse.ServerError -> {
-                        SyncLog.w(TAG, "Background request failed — will retry on next sync-up")
+                        DataBuoyLog.w(TAG, "Background request failed — will retry on next sync-up")
                     }
                     is ServerManager.ServerManagerResponse.ConnectionError,
                     is ServerManager.ServerManagerResponse.RequestTimedOut -> {
-                        SyncLog.w(TAG, "Background request failed due to connection error — will retry on next sync-up")
+                        DataBuoyLog.w(TAG, "Background request failed due to connection error — will retry on next sync-up")
                     }
                 }
             } catch (e: Exception) {
-                SyncLog.e(TAG, "Background request failed unexpectedly", e)
+                DataBuoyLog.e(TAG, "Background request failed unexpectedly", e)
             } finally {
                 serverManager.close()
             }

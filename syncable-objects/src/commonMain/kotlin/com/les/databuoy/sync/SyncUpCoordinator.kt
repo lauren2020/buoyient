@@ -1,6 +1,6 @@
 package com.les.databuoy.sync
 
-import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.DataBuoyLog
 import com.les.databuoy.db.SyncDatabase
 
 /**
@@ -22,13 +22,13 @@ public class SyncUpCoordinator(
      * @return the total number of requests that were successfully synced.
      */
     public suspend fun syncUpAll(): Int {
-        SyncLog.d(TAG, "Starting global sync up across ${drivers.size} services...")
+        DataBuoyLog.d(TAG, "Starting global sync up across ${drivers.size} services...")
 
         // Block all uploads globally if any item (in any service) has unresolved
         // conflicts. Cross-item request ordering may create dependencies, so it is
         // unsafe to upload anything until every conflict is resolved.
         if (database.syncPendingEventsQueries.hasAnyConflicts().executeAsOne()) {
-            SyncLog.w(TAG, "Skipping sync-up: unresolved conflicts exist. Resolve all conflicts before uploads can resume.")
+            DataBuoyLog.w(TAG, "Skipping sync-up: unresolved conflicts exist. Resolve all conflicts before uploads can resume.")
             return 0
         }
 
@@ -37,7 +37,7 @@ public class SyncUpCoordinator(
             .getAllPendingRequestsGlobally()
             .executeAsList()
 
-        SyncLog.d(TAG, "Found ${globalQueue.size} pending sync rows globally.")
+        DataBuoyLog.d(TAG, "Found ${globalQueue.size} pending sync rows globally.")
 
         // Build serviceName → driver map for dispatch.
         val driverMap = drivers.associateBy { it.serviceName }
@@ -46,7 +46,7 @@ public class SyncUpCoordinator(
         for (entry in globalQueue) {
             val driver = driverMap[entry.service_name]
             if (driver == null) {
-                SyncLog.w(TAG, "No service registered for '${entry.service_name}', skipping pending_request_id=${entry.pending_request_id}")
+                DataBuoyLog.w(TAG, "No service registered for '${entry.service_name}', skipping pending_request_id=${entry.pending_request_id}")
                 continue
             }
             try {
@@ -54,7 +54,7 @@ public class SyncUpCoordinator(
                     syncedCount++
                 }
             } catch (e: SyncUpRetryLaterException) {
-                SyncLog.w(
+                DataBuoyLog.w(
                     TAG,
                     "Sync-up retry requested — stopping this pass so the caller can retry later. " +
                         "($syncedCount synced so far)"
@@ -63,7 +63,7 @@ public class SyncUpCoordinator(
             }
         }
 
-        SyncLog.d(TAG, "Global sync complete: $syncedCount/${globalQueue.size} succeeded")
+        DataBuoyLog.d(TAG, "Global sync complete: $syncedCount/${globalQueue.size} succeeded")
         return syncedCount
     }
 

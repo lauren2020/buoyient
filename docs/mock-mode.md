@@ -155,7 +155,7 @@ Set `DataBuoy.httpClient` before creating any services. All services constructed
 package com.example.yourapp.di
 
 import com.les.databuoy.globalconfigs.DataBuoy
-import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.DataBuoyLog
 import com.les.databuoy.testing.PrintSyncLogger
 import com.example.yourapp.testing.MockServerFixtures
 import dagger.Module
@@ -182,7 +182,7 @@ object MockModeModule {
         val fixtures = MockServerFixtures()
         // Install the mock HTTP client globally — all services pick it up automatically
         DataBuoy.httpClient = fixtures.router.buildHttpClient()
-        SyncLog.logger = PrintSyncLogger  // verbose logging for mock mode
+        DataBuoyLog.logger = PrintSyncLogger  // verbose logging for mock mode
         return fixtures
     }
 }
@@ -207,7 +207,7 @@ object ServiceFactory {
 
     fun enableMockMode() {
         DataBuoy.httpClient = mockFixtures.router.buildHttpClient()
-        SyncLog.logger = PrintSyncLogger
+        DataBuoyLog.logger = PrintSyncLogger
     }
 
     fun createItemService(): YourModelService = YourModelService()
@@ -413,7 +413,7 @@ Text("Server records: ${items.count()}")
 - **`TestConnectivityChecker` should be set to `online = true`** in mock mode so requests actually flow through the mock server. Setting it to `false` queues requests for background sync, which is fine for testing offline behavior but means you won't see immediate mock responses.
 - **The `SyncScheduleNotifier` should remain the real platform implementation** in mock mode (not the no-op). This way, background sync (WorkManager) still fires and processes the pending queue through the mock server, giving a realistic experience.
 - **Mock handlers are evaluated at request time**, not registration time. You can update handlers dynamically during a session.
-- **`SyncLog.logger = PrintSyncLogger` is recommended** in mock mode so developers can see sync engine activity in Logcat. Set this once at startup before creating any services.
+- **`DataBuoyLog.logger = PrintSyncLogger` is recommended** in mock mode so developers can see sync engine activity in Logcat. Set this once at startup before creating any services.
 - **`MockEndpointRouter` is thread-safe.** The request log uses `CopyOnWriteArrayList` and the route list is only written during setup.
 
 ---

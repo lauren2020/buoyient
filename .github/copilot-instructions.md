@@ -29,7 +29,7 @@ These guides contain complete templates, required field tables, and common patte
 | `PendingRequestQueueStrategy` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
 | `SquashRequestMerger` | Functional interface for merging an update into a pending create when using `Squash` strategy |
 | `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
-| `SyncLog` | Process-wide logger singleton — set `SyncLog.logger` to swap the backing `SyncLogger` |
+| `DataBuoyLog` | Process-wide logger singleton — set `DataBuoyLog.logger` to swap the backing `DataBuoyLogger` |
 | `EncryptionProvider` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
 | `GlobalHeaderProvider` | Functional interface for dynamic global headers (e.g., auth tokens) — set via `DataBuoy.globalHeaderProvider` |
 | `DataBuoy` | Convenience API for service registration and global header configuration |

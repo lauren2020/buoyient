@@ -3,11 +3,11 @@ package com.les.databuoy.utils
 import android.util.Log
 
 /**
- * Android implementation of [com.les.databuoy.utils.SyncLogger] backed by [android.util.Log].
+ * Android implementation of [DataBuoyLogger] backed by [android.util.Log].
  */
-public actual fun createPlatformSyncLogger(): SyncLogger = AndroidSyncLogger()
+public actual fun createPlatformDataBuoyLogger(): DataBuoyLogger = AndroidDataBuoyLogger()
 
-public class AndroidSyncLogger : SyncLogger {
+public class AndroidDataBuoyLogger : DataBuoyLogger {
     override fun d(tag: String, message: String) {
         Log.d(tag, message)
     }

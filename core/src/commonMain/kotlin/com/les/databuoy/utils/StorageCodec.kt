@@ -7,7 +7,7 @@ import com.les.databuoy.serviceconfigs.EncryptionProvider
  * When [encryptionProvider] is `null` (the default), all methods are
  * zero-overhead passthroughs.
  */
-public class StorageCodec internal constructor(
+public class StorageCodec public constructor(
     private val encryptionProvider: EncryptionProvider? = null,
 ) {
     public fun encodeForStorage(plaintext: String): String =

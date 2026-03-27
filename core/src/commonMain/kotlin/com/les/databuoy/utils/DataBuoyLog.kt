@@ -3,16 +3,16 @@ package com.les.databuoy.utils
 import kotlin.concurrent.Volatile
 
 /**
- * Process-wide logger for the data-buoy sync engine.
+ * Process-wide logger for the data-buoy SDK.
  *
  * Every internal component logs through this singleton. By default it
- * delegates to the platform logger ([createPlatformSyncLogger]), but
+ * delegates to the platform logger ([createPlatformDataBuoyLogger]), but
  * callers can swap the backing [logger] at startup — for example,
- * `SyncLog.logger = PrintSyncLogger` in mock mode or tests.
+ * `DataBuoyLog.logger = PrintDataBuoyLogger` in mock mode or tests.
  */
-public object SyncLog : SyncLogger {
+public object DataBuoyLog : DataBuoyLogger {
     @Volatile
-    public var logger: SyncLogger = createPlatformSyncLogger()
+    public var logger: DataBuoyLogger = createPlatformDataBuoyLogger()
 
     override fun d(tag: String, message: String): Unit = logger.d(tag, message)
     override fun w(tag: String, message: String): Unit = logger.w(tag, message)

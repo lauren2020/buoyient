@@ -3,8 +3,8 @@ package com.les.databuoy.testing
 import com.les.databuoy.globalconfigs.DatabaseOverride
 import com.les.databuoy.globalconfigs.HttpClientOverride
 import com.les.databuoy.utils.IdGenerator
-import com.les.databuoy.utils.SyncLog
-import com.les.databuoy.utils.SyncLogger
+import com.les.databuoy.utils.DataBuoyLog
+import com.les.databuoy.utils.DataBuoyLogger
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.db.SyncDatabase
 
@@ -30,7 +30,7 @@ import com.les.databuoy.db.SyncDatabase
  *
  * @property mockRouter the mock endpoint router — register handlers here before exercising the service.
  * @property connectivityChecker mutable connectivity state. Defaults to online.
- * @property logger the logger to install into [SyncLog] for the duration of this environment.
+ * @property logger the logger to install into [DataBuoyLog] for the duration of this environment.
  *   Defaults to silent ([NoOpSyncLogger]). Pass [PrintSyncLogger] to see sync engine
  *   activity during debugging.
  * @property syncScheduleNotifier no-op notifier by default.
@@ -46,14 +46,14 @@ import com.les.databuoy.db.SyncDatabase
 public class TestServiceEnvironment(
     public val mockRouter: MockEndpointRouter = MockEndpointRouter(),
     public val connectivityChecker: TestConnectivityChecker = TestConnectivityChecker(online = true),
-    public val logger: SyncLogger = NoOpSyncLogger,
+    public val logger: DataBuoyLogger = NoOpSyncLogger,
     public val syncScheduleNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier,
     public val idGenerator: IdGenerator = IncrementingIdGenerator(),
     public val database: SyncDatabase = TestDatabaseFactory.createInMemory(),
     public val mockServerStore: MockServerStore = MockServerStore(),
 ) {
     init {
-        SyncLog.logger = logger
+        DataBuoyLog.logger = logger
         IdGenerator.generator = idGenerator
         HttpClientOverride.httpClient = mockRouter.buildHttpClient()
         DatabaseOverride.database = database

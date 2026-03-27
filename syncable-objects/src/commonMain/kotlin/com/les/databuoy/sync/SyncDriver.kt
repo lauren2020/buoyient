@@ -6,7 +6,7 @@ import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.ServiceRequestTag
 import com.les.databuoy.utils.SyncCodec
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
-import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.DataBuoyLog
 import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.SyncableObject
 import com.les.databuoy.utils.TimestampFormatter
@@ -147,17 +147,17 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
             when (response) {
                 is ServerManager.ServerManagerResponse.ConnectionError,
                 is ServerManager.ServerManagerResponse.RequestTimedOut -> {
-                    SyncLog.w(TAG, "Sync down failed due to connection error. Retrying later.")
+                    DataBuoyLog.w(TAG, "Sync down failed due to connection error. Retrying later.")
                     return
                 }
 
                 is ServerManager.ServerManagerResponse.ServerError -> {
-                    SyncLog.w(TAG, "Sync down failed due to server error (${response.statusCode}). Retrying later.")
+                    DataBuoyLog.w(TAG, "Sync down failed due to server error (${response.statusCode}). Retrying later.")
                     return
                 }
 
                 is ServerManager.ServerManagerResponse.Failed -> {
-                    SyncLog.w(TAG, "Sync down failed with status ${response.statusCode}. Retrying later.")
+                    DataBuoyLog.w(TAG, "Sync down failed with status ${response.statusCode}. Retrying later.")
                     return
                 }
 
@@ -186,11 +186,11 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
                                 is UpsertResult.ConflictFailure -> conflictCount++
                             }
                         } catch (e: Exception) {
-                            SyncLog.e(TAG, "Failed to upsert item (${serverObj.serverId}): ", e)
+                            DataBuoyLog.e(TAG, "Failed to upsert item (${serverObj.serverId}): ", e)
                             skippedCount++
                         }
                     }
-                    SyncLog.d(TAG, "Sync down complete: ${items.size} fetched, $upsertedCount upserted, $mergedCount merged, $conflictCount conflicts, $skippedCount skipped")
+                    DataBuoyLog.d(TAG, "Sync down complete: ${items.size} fetched, $upsertedCount upserted, $mergedCount merged, $conflictCount conflicts, $skippedCount skipped")
                 }
             }
     }
@@ -228,7 +228,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
         } catch (e: Exception) {
             val type = entry?.type ?: "unknown"
             val clientId = entry?.clientId ?: "unknown"
-            SyncLog.e(TAG, "Error syncing $type for $clientId.", e)
+            DataBuoyLog.e(TAG, "Error syncing $type for $clientId.", e)
             false
         }
     }
@@ -284,38 +284,38 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
         )) {
             is HttpRequest.PlaceholderResolutionResult.Resolved -> request = resolution.request
             is HttpRequest.PlaceholderResolutionResult.UnresolvedServerId -> {
-                SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
+                DataBuoyLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: serverId not yet resolved")
                 return false
             }
             is HttpRequest.PlaceholderResolutionResult.UnresolvedCrossService -> {
-                SyncLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: cross-service dependency not yet resolved")
+                DataBuoyLog.w(TAG, "Skipping ${row.type} for ${row.data.clientId}: cross-service dependency not yet resolved")
                 return false
             }
         }
         return when (val response = serverManager.sendRequest(request)) {
             is ServerManager.ServerManagerResponse.ConnectionError,
             is ServerManager.ServerManagerResponse.RequestTimedOut -> {
-                SyncLog.w(TAG, "Sync up failed due to connection error. Trying again later.")
+                DataBuoyLog.w(TAG, "Sync up failed due to connection error. Trying again later.")
                 throw SyncUpRetryLaterException(
                     "Connection error for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
                 )
             }
 
             is ServerManager.ServerManagerResponse.ServerError -> {
-                SyncLog.w(TAG, "Sync up failed due to server error (${response.statusCode}). Trying again later.")
+                DataBuoyLog.w(TAG, "Sync up failed due to server error (${response.statusCode}). Trying again later.")
                 if (!row.serverAttemptMade) {
                     localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                 }
-                SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
+                DataBuoyLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
                 false
             }
 
             is ServerManager.ServerManagerResponse.Failed -> {
-                SyncLog.w(TAG, "Sync up received non-success status ${response.statusCode}.")
+                DataBuoyLog.w(TAG, "Sync up received non-success status ${response.statusCode}.")
                 if (!row.serverAttemptMade) {
                     localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                 }
-                SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
+                DataBuoyLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
                 false
             }
 
@@ -333,7 +333,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
                     if (!row.serverAttemptMade) {
                         localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                     }
-                    SyncLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
+                    DataBuoyLog.w(TAG, "Sync failed for pending_request_id: ${row.pendingRequestId} (${row.type}): ${response.statusCode} — it will be retried later.")
                     false
                 } else {
                     // 3. Parse the response and mark as synced
@@ -354,14 +354,14 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
                                 syncedPendingRequest = row,
                                 mergeHandler = rebaseHandler,
                             )
-                            SyncLog.d(TAG, "Synced ${row.type} for ${row.data.clientId} (server_id=${result.data.serverId})")
+                            DataBuoyLog.d(TAG, "Synced ${row.type} for ${row.data.clientId} (server_id=${result.data.serverId})")
                             true
                         }
                         is SyncUpResult.Failed.Retry -> {
                             if (!row.serverAttemptMade) {
                                 localStoreManager.pendingRequestQueueManager.markPendingRequestAsAttempted(row.pendingRequestId)
                             }
-                            SyncLog.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId} — it will be retried later.")
+                            DataBuoyLog.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId} — it will be retried later.")
                             throw SyncUpRetryLaterException(
                                 "Retry requested for ${row.type} (${row.data.clientId}, pending_request_id=${row.pendingRequestId})"
                             )
@@ -372,7 +372,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
                                 lastSyncedTimestamp = lastSyncedTimestamp,
                                 syncedPendingRequest = row,
                             )
-                            SyncLog.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId}, pending request is being removed.")
+                            DataBuoyLog.w(TAG, "Sync failed for ${row.type} for ${row.data.clientId} with pending_request_id: ${row.pendingRequestId}, pending request is being removed.")
                             false
                         }
                     }
@@ -397,7 +397,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
                         try {
                             syncDownFromServer()
                         } catch (e: Exception) {
-                            SyncLog.e(TAG, "Periodic sync-down failed: ", e)
+                            DataBuoyLog.e(TAG, "Periodic sync-down failed: ", e)
                         }
                         delay(cadenceMs)
                     }

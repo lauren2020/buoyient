@@ -4,7 +4,7 @@ import com.les.databuoy.globalconfigs.DataBuoy
 import com.les.databuoy.globalconfigs.DataBuoyStatus
 import com.les.databuoy.globalconfigs.DatabaseOverride
 import com.les.databuoy.globalconfigs.createSyncDatabase
-import com.les.databuoy.utils.SyncLog
+import com.les.databuoy.utils.DataBuoyLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -34,7 +34,7 @@ internal object SyncRunner {
     suspend fun performSyncUp(): Boolean {
         val services = DataBuoy.registeredServices.toList()
         if (services.isEmpty()) {
-            SyncLog.d(TAG, "No services registered — skipping sync")
+            DataBuoyLog.d(TAG, "No services registered — skipping sync")
             return true
         }
 
@@ -48,7 +48,7 @@ internal object SyncRunner {
         val remainingPendingCount = DataBuoyStatus.shared.pendingRequestCount.value
         val hasPendingConflicts = DataBuoyStatus.shared.hasPendingConflicts.value
 
-        SyncLog.d(
+        DataBuoyLog.d(
             TAG,
             "Sync finished: synced $totalSynced items, " +
                 "remainingPending=$remainingPendingCount, hasConflicts=$hasPendingConflicts"
@@ -66,7 +66,7 @@ internal object SyncRunner {
             try {
                 completion(performSyncUp())
             } catch (e: Exception) {
-                SyncLog.e(TAG, "Sync failed", e)
+                DataBuoyLog.e(TAG, "Sync failed", e)
                 completion(false)
             }
         }
