@@ -135,12 +135,12 @@ The sync engine needs to know which services to sync when the background worker 
 
 #### With Hilt (recommended)
 
-Add the `data-buoy-hilt` dependency and provide services via standard `@IntoSet` multibindings. No `Application.onCreate()` override needed — registration is fully automatic.
+Add the `syncable-objects-hilt` dependency and provide services via standard `@IntoSet` multibindings. No `Application.onCreate()` override needed — registration is fully automatic.
 
 ```kotlin
 // build.gradle.kts
-implementation("com.les.databuoy:data-buoy:<version>")
-implementation("com.les.databuoy:data-buoy-hilt:<version>")
+implementation("com.les.databuoy:syncable-objects:<version>")
+implementation("com.les.databuoy:syncable-objects-hilt:<version>")
 ```
 
 ```kotlin
@@ -329,8 +329,8 @@ fun provideServerManager(useMock: Boolean): ServerManager {
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:data-buoy` | `com.les.databuoy:data-buoy` | Core sync engine (KMP) |
-| `:hilt` | `com.les.databuoy:data-buoy-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
+| `:syncable-objects` | `com.les.databuoy:syncable-objects` | Core sync engine (KMP) |
+| `:hilt` | `com.les.databuoy:syncable-objects-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
 | `:testing` | `com.les.databuoy:testing` | Test utilities — mock server, in-memory DB, test doubles |
 
 ## Detailed Guides
@@ -347,7 +347,7 @@ The `docs/` directory contains step-by-step guides for integrating data-buoy int
 ## Build
 
 ```bash
-./gradlew :data-buoy:build
+./gradlew :syncable-objects:build
 ./gradlew :hilt:build
 ./gradlew :testing:build
 ```
@@ -361,7 +361,7 @@ To run tests:
 To publish to local Maven:
 
 ```bash
-./gradlew :data-buoy:publishToMavenLocal
+./gradlew :syncable-objects:publishToMavenLocal
 ./gradlew :hilt:publishToMavenLocal
 ./gradlew :testing:publishToMavenLocal
 ```

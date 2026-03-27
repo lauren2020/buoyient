@@ -28,7 +28,7 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle-
 
       - name: Run tests
-        run: ./gradlew :data-buoy:jvmTest :testing:test
+        run: ./gradlew :syncable-objects:jvmTest :testing:test
 
       - name: Decode GPG key
         run: echo "${{ secrets.GPG_KEY_ARMOR }}" | base64 -d > /tmp/secring.gpg

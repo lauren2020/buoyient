@@ -12,8 +12,8 @@ kotlin {
 }
 
 dependencies {
-    // Depend on the JVM variant of the KMP :data-buoy module.
-    api(project(":data-buoy")) {
+    // Depend on the JVM variant of the KMP :syncable-objects module.
+    api(project(":syncable-objects")) {
         attributes {
             attribute(
                 org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.attribute,
@@ -39,8 +39,8 @@ publishing {
         create<MavenPublication>("maven") {
             from(components["java"])
             pom {
-                name.set("data-buoy-testing")
-                description.set("Test utilities for data-buoy: mock server, in-memory database, and test doubles.")
+                name.set("syncable-objects-testing")
+                description.set("Test utilities for syncable-objects: mock server, in-memory database, and test doubles.")
                 url.set("https://github.com/lauren2020/data-buoy")
                 licenses {
                     license {

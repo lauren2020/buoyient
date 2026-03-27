@@ -1,4 +1,4 @@
-# data-buoy consumer ProGuard rules
+# syncable-objects consumer ProGuard rules
 # These rules are bundled into the AAR and applied automatically by consumers.
 
 # Keep kotlinx.serialization-generated serializers — required for SyncCodec

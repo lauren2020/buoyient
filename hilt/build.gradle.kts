@@ -37,7 +37,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":data-buoy"))
+    implementation(project(":syncable-objects"))
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.startup)
@@ -53,10 +53,10 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 from(components["release"])
-                artifactId = "data-buoy-hilt"
+                artifactId = "syncable-objects-hilt"
                 pom {
-                    name.set("data-buoy-hilt")
-                    description.set("Optional Hilt integration for data-buoy: auto-registers SyncableObjectService instances via @IntoSet multibinding.")
+                    name.set("syncable-objects-hilt")
+                    description.set("Optional Hilt integration for syncable-objects: auto-registers SyncableObjectService instances via @IntoSet multibinding.")
                     url.set("https://github.com/lauren2020/data-buoy")
                     licenses {
                         license {

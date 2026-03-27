@@ -137,7 +137,7 @@ publishing {
     }
     publications.withType<MavenPublication> {
         pom {
-            name.set("data-buoy")
+            name.set("syncable-objects")
             description.set("Kotlin Multiplatform offline-first sync library with bidirectional sync, conflict resolution, and automatic retries.")
             url.set("https://github.com/lauren2020/data-buoy")
             licenses {

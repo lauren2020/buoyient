@@ -13,7 +13,7 @@ import io.ktor.client.HttpClient
  * pull-to-refresh). Platform-specific methods (e.g. `registerServiceProvider`
  * on Android) are available as extension functions.
  *
- * If using the `data-buoy-hilt` artifact on Android, registration is handled
+ * If using the `syncable-objects-hilt` artifact on Android, registration is handled
  * automatically — just provide your services via Hilt's `@IntoSet` multibinding.
  *
  * **AI agents:** See `CLAUDE.md` / `CODEX.md` at the repository root (or under `META-INF/`

@@ -17,6 +17,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "data-buoy"
-include(":data-buoy")
+include(":syncable-objects")
 include(":hilt")
 include(":testing")

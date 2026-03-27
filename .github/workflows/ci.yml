@@ -28,8 +28,8 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Run :data-buoy JVM tests
-        run: ./gradlew :data-buoy:jvmTest
+      - name: Run :syncable-objects JVM tests
+        run: ./gradlew :syncable-objects:jvmTest
 
       - name: Run :testing tests
         run: ./gradlew :testing:test

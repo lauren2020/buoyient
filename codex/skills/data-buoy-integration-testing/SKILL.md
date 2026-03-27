@@ -19,7 +19,7 @@ testImplementation(project(":testing"))
 testImplementation("com.les.databuoy:testing:<version>")
 ```
 
-The `:testing` module transitively provides everything from `:data-buoy`, plus `ktor-client-mock` and an in-memory SQLite driver. No additional test dependencies are needed.
+The `:testing` module transitively provides everything from `:syncable-objects`, plus `ktor-client-mock` and an in-memory SQLite driver. No additional test dependencies are needed.
 
 ---
 

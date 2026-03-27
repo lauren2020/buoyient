@@ -14,7 +14,7 @@ Add the data-buoy artifacts to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.les.databuoy:data-buoy:<version>")
+    implementation("com.les.databuoy:syncable-objects:<version>")
 }
 ```
 
@@ -22,8 +22,8 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("com.les.databuoy:data-buoy:<version>")
-    implementation("com.les.databuoy:data-buoy-hilt:<version>")
+    implementation("com.les.databuoy:syncable-objects:<version>")
+    implementation("com.les.databuoy:syncable-objects-hilt:<version>")
 }
 ```
 
@@ -42,7 +42,7 @@ Replace `<version>` with the current release version.
 
 ### Transitive dependencies
 
-The `:data-buoy` module exposes `kotlinx-serialization-json` as an `api` dependency — it appears transitively and you do **not** need to add it yourself unless you need a different version:
+The `:syncable-objects` module exposes `kotlinx-serialization-json` as an `api` dependency — it appears transitively and you do **not** need to add it yourself unless you need a different version:
 
 | Dependency | Purpose |
 |-----------|---------|
@@ -93,7 +93,7 @@ Before data-buoy can sync anything, you need to register your services for backg
 
 ### Option A: Hilt multibinding (recommended for Hilt apps)
 
-If you added the `data-buoy-hilt` artifact, registration is fully automatic. Just provide `@IntoSet` bindings in a Hilt module:
+If you added the `syncable-objects-hilt` artifact, registration is fully automatic. Just provide `@IntoSet` bindings in a Hilt module:
 
 ```kotlin
 @Module

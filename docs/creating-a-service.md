@@ -571,14 +571,14 @@ The service must be registered so that `SyncWorker` includes it in background sy
 
 ### Option A: Hilt multibinding (recommended for Hilt apps)
 
-If the consuming app uses Hilt and depends on the `data-buoy-hilt` artifact, registration is fully automatic. The consumer just provides `@IntoSet` bindings — no `Application.onCreate()` override or manual registration needed.
+If the consuming app uses Hilt and depends on the `syncable-objects-hilt` artifact, registration is fully automatic. The consumer just provides `@IntoSet` bindings — no `Application.onCreate()` override or manual registration needed.
 
 Add the dependency:
 
 ```kotlin
 // build.gradle.kts
-implementation("com.les.databuoy:data-buoy:<version>")
-implementation("com.les.databuoy:data-buoy-hilt:<version>")
+implementation("com.les.databuoy:syncable-objects:<version>")
+implementation("com.les.databuoy:syncable-objects-hilt:<version>")
 ```
 
 Then provide services' sync participants via a standard Hilt module:
