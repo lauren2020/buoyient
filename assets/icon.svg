@@ -1,29 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <!-- Wave background -->
-  <path d="M0 130 Q25 110, 50 120 T100 115 T150 125 T200 118 L200 200 L0 200 Z" fill="#1a6fb5" opacity="0.35"/>
-  <path d="M0 145 Q30 125, 60 138 T120 130 T180 140 T200 135 L200 200 L0 200 Z" fill="#1a6fb5" opacity="0.5"/>
-  <path d="M0 158 Q35 140, 70 152 T140 146 T200 155 L200 200 L0 200 Z" fill="#1a6fb5" opacity="0.7"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="200" height="200" fill="none">
+  <!-- Orbital arcs -->
+  <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Sync arrows -->
+  <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 
   <!-- Buoy body -->
-  <!-- Antenna/pole -->
-  <rect x="96" y="52" width="8" height="50" rx="3" fill="#555"/>
-  <!-- Top light -->
-  <circle cx="100" cy="50" r="8" fill="#e74c3c"/>
-  <circle cx="100" cy="50" r="4" fill="#ff8a80" opacity="0.7"/>
+  <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+  <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
 
-  <!-- Main buoy shape -->
-  <ellipse cx="100" cy="118" rx="30" ry="22" fill="#e74c3c"/>
-  <!-- White stripe -->
-  <rect x="70" y="112" width="60" height="12" rx="2" fill="white" clip-path="url(#buoyClip)"/>
-  <clipPath id="buoyClip">
-    <ellipse cx="100" cy="118" rx="30" ry="22"/>
-  </clipPath>
+  <!-- Beacon light -->
+  <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+  <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
 
-  <!-- Water over buoy (front wave) -->
-  <path d="M0 158 Q35 140, 70 152 T140 146 T200 155 L200 200 L0 200 Z" fill="#1a6fb5" opacity="0.85"/>
-
-  <!-- Data sync dots on the buoy stripe -->
-  <circle cx="88" cy="118" r="3" fill="#1a6fb5"/>
-  <circle cx="100" cy="118" r="3" fill="#1a6fb5"/>
-  <circle cx="112" cy="118" r="3" fill="#1a6fb5"/>
+  <!-- Wave accent -->
+  <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
 </svg>
