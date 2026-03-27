@@ -8,8 +8,8 @@ import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
 import com.les.databuoy.serviceconfigs.SyncUpConfig
 import com.les.databuoy.serviceconfigs.SyncUpResult
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
-import com.les.databuoy.syncableobjectservicedatatypes.SquashRequestMerger
+import com.les.databuoy.datatypes.HttpRequest
+import com.les.databuoy.datatypes.SquashRequestMerger
 import com.les.databuoy.testing.TestServiceEnvironment
 import com.les.databuoy.testing.registerCrudHandlers
 import com.les.databuoy.utils.SyncCodec

@@ -1,4 +1,4 @@
-package com.les.databuoy.syncableobjectservicedatatypes
+package com.les.databuoy.datatypes
 
 /**
  * State emitted by the flow-based service operations

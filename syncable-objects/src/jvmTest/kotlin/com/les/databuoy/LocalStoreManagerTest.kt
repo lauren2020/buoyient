@@ -6,7 +6,7 @@ import com.les.databuoy.managers.LocalStoreManager
 import com.les.databuoy.managers.PendingRequestQueueManager
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.sync.SyncScheduleNotifier
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.utils.SyncCodec
 import kotlinx.serialization.json.JsonObject
 import kotlin.test.Test

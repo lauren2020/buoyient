@@ -1,6 +1,6 @@
 package com.les.databuoy.managers
 
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.serviceconfigs.PendingRequestQueueStrategy
 import com.les.databuoy.ServiceRequestTag
 import com.les.databuoy.utils.StorageCodec

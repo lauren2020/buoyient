@@ -47,7 +47,7 @@ Create a class that configures the `MockEndpointRouter` with realistic fake resp
 ```kotlin
 package com.example.yourapp.testing
 
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.testing.MockEndpointRouter
 import com.les.databuoy.testing.MockResponse
 import kotlinx.serialization.json.JsonArray

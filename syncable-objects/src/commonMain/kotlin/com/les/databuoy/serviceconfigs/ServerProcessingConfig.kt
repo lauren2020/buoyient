@@ -1,7 +1,7 @@
 package com.les.databuoy.serviceconfigs
 
 import com.les.databuoy.SyncableObject
-import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
+import com.les.databuoy.datatypes.ResponseUnpacker
 import kotlinx.serialization.json.JsonObject
 
 public interface ServerProcessingConfig<O : SyncableObject<O>> {
@@ -98,11 +98,11 @@ public interface ServerProcessingConfig<O : SyncableObject<O>> {
         }
 
         /**
-         * Configures sync-up by delegating to an existing [com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker], so you can
+         * Configures sync-up by delegating to an existing [com.les.databuoy.datatypes.ResponseUnpacker], so you can
          * define your response parsing logic once and reuse it for both synchronous operations
          * and async sync-up.
          *
-         * @param unpacker the [com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker] to delegate to.
+         * @param unpacker the [com.les.databuoy.datatypes.ResponseUnpacker] to delegate to.
          */
         public fun syncUpFromUnpacker(unpacker: ResponseUnpacker<O>): Builder<O> = apply {
             upConfig = SyncUpConfig.fromUnpacker(unpacker)
@@ -113,7 +113,7 @@ public interface ServerProcessingConfig<O : SyncableObject<O>> {
          *
          * At request time, headers are concatenated in order: global headers
          * ([com.les.databuoy.globalconfigs.DataBuoy.globalHeaderProvider]), then these service headers, then per-request
-         * headers ([com.les.databuoy.syncableobjectservicedatatypes.HttpRequest.additionalHeaders]). If the same header name appears in
+         * headers ([com.les.databuoy.datatypes.HttpRequest.additionalHeaders]). If the same header name appears in
          * multiple lists, both values are sent — they are not deduplicated. Avoid setting
          * the same header name here and in the global provider.
          */

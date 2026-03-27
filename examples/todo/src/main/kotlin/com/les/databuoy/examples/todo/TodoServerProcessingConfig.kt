@@ -1,6 +1,6 @@
 package com.les.databuoy.examples.todo
 
-import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
+import com.les.databuoy.datatypes.ResponseUnpacker
 import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray

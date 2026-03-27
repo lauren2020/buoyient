@@ -12,7 +12,7 @@ import com.les.databuoy.serviceconfigs.SyncUpResult
 import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.SyncScheduleNotifier
 import com.les.databuoy.sync.SyncUpCoordinator
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.testing.NoOpSyncScheduleNotifier
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.utils.SyncCodec
@@ -41,8 +41,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Tests for cross-service placeholder resolution: [com.les.databuoy.syncableobjectservicedatatypes.HttpRequest.crossServiceServerIdPlaceholder],
- * [com.les.databuoy.syncableobjectservicedatatypes.HttpRequest.containsCrossServicePlaceholders], [com.les.databuoy.syncableobjectservicedatatypes.HttpRequest.resolveCrossServicePlaceholders],
+ * Tests for cross-service placeholder resolution: [com.les.databuoy.datatypes.HttpRequest.crossServiceServerIdPlaceholder],
+ * [com.les.databuoy.datatypes.HttpRequest.containsCrossServicePlaceholders], [com.les.databuoy.datatypes.HttpRequest.resolveCrossServicePlaceholders],
  * and end-to-end resolution through [com.les.databuoy.sync.SyncUpCoordinator].
  */
 class CrossServicePlaceholderTest {

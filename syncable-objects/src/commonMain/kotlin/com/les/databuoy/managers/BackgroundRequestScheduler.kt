@@ -1,6 +1,6 @@
 package com.les.databuoy.managers
 
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 
 /**
  * Platform-agnostic interface for scheduling fire-and-forget HTTP requests

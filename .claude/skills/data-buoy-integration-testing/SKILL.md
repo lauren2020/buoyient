@@ -27,7 +27,7 @@ The `:testing` module transitively provides everything from `:syncable-objects`,
 
 Classes from the `:testing` module are in `com.les.databuoy.testing`. When writing tests you'll also need types from the core library — note the package reorganization:
 - Service configs (`ServerProcessingConfig`, `ConnectivityChecker`, etc.) are in `com.les.databuoy.serviceconfigs`
-- Data types for service operations (`HttpRequest`, `SyncableObjectServiceResponse`, etc.) are in `com.les.databuoy.syncableobjectservicedatatypes`
+- Data types for service operations (`HttpRequest`, `SyncableObjectServiceResponse`, etc.) are in `com.les.databuoy.datatypes`
 - Utilities (`SyncCodec`, `DataBuoyLog`) are in `com.les.databuoy.utils`
 
 ---

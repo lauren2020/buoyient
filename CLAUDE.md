@@ -22,7 +22,7 @@ The `:syncable-objects` module organizes its public API into packages by role:
 | `com.les.databuoy` (top level) | Primary classes consumers build on: `SyncableObject`, `SyncableObjectService`, `ServiceRequestTag`, `Service` |
 | `com.les.databuoy.globalconfigs` | Project-level configuration: `DataBuoy`, `GlobalHeaderProvider`, `DatabaseProvider`, `HttpClientOverride`, `DatabaseOverride` |
 | `com.les.databuoy.serviceconfigs` | Per-service configuration: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler` |
-| `com.les.databuoy.syncableobjectservicedatatypes` | Data types for interacting with `SyncableObjectService`: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger` |
+| `com.les.databuoy.datatypes` | Data types for interacting with `SyncableObjectService`: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger` |
 | `com.les.databuoy.utils` | Utilities: `SyncCodec`, `DataBuoyLog`, `DataBuoyLogger` |
 
 Internal packages (`managers`, `sync`) are not part of the public API.
@@ -44,16 +44,16 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `SyncableObjectRebaseHandler<O>` | `serviceconfigs` | 3-way merge conflict detection and resolution |
 | `EncryptionProvider` | `serviceconfigs` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
 | `ConnectivityChecker` | `serviceconfigs` | Interface for online/offline detection — pass to service constructor |
-| `HttpRequest` | `syncableobjectservicedatatypes` | HTTP request builder with placeholder resolution for offline requests |
-| `SyncableObjectServiceResponse<O>` | `syncableobjectservicedatatypes` | Sealed response type for all service operations |
-| `SyncableObjectServiceRequestState<O>` | `syncableobjectservicedatatypes` | Sealed state type for flow-based operations: `Loading` or `Result(response)` |
-| `GetResponse<O>` | `syncableobjectservicedatatypes` | Sealed response type for `get()` operations |
-| `ResolveConflictResult<O>` | `syncableobjectservicedatatypes` | Sealed result type for conflict resolution |
-| `CreateRequestBuilder` | `syncableobjectservicedatatypes` | Functional interface for building create requests |
-| `UpdateRequestBuilder` | `syncableobjectservicedatatypes` | Functional interface for building update requests |
-| `VoidRequestBuilder` | `syncableobjectservicedatatypes` | Functional interface for building void requests |
-| `ResponseUnpacker` | `syncableobjectservicedatatypes` | Functional interface for extracting objects from server responses |
-| `SquashRequestMerger` | `syncableobjectservicedatatypes` | Functional interface for merging an update into a pending create when using `Squash` strategy |
+| `HttpRequest` | `datatypes` | HTTP request builder with placeholder resolution for offline requests |
+| `SyncableObjectServiceResponse<O>` | `datatypes` | Sealed response type for all service operations |
+| `SyncableObjectServiceRequestState<O>` | `datatypes` | Sealed state type for flow-based operations: `Loading` or `Result(response)` |
+| `GetResponse<O>` | `datatypes` | Sealed response type for `get()` operations |
+| `ResolveConflictResult<O>` | `datatypes` | Sealed result type for conflict resolution |
+| `CreateRequestBuilder` | `datatypes` | Functional interface for building create requests |
+| `UpdateRequestBuilder` | `datatypes` | Functional interface for building update requests |
+| `VoidRequestBuilder` | `datatypes` | Functional interface for building void requests |
+| `ResponseUnpacker` | `datatypes` | Functional interface for extracting objects from server responses |
+| `SquashRequestMerger` | `datatypes` | Functional interface for merging an update into a pending create when using `Squash` strategy |
 | `getFromLocalStore()` | (on `SyncableObjectService`) | Overloaded query methods — filter by `syncStatus` string / `includeVoided` flag (SQL-level), or by `(O) -> Boolean` predicate (in-memory) |
 | `SyncCodec<O>` | `utils` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
 | `DataBuoyLog` | `utils` | Process-wide logger singleton — set `DataBuoyLog.logger` to swap the backing `DataBuoyLogger` |

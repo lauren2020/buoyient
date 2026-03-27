@@ -3,7 +3,7 @@ package com.les.databuoy
 import com.les.databuoy.managers.LocalStoreManager
 import com.les.databuoy.serviceconfigs.EncryptionProvider
 import com.les.databuoy.sync.SyncScheduleNotifier
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.testing.TestDatabaseFactory
 import com.les.databuoy.utils.SyncCodec
 import kotlin.io.encoding.Base64

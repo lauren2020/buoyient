@@ -1,4 +1,4 @@
-package com.les.databuoy.syncableobjectservicedatatypes
+package com.les.databuoy.datatypes
 
 import com.les.databuoy.managers.PendingSyncRequest
 import com.les.databuoy.SyncableObject

@@ -3,7 +3,7 @@ package com.les.databuoy.managers
 import com.les.databuoy.globalconfigs.GlobalHeaderProvider
 import com.les.databuoy.globalconfigs.GlobalHeaderProviderRegistry
 import com.les.databuoy.globalconfigs.HttpClientOverride
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.utils.DataBuoyLog
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpRequestTimeoutException

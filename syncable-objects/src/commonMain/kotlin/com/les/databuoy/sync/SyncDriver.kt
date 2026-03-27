@@ -1,6 +1,6 @@
 package com.les.databuoy.sync
 
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.managers.PendingSyncRequest
 import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.ServiceRequestTag

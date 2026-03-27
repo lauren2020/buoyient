@@ -1,4 +1,4 @@
-package com.les.databuoy.syncableobjectservicedatatypes
+package com.les.databuoy.datatypes
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement

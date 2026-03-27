@@ -4,7 +4,7 @@ import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.serviceconfigs.SyncFetchConfig
 import com.les.databuoy.serviceconfigs.SyncUpConfig
 import com.les.databuoy.serviceconfigs.SyncUpResult
-import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
+import com.les.databuoy.datatypes.ResponseUnpacker
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put

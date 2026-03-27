@@ -13,15 +13,15 @@ import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
 import com.les.databuoy.serviceconfigs.createPlatformConnectivityChecker
 import com.les.databuoy.sync.SyncDriver
 import com.les.databuoy.sync.createPlatformSyncScheduleNotifier
-import com.les.databuoy.syncableobjectservicedatatypes.CreateRequestBuilder
-import com.les.databuoy.syncableobjectservicedatatypes.GetResponse
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
-import com.les.databuoy.syncableobjectservicedatatypes.ResolveConflictResult
-import com.les.databuoy.syncableobjectservicedatatypes.ResponseUnpacker
-import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceRequestState
-import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceResponse
-import com.les.databuoy.syncableobjectservicedatatypes.UpdateRequestBuilder
-import com.les.databuoy.syncableobjectservicedatatypes.VoidRequestBuilder
+import com.les.databuoy.datatypes.CreateRequestBuilder
+import com.les.databuoy.datatypes.GetResponse
+import com.les.databuoy.datatypes.HttpRequest
+import com.les.databuoy.datatypes.ResolveConflictResult
+import com.les.databuoy.datatypes.ResponseUnpacker
+import com.les.databuoy.datatypes.SyncableObjectServiceRequestState
+import com.les.databuoy.datatypes.SyncableObjectServiceResponse
+import com.les.databuoy.datatypes.UpdateRequestBuilder
+import com.les.databuoy.datatypes.VoidRequestBuilder
 import com.les.databuoy.utils.IdGenerator
 import com.les.databuoy.utils.SyncCodec
 import com.les.databuoy.utils.DataBuoyLog
@@ -974,10 +974,10 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
 
     /**
      * Non-suspend wrapper for [create] that launches the operation in the sync driver's scope
-     * and returns a [StateFlow] of [com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceRequestState].
+     * and returns a [StateFlow] of [com.les.databuoy.datatypes.SyncableObjectServiceRequestState].
      *
-     * The flow emits [com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceRequestState.Loading] immediately and then
-     * [com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceRequestState.Result] once the create operation completes.
+     * The flow emits [com.les.databuoy.datatypes.SyncableObjectServiceRequestState.Loading] immediately and then
+     * [com.les.databuoy.datatypes.SyncableObjectServiceRequestState.Result] once the create operation completes.
      */
     protected fun createWithFlow(
         data: O,

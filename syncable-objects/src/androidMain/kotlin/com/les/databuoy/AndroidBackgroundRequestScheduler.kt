@@ -10,7 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.les.databuoy.DataBuoyPlatformContext
 import com.les.databuoy.VoidByIdempotencyKeyWorker
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import java.util.concurrent.TimeUnit
 
 public actual fun createPlatformBackgroundRequestScheduler(): BackgroundRequestScheduler =

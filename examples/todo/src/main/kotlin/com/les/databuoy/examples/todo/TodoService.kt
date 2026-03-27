@@ -1,13 +1,13 @@
 package com.les.databuoy.examples.todo
 
 import com.les.databuoy.serviceconfigs.ConnectivityChecker
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.serviceconfigs.ServerProcessingConfig
 import com.les.databuoy.SyncableObjectService
-import com.les.databuoy.syncableobjectservicedatatypes.SyncableObjectServiceResponse
-import com.les.databuoy.syncableobjectservicedatatypes.UpdateRequestBuilder
-import com.les.databuoy.syncableobjectservicedatatypes.VoidRequestBuilder
-import com.les.databuoy.syncableobjectservicedatatypes.CreateRequestBuilder
+import com.les.databuoy.datatypes.SyncableObjectServiceResponse
+import com.les.databuoy.datatypes.UpdateRequestBuilder
+import com.les.databuoy.datatypes.VoidRequestBuilder
+import com.les.databuoy.datatypes.CreateRequestBuilder
 import com.les.databuoy.serviceconfigs.createPlatformConnectivityChecker
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put

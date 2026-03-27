@@ -1,6 +1,6 @@
 package com.les.databuoy.testing
 
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put

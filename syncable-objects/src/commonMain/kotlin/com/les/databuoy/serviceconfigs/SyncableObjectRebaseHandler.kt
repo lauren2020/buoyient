@@ -1,6 +1,6 @@
 package com.les.databuoy.serviceconfigs
 
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.utils.SyncCodec
 import com.les.databuoy.SyncableObject
 import kotlinx.serialization.json.JsonArray

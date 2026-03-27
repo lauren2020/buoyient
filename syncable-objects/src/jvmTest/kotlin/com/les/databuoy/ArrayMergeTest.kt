@@ -1,7 +1,7 @@
 package com.les.databuoy
 
 import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
-import com.les.databuoy.syncableobjectservicedatatypes.HttpRequest
+import com.les.databuoy.datatypes.HttpRequest
 import com.les.databuoy.utils.SyncCodec
 import kotlinx.serialization.json.JsonObject
 import kotlin.test.Test
