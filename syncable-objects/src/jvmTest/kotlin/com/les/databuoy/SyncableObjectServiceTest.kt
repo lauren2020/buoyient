@@ -19,6 +19,7 @@ import com.les.databuoy.testing.MockConnectionException
 import com.les.databuoy.testing.MockResponse
 import com.les.databuoy.testing.MockTimeoutException
 import com.les.databuoy.testing.TestServiceEnvironment
+import com.les.databuoy.testing.syncUpLocalChanges
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -1373,6 +1374,99 @@ class SyncableObjectServiceTest {
         assertIs<SyncableObjectServiceResponse.Success.NetworkResponseReceived<TestItem>>(result)
         val allItems = service.getAllFromLocalStore()
         assertEquals(1, allItems.size, "Should have 1 row, not a duplicate")
+        service.close()
+    }
+
+    // endregion
+
+    // region sync-up: offline create then update
+
+    /**
+     * Reproduces a bug where sync_data is stuck at PENDING_UPDATE after
+     * offline create + offline update + sync up.
+     *
+     * Root cause: when `fromResponseBody` deserializes the server response
+     * into a data object whose `clientId` differs from the original (e.g.,
+     * the server doesn't echo `client_id` and the model's default generates
+     * a new UUID), the 3-way merge rebase picks up the wrong `clientId` on
+     * the pending UPDATE. The subsequent `upsertEntry` then targets the
+     * wrong row, leaving the original row stuck at PENDING_UPDATE.
+     *
+     * Sequence:
+     *   1. Device offline — create item (clientId = "client-1")
+     *   2. Device offline — update item (clientId = "client-1")
+     *   3. Device online — sync up
+     *   4. CREATE uploaded — server response has clientId = "server-assigned-client"
+     *      (simulates a server that doesn't echo the original client_id)
+     *   5. Rebase of UPDATE picks up the wrong clientId from the server data
+     *   6. UPDATE uploaded — upsertEntry targets the wrong row
+     *   7. BUG: original sync_data row for "client-1" stuck at PENDING_UPDATE
+     */
+    @Test
+    fun `offline create then update - server response with different clientId - status transitions to SYNCED`() = runBlocking {
+        val (service, env) = createServiceAndEnv(online = false)
+
+        val item = testItem(clientId = "client-1", name = "Original", value = 10)
+
+        // Server responses have a DIFFERENT clientId than the original —
+        // this simulates APIs (like Square) where the response JSON does not
+        // include the original client_id field, causing deserialization to
+        // generate a new default value.
+        val serverCreated = testItem(
+            clientId = "server-assigned-client", serverId = "server-1",
+            version = "1", name = "Original", value = 10,
+        )
+        val serverUpdated = testItem(
+            clientId = "server-assigned-client-2", serverId = "server-1",
+            version = "2", name = "Updated", value = 20,
+        )
+
+        // Step 1: Offline create
+        val createResult = service.testCreate(item)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(createResult)
+
+        // Step 2: Offline update
+        val updatedItem = createResult.updatedData.copy(name = "Updated", value = 20, version = "2")
+        val updateResult = service.testUpdate(updatedItem)
+        assertIs<SyncableObjectServiceResponse.Success.StoredLocally<TestItem>>(updateResult)
+
+        // Verify we have 2 pending requests
+        val pendingBefore = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertEquals(2, pendingBefore.size, "Should have 2 pending requests (CREATE + UPDATE)")
+
+        // Set up mock responses
+        env.mockRouter.onPost("https://api.test.com/items") { _ ->
+            MockResponse(201, wrapResponse(serverCreated))
+        }
+        env.mockRouter.onPut("https://api.test.com/items/*") { _ ->
+            MockResponse(200, wrapResponse(serverUpdated))
+        }
+
+        // Step 3: Bring online and sync
+        env.connectivityChecker.online = true
+        val syncedCount = service.syncUpLocalChanges()
+
+        // Assert: both requests processed
+        assertEquals(2, syncedCount, "Both CREATE and UPDATE should have been synced")
+
+        // Assert: no pending requests remain for the original client_id
+        val pendingAfter = env.database.syncPendingEventsQueries
+            .getPendingRequestsByClientId("test-items", "client-1")
+            .executeAsList()
+        assertEquals(0, pendingAfter.size, "No pending requests should remain")
+
+        // Assert: sync_data status is SYNCED for the ORIGINAL client_id
+        val syncDataRow = env.database.syncDataQueries
+            .getData("test-items", "client-1", "server-1")
+            .executeAsOne()
+        assertEquals(
+            SyncableObject.SyncStatus.SYNCED,
+            syncDataRow.sync_status,
+            "sync_data entry for original client_id should be SYNCED, but was: ${syncDataRow.sync_status}"
+        )
+
         service.close()
     }
 

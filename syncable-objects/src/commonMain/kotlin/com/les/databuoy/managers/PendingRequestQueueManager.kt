@@ -222,7 +222,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
             pending_request_id = pendingRequestId.toLong(),
         ).executeAsOneOrNull() ?: return null
         return mapRowToPendingSyncRequest(
-            row.pending_request_id, row.type, row.idempotency_key,
+            row.pending_request_id, row.client_id, row.type, row.idempotency_key,
             row.request, row.server_attempt_made, row.data_blob, row.conflict_info,
             row.base_data, row.request_tag,
         )
@@ -233,7 +233,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
             service_name = serviceName,
             client_id = clientId,
         ).executeAsList().map { row ->
-            mapRowToPendingSyncRequest(row.pending_request_id, row.type, row.idempotency_key,
+            mapRowToPendingSyncRequest(row.pending_request_id, row.client_id, row.type, row.idempotency_key,
                 row.request, row.server_attempt_made, row.data_blob, row.conflict_info, row.base_data,
                 row.request_tag)
         }
@@ -243,7 +243,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
         return database.syncPendingEventsQueries.getAllPendingRequests(
             service_name = serviceName,
         ).executeAsList().map { row ->
-            mapRowToPendingSyncRequest(row.pending_request_id, row.type, row.idempotency_key,
+            mapRowToPendingSyncRequest(row.pending_request_id, row.client_id, row.type, row.idempotency_key,
                 row.request, row.server_attempt_made, row.data_blob, row.conflict_info, row.base_data,
                 row.request_tag)
         }
@@ -251,6 +251,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
 
     private fun mapRowToPendingSyncRequest(
         pendingRequestId: Long,
+        clientId: String,
         type: String,
         idempotencyKey: String,
         request: String,
@@ -261,6 +262,7 @@ internal class PendingRequestQueueManager<O : SyncableObject<O>, T : ServiceRequ
         requestTag: String,
     ): PendingSyncRequest<O> = PendingSyncRequest(
         pendingRequestId = pendingRequestId.toInt(),
+        clientId = clientId,
         type = PendingSyncRequest.Type.fromValue(type),
         idempotencyKey = idempotencyKey,
         request = HttpRequest.Companion.fromJson(

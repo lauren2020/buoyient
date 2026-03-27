@@ -29,10 +29,15 @@ import com.les.databuoy.serviceconfigs.SyncableObjectRebaseHandler
  *  This is used for three-way merge conflict detection. `null` for create operations since creates
  *  are by definition instantiating something new that does not exist yet.
  * @property conflict any field-level conflict detected during rebase, or `null` if no conflict exists.
+ * @property clientId the canonical client ID from the `sync_pending_events.client_id` column.
+ *   This is set at insert time and is **never modified by rebase**, unlike [data]`.clientId`
+ *   which can be corrupted if the server response contains a different client ID.
+ *   Always prefer this property over [data]`.clientId` when identifying the sync_data row.
  * @property requestTag the [com.les.databuoy.ServiceRequestTag.tagValue] identifying which operation produced this request.
  */
 public data class PendingSyncRequest<O : SyncableObject<O>>(
     public val pendingRequestId: Int = -1,
+    public val clientId: String = "",
     public val type: Type,
     public val idempotencyKey: String,
     public val request: HttpRequest,

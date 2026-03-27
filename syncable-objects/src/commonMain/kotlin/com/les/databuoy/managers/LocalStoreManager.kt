@@ -512,7 +512,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLatestData)),
                         last_synced_server_data = resolvedDataJson,
                         service_name = serviceName,
-                        client_id = row.data.clientId,
+                        client_id = row.clientId,
                     )
                 } else {
                     database.syncDataQueries.updateAfterCreateOrUpdateUploadWithoutData(
@@ -522,7 +522,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         sync_status = updatedSyncStatus,
                         last_synced_server_data = resolvedDataJson,
                         service_name = serviceName,
-                        client_id = row.data.clientId,
+                        client_id = row.clientId,
                     )
                 }
             }
@@ -535,7 +535,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     last_synced_server_data = resolvedDataJson,
                     version = latestServerData.version,
                     service_name = serviceName,
-                    client_id = row.data.clientId,
+                    client_id = row.clientId,
                 )
             }
         }
@@ -727,7 +727,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             when (
                 val clearResult = pendingRequestQueueManager.clearPendingRequestAfterUpload(
                     pendingRequestId = syncedPendingRequest.pendingRequestId,
-                    clientId = syncedPendingRequest.data.clientId,
+                    clientId = syncedPendingRequest.clientId,
                 )
             ) {
                 is PendingRequestQueueManager.ClearRequestResult.FailedToRemoveEntry ->
@@ -735,7 +735,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
 
                 is PendingRequestQueueManager.ClearRequestResult.Cleared -> {
                     rebaseData(
-                        clientId = syncedPendingRequest.data.clientId,
+                        clientId = syncedPendingRequest.clientId,
                         lastSyncedTimestamp = lastSyncedTimestamp,
                         updatedServerData = updatedServerData,
                         mergeHandler = mergeHandler,
@@ -809,7 +809,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             when (
                 val clearResult = pendingRequestQueueManager.clearPendingRequestAfterUpload(
                     pendingRequestId = syncedPendingRequest.pendingRequestId,
-                    clientId = syncedPendingRequest.data.clientId,
+                    clientId = syncedPendingRequest.clientId,
                 )
             ) {
                 is PendingRequestQueueManager.ClearRequestResult.FailedToRemoveEntry -> {

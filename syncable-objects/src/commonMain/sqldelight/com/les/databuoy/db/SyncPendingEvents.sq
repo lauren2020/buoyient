@@ -41,14 +41,14 @@ WHERE pending_request_id = ?;
 
 -- Get a single pending request by its ID.
 getPendingRequestById:
-SELECT pending_request_id, type, idempotency_key, request,
+SELECT pending_request_id, client_id, type, idempotency_key, request,
        server_attempt_made, data_blob, conflict_info, base_data, request_tag
 FROM sync_pending_events
 WHERE pending_request_id = ?;
 
 -- Get all pending requests for a specific client_id within a service.
 getPendingRequestsByClientId:
-SELECT pending_request_id, type, idempotency_key, request,
+SELECT pending_request_id, client_id, type, idempotency_key, request,
        server_attempt_made, data_blob, conflict_info, base_data, request_tag
 FROM sync_pending_events
 WHERE service_name = ? AND client_id = ?
@@ -56,7 +56,7 @@ ORDER BY queued_at;
 
 -- Get all pending requests for a service.
 getAllPendingRequests:
-SELECT pending_request_id, type, idempotency_key, request,
+SELECT pending_request_id, client_id, type, idempotency_key, request,
        server_attempt_made, data_blob, conflict_info, base_data, request_tag
 FROM sync_pending_events
 WHERE service_name = ?

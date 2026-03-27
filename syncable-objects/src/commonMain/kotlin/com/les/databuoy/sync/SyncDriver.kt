@@ -215,7 +215,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
                 return false
             }
             var synced = false
-            withClientLock(entry.data.clientId) {
+            withClientLock(entry.clientId) {
                 // Re-fetch inside the lock to ensure we have the latest state
                 // after acquiring exclusive access for this clientId.
                 val lockedEntry = localStoreManager.pendingRequestQueueManager
@@ -227,7 +227,7 @@ public class SyncDriver<O : SyncableObject<O>, T : ServiceRequestTag> internal c
             throw e
         } catch (e: Exception) {
             val type = entry?.type ?: "unknown"
-            val clientId = entry?.data?.clientId ?: "unknown"
+            val clientId = entry?.clientId ?: "unknown"
             SyncLog.e(TAG, "Error syncing $type for $clientId.", e)
             false
         }
