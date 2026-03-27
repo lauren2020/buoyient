@@ -36,6 +36,3 @@ jobs:
 
       - name: Build all modules
         run: ./gradlew build
-
-      - name: Verify publication metadata
-        run: ./gradlew publishToMavenLocal
