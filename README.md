@@ -17,7 +17,7 @@ For humans, this project offers an (ironically, agent generated) html formatted 
 - How it works
 - Setup guidance
 
-Check it out: [Why buoyient?](https://github.com/lauren2020/buoyient/docs-site/setup.html)
+Check it out: [Why buoyient?](https://lauren2020.github.io/buoyient/why-buoyient.html)
 
 **AI agents:** This repo includes agent instruction files with detailed integration instructions, key class reference, and conventions: [`CLAUDE.md`](CLAUDE.md), [`CODEX.md`](CODEX.md), [`.cursorrules`](.cursorrules), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md). If you are consuming buoyient as a maven dependency, these are bundled in the published JAR under `META-INF/`. The [`docs/`](docs/) directory contains step-by-step guides for setup, service creation, testing, and mock mode.
 - This includes optimization through several rounds of testing having agents attempt to implement this SDK in a project and provide feedback. That feedback was then incrementally applied to the SDK to improve its agentic compatibility.
