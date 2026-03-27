@@ -140,4 +140,141 @@ class ArrayMergeTest {
         assertEquals(listOf("x", "y"), merged.tags,
             "Merged should contain local additions then server additions")
     }
+
+    // region Server-enriched nested objects
+
+    private val orderCodec = SyncCodec(TestOrder.serializer())
+    private val orderMergeHandler = SyncableObjectRebaseHandler(orderCodec)
+
+    private fun testOrder(
+        clientId: String = "c1",
+        serverId: String? = null,
+        version: String? = null,
+        name: String = "Order-1",
+        items: List<LineItem> = emptyList(),
+    ) = TestOrder(serverId, clientId, version, SyncableObject.SyncStatus.LocalOnly, name, items)
+
+    private fun makeOrderRequest(
+        body: JsonObject = JsonObject(emptyMap()),
+    ) = HttpRequest(
+        method = HttpRequest.HttpMethod.PUT,
+        endpointUrl = "https://api.test.com/orders/srv-1",
+        requestBody = body,
+    )
+
+    /**
+     * Reproduces the bug from manual testing:
+     *
+     * 1. Device offline — create an order with 1 line item
+     * 2. Update the order by adding a second line item (first unchanged)
+     * 3. Device online — create syncs; server assigns IDs to the parent AND the line item
+     * 4. Rebase the pending update against the enriched server data
+     *
+     * Before the fix, the rebase reports a conflict on "items" because the
+     * set-based element comparison fails — the server-enriched line item
+     * (with a server_id) doesn't match the base line item (server_id = null).
+     *
+     * Expected: merge succeeds, taking the server's enriched first item
+     * and appending the locally-added second item.
+     */
+    @Test
+    fun `server-enriched array elements do not conflict with local additions`() {
+        val widget = LineItem(name = "Widget", quantity = 1)
+        val widgetEnriched = LineItem(name = "Widget", quantity = 1, serverId = "li-1")
+        val gadget = LineItem(name = "Gadget", quantity = 2)
+
+        val base = testOrder(items = listOf(widget))
+        val server = testOrder(
+            serverId = "srv-1",
+            version = "1",
+            items = listOf(widgetEnriched),
+        )
+        val local = testOrder(items = listOf(widget, gadget))
+
+        val result = orderMergeHandler.rebaseDataForPendingRequest(
+            oldBaseData = base,
+            currentData = local,
+            newBaseData = server,
+            pendingHttpRequest = makeOrderRequest(),
+            pendingRequestId = 1,
+            requestTag = "default",
+        )
+
+        assertIs<SyncableObjectRebaseHandler.RebaseResult.Rebased<TestOrder>>(result,
+            "Server enriching existing elements while local only appends should not conflict")
+
+        val merged = result.mergedData
+        assertEquals(
+            listOf(widgetEnriched, gadget),
+            merged.items,
+            "Merged items should have the server-enriched first item and the locally-added second item",
+        )
+    }
+
+    /**
+     * Reverse direction: server adds a new element while local modifies
+     * an existing element. Should also merge without conflict.
+     */
+    @Test
+    fun `local-modified array elements do not conflict with server additions`() {
+        val widget = LineItem(name = "Widget", quantity = 1)
+        val widgetUpdated = LineItem(name = "Widget", quantity = 5) // local changed quantity
+        val gadget = LineItem(name = "Gadget", quantity = 2)
+
+        val base = testOrder(items = listOf(widget))
+        val server = testOrder(
+            serverId = "srv-1",
+            version = "1",
+            items = listOf(widget, gadget), // server added gadget
+        )
+        val local = testOrder(items = listOf(widgetUpdated)) // local changed widget
+
+        val result = orderMergeHandler.rebaseDataForPendingRequest(
+            oldBaseData = base,
+            currentData = local,
+            newBaseData = server,
+            pendingHttpRequest = makeOrderRequest(),
+            pendingRequestId = 1,
+            requestTag = "default",
+        )
+
+        assertIs<SyncableObjectRebaseHandler.RebaseResult.Rebased<TestOrder>>(result,
+            "Server adding elements while local modifies existing should not conflict")
+
+        val merged = result.mergedData
+        assertEquals(
+            listOf(widgetUpdated, gadget),
+            merged.items,
+            "Merged items should have the locally-modified first item and the server-added second item",
+        )
+    }
+
+    /**
+     * Both sides modified the same existing element — this IS a real conflict
+     * and should still be reported.
+     */
+    @Test
+    fun `both sides modifying same array element is still a conflict`() {
+        val widget = LineItem(name = "Widget", quantity = 1)
+        val widgetLocal = LineItem(name = "Widget Updated", quantity = 1)
+        val widgetServer = LineItem(name = "Widget", quantity = 1, serverId = "li-1")
+
+        val base = testOrder(items = listOf(widget))
+        val server = testOrder(serverId = "srv-1", version = "1", items = listOf(widgetServer))
+        val local = testOrder(items = listOf(widgetLocal))
+
+        val result = orderMergeHandler.rebaseDataForPendingRequest(
+            oldBaseData = base,
+            currentData = local,
+            newBaseData = server,
+            pendingHttpRequest = makeOrderRequest(),
+            pendingRequestId = 1,
+            requestTag = "default",
+        )
+
+        assertIs<SyncableObjectRebaseHandler.RebaseResult.Conflict<TestOrder>>(result,
+            "Both sides modifying the same element should still be a conflict")
+    }
+
+    // endregion
 }

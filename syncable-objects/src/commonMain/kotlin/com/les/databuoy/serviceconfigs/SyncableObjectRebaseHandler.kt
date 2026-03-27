@@ -219,10 +219,21 @@ public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
 
     /**
      * If [baseVal], [localVal], and [serverVal] are all [kotlinx.serialization.json.JsonArray]s (or base is null)
-     * and both local and server are strict supersets of base (only additions, no removals),
-     * returns a merged array containing base elements + local additions + server additions.
+     * and the changes from both sides are compatible, returns a merged array.
      *
-     * Returns `null` if the values are not arrays or if either side removed elements.
+     * Two merge strategies are tried:
+     *
+     * 1. **Set-based** (original): both sides are strict supersets of base (only additions,
+     *    no removals). Works well for arrays of primitives or stable objects.
+     *
+     * 2. **Positional** (fallback): one side only appended new elements at the end
+     *    (its prefix matches base positionally) while the other may have modified
+     *    existing elements in place (e.g., the server enriching nested objects with
+     *    server-assigned IDs). The merge takes the modified side's elements and
+     *    appends the other side's additions.
+     *
+     * Returns `null` if neither strategy can produce a safe merge (both sides
+     * modified the same existing elements, or either side removed elements).
      */
     private fun tryMergeArrayAdditions(
         baseVal: JsonElement?,
@@ -235,16 +246,53 @@ public open class SyncableObjectRebaseHandler<O : SyncableObject<O>>(
 
         val baseElements = baseArray.toSet()
 
-        // Both sides must contain every base element (no removals).
-        if (!localArray.toSet().containsAll(baseElements)) return null
-        if (!serverArray.toSet().containsAll(baseElements)) return null
+        // Fast path: both sides only added elements (exact element match).
+        if (localArray.toSet().containsAll(baseElements) && serverArray.toSet().containsAll(baseElements)) {
+            val localAdditions = localArray.filter { it !in baseElements }
+            val serverAdditions = serverArray.filter { it !in baseElements }
+            val merged = baseArray + localAdditions + serverAdditions.filter { it !in localArray.toSet() }
+            return JsonArray(merged)
+        }
 
-        val localAdditions = localArray.filter { it !in baseElements }
-        val serverAdditions = serverArray.filter { it !in baseElements }
+        // Positional fallback: handles the common case where the server enriches
+        // existing array elements (e.g. assigns IDs to nested objects after a create)
+        // while the local side only appended new elements, or vice-versa.
+        val baseSize = baseArray.size
 
-        // Preserve order: base elements + local additions + server-only additions.
-        val merged = baseArray + localAdditions + serverAdditions.filter { it !in localArray.toSet() }
-        return JsonArray(merged)
+        // Check if local preserved all base elements at their original positions.
+        val localOnlyAppended = localArray.size >= baseSize &&
+            (0 until baseSize).all { localArray[it] == baseArray[it] }
+
+        // Check if server preserved all base elements at their original positions.
+        val serverOnlyAppended = serverArray.size >= baseSize &&
+            (0 until baseSize).all { serverArray[it] == baseArray[it] }
+
+        return when {
+            localOnlyAppended && serverOnlyAppended -> {
+                // Both only appended — merge additions from both sides.
+                val localAdditions = localArray.subList(baseSize, localArray.size)
+                val serverAdditions = serverArray.subList(baseSize, serverArray.size)
+                JsonArray(baseArray + localAdditions + serverAdditions.filter { it !in localArray.toSet() })
+            }
+
+            localOnlyAppended -> {
+                // Local only appended; server may have modified existing elements.
+                // Reject if server removed elements.
+                if (serverArray.size < baseSize) return null
+                val localAdditions = localArray.subList(baseSize, localArray.size)
+                JsonArray(serverArray + localAdditions)
+            }
+
+            serverOnlyAppended -> {
+                // Server only appended; local may have modified existing elements.
+                // Reject if local removed elements.
+                if (localArray.size < baseSize) return null
+                val serverAdditions = serverArray.subList(baseSize, serverArray.size)
+                JsonArray(localArray + serverAdditions)
+            }
+
+            else -> null // Both modified existing elements — can't auto-merge.
+        }
     }
 
     // endregion
