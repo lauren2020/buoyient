@@ -182,7 +182,7 @@ class ConvenienceApiTest {
                 requestBody = requestBody,
                 syncCadenceSeconds = 120,
             ) { emptyList() }
-            .syncUp { _, responseBody ->
+            .syncUp { _, _ ->
                 SyncUpResult.Failed.RemovePendingRequest()
             }
             .build()

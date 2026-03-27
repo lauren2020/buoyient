@@ -137,7 +137,7 @@ class ConflictResolutionTest {
         assertIs<SyncableObject.SyncStatus.Conflict>(conflictedEntry.syncStatus,
             "sync_data row should be in CONFLICT status")
 
-        val conflictInfo = (conflictedEntry.syncStatus as SyncableObject.SyncStatus.Conflict).conflictInfo
+        val conflictInfo = conflictedEntry.syncStatus.conflictInfo
         assertTrue(conflictInfo.any { it.fieldName == "name" },
             "Conflict should include the 'name' field")
 

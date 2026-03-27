@@ -149,7 +149,7 @@ class EncryptionIntegrationTest {
         assertNotNull(entry)
         assertEquals("item1", entry.data.name)
         assertNotNull(entry.latestServerData)
-        assertEquals("item1", entry.latestServerData!!.name)
+        assertEquals("item1", entry.latestServerData.name)
     }
 
     @Test

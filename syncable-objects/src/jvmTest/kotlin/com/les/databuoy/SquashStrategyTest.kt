@@ -57,7 +57,7 @@ class SquashStrategyTest {
         put("data", json.encodeToJsonElement(TestItem.serializer(), item))
     }
 
-    private fun testServerConfig(squashMerger: SquashRequestMerger) = object :
+    private fun testServerConfig(@Suppress("UNUSED_PARAMETER") squashMerger: SquashRequestMerger) = object :
         ServerProcessingConfig<TestItem> {
         override val syncFetchConfig = SyncFetchConfig.GetFetchConfig<TestItem>(
             endpoint = "https://api.test.com/items",
@@ -100,13 +100,6 @@ class SquashStrategyTest {
         }
 
         val codec = SyncCodec(TestItem.serializer())
-        val localStore = LocalStoreManager<TestItem, TestRequestTag>(
-            database = env.database,
-            serviceName = "test-items",
-            syncScheduleNotifier = env.syncScheduleNotifier,
-            codec = codec,
-            // Use squash strategy
-        )
 
         // We need to create a PendingRequestQueueManager with squash strategy directly
         // since LocalStoreManager defaults to Queue. Let's test via the queue manager.

@@ -271,7 +271,7 @@ class SyncUpRegressionTest {
         val updateResponse = updateData.copy(serverId = "server_1")
 
         var requestCount = 0
-        val mockEngine = MockEngine { request ->
+        val mockEngine = MockEngine { _ ->
             requestCount++
             val responseItem = if (requestCount == 1) createResponse else updateResponse
             respond(

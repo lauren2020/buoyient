@@ -171,7 +171,7 @@ class LocalStoreManagerTest {
         val entry = manager.getData(clientId = "c-1", serverId = "s-1")
         assertNotNull(entry)
         assertNotNull(entry.latestServerData)
-        assertEquals("FromServer", entry.latestServerData!!.name)
+        assertEquals("FromServer", entry.latestServerData.name)
     }
 
     @Test
@@ -429,7 +429,7 @@ class LocalStoreManagerTest {
         assertNotNull(entry)
         assertIs<SyncableObject.SyncStatus.Synced>(entry.syncStatus)
         assertEquals("2024-06-15T12:00:00Z",
-            (entry.syncStatus as SyncableObject.SyncStatus.Synced).lastSyncedTimestamp)
+            entry.syncStatus.lastSyncedTimestamp)
     }
 
     // endregion

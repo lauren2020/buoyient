@@ -65,7 +65,7 @@ class ArrayMergeTest {
         assertIs<SyncableObjectRebaseHandler.RebaseResult.Rebased<TestItem>>(result,
             "Concurrent array additions should merge without conflict")
 
-        val merged = (result as SyncableObjectRebaseHandler.RebaseResult.Rebased).mergedData
+        val merged = result.mergedData
         assertEquals(listOf("a", "b", "c"), merged.tags,
             "Merged tags should contain base + local additions + server additions")
     }
@@ -136,7 +136,7 @@ class ArrayMergeTest {
         assertIs<SyncableObjectRebaseHandler.RebaseResult.Rebased<TestItem>>(result,
             "Both adding to an empty array should merge")
 
-        val merged = (result as SyncableObjectRebaseHandler.RebaseResult.Rebased).mergedData
+        val merged = result.mergedData
         assertEquals(listOf("x", "y"), merged.tags,
             "Merged should contain local additions then server additions")
     }

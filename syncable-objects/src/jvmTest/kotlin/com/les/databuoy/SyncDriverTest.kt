@@ -284,7 +284,7 @@ class SyncDriverTest {
         // Pre-populate: local row with client_id="c1", server_id="s1"
         val localItem = testItem(clientId = "c1", serverId = "s1", name = "Original", value = 10, version = "1")
 
-        val mockEngine = MockEngine { request ->
+        val mockEngine = MockEngine { _ ->
             // First request: sync-up create response
             // Second request: sync-down returns same server_id but different client_id
             val serverItems = listOf(
@@ -817,8 +817,6 @@ class SyncDriverTest {
         val createResponse = wrapResponse(localItem.copy(serverId = "s1"))
 
         // Track the order of operations to verify serialization
-        val operationLog = mutableListOf<String>()
-
         var requestCount = 0
         val mockEngine = MockEngine {
             requestCount++
