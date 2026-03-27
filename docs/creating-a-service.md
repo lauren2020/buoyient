@@ -1,12 +1,12 @@
-# Creating a data-buoy Service
+# Creating a buoyient Service
 
-This guide walks through creating a complete offline-first syncable service using data-buoy. A service consists of four pieces that work together:
+This guide walks through creating a complete offline-first syncable service using buoyient. A service consists of four pieces that work together:
 
 1. **Data model** — a `@Serializable` data class implementing `SyncableObject<T>` that defines your domain entity
 2. **Request tag** — a `ServiceRequestTag` enum that identifies different request types (create, update, void)
-3. **Server processing config** — a `ServerProcessingConfig<T>` that tells data-buoy how to communicate with your API
+3. **Server processing config** — a `ServerProcessingConfig<T>` that tells buoyient how to communicate with your API
 4. **Service class** — a `SyncableObjectService<T, Tag>` subclass that exposes create/update/void operations
-5. **Registration** — registering the service so background sync picks it up (via `DataBuoy` API, Hilt multibinding, or a manual `SyncServiceRegistryProvider`)
+5. **Registration** — registering the service so background sync picks it up (via `Buoyient` API, Hilt multibinding, or a manual `SyncServiceRegistryProvider`)
 
 The library handles online/offline dual-path execution, local SQLite persistence, pending request queuing, idempotent retries, background sync via WorkManager, and 3-way merge conflict resolution automatically. Your job is just to define the shape of your data and how to talk to your API.
 
@@ -16,7 +16,7 @@ Before writing code, start from the canonical assets in this repo:
 - `examples/todo/` shows the same workflow as a minimal working integration.
 - `CODEX.md` summarizes the golden-path file order for agents.
 
-**Important: use the user's API, not the examples.** The existing services in this codebase (PaymentService, OrderService) talk to a specific Square sandbox API. When creating a new service, use the endpoints, auth headers, field names, and base URLs that the consuming app specifies — do not copy Square-specific values like `connect.squareupsandbox.com`, the Square Bearer token, `location_id: "LD0K6CFYP3DP7"`, or Square-Version headers into a new service. The existing services are useful as structural references for *how* to use data-buoy's APIs, but the concrete URLs, credentials, and field mappings must come from the consumer's requirements.
+**Important: use the user's API, not the examples.** The existing services in this codebase (PaymentService, OrderService) talk to a specific Square sandbox API. When creating a new service, use the endpoints, auth headers, field names, and base URLs that the consuming app specifies — do not copy Square-specific values like `connect.squareupsandbox.com`, the Square Bearer token, `location_id: "LD0K6CFYP3DP7"`, or Square-Version headers into a new service. The existing services are useful as structural references for *how* to use buoyient's APIs, but the concrete URLs, credentials, and field mappings must come from the consumer's requirements.
 
 ---
 
@@ -37,7 +37,7 @@ If you can, copy from `templates/` first and only then customize the API-specifi
 
 ## Step 1: Create the Data Model
 
-Create a `@Serializable` data class that implements `SyncableObject<YourModel>`. This is the domain object that data-buoy persists and syncs.
+Create a `@Serializable` data class that implements `SyncableObject<YourModel>`. This is the domain object that buoyient persists and syncs.
 
 ### Required interface members
 
@@ -53,7 +53,7 @@ Every `SyncableObject` must have:
 
 ### Companion constants
 
-The `SyncableObject` companion object provides constants for the metadata keys used in serialized JSON. These are managed by data-buoy internally:
+The `SyncableObject` companion object provides constants for the metadata keys used in serialized JSON. These are managed by buoyient internally:
 
 | Constant | Value |
 |----------|-------|
@@ -67,7 +67,7 @@ The `SyncableObject` companion object provides constants for the metadata keys u
 ```kotlin
 package com.example.yourapp.data.models
 
-import com.les.databuoy.SyncableObject
+import com.les.buoyient.SyncableObject
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import java.util.UUID
@@ -91,8 +91,8 @@ data class YourModel(
 
 ### Key rules
 
-- The class must be annotated with `@Serializable` — data-buoy uses `kotlinx.serialization` via `SyncCodec` to serialize/deserialize objects.
-- `syncStatus` must be marked `@Transient` — data-buoy manages sync status separately from the JSON blob stored in SQLite.
+- The class must be annotated with `@Serializable` — buoyient uses `kotlinx.serialization` via `SyncCodec` to serialize/deserialize objects.
+- `syncStatus` must be marked `@Transient` — buoyient manages sync status separately from the JSON blob stored in SQLite.
 - `withSyncStatus()` must return a copy with the new status. For data classes, just delegate to `copy(syncStatus = syncStatus)`.
 - Default values for `serverId = null`, `clientId = UUID.randomUUID().toString()`, `version = null`, and `syncStatus = LocalOnly` provide a convenient constructor for creating new local-only instances.
 
@@ -105,7 +105,7 @@ Define an enum implementing `ServiceRequestTag` to identify the different reques
 ```kotlin
 package com.example.yourapp.data.services
 
-import com.les.databuoy.ServiceRequestTag
+import com.les.buoyient.ServiceRequestTag
 
 enum class YourModelRequestTag(override val value: String) : ServiceRequestTag {
     CREATE("create"),
@@ -118,9 +118,9 @@ enum class YourModelRequestTag(override val value: String) : ServiceRequestTag {
 
 ## Step 3: Create the ServerProcessingConfig
 
-Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch data from and push data to your server.
+Implement `ServerProcessingConfig<YourModel>` to tell buoyient how to fetch data from and push data to your server.
 
-> **Import note:** `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, and other service-level configuration classes live in the `com.les.databuoy.serviceconfigs` package. Other optional service constructor params — `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, and `SyncableObjectRebaseHandler` — are also in `serviceconfigs`.
+> **Import note:** `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, and other service-level configuration classes live in the `com.les.buoyient.serviceconfigs` package. Other optional service constructor params — `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, and `SyncableObjectRebaseHandler` — are also in `serviceconfigs`.
 
 ### Required members
 
@@ -128,7 +128,7 @@ Implement `ServerProcessingConfig<YourModel>` to tell data-buoy how to fetch dat
 |--------|------|---------|
 | `syncFetchConfig` | `SyncFetchConfig<YourModel>` | How to periodically pull data from the server (GET or POST). |
 | `syncUpConfig` | `SyncUpConfig<YourModel>` | Controls retry behavior and response parsing for sync-up uploads. Must implement `fromResponseBody(requestTag, responseBody)` returning `SyncUpResult<YourModel>` — `Success(data)`, `Failed.Retry()`, or `Failed.RemovePendingRequest()`. |
-| `serviceHeaders` | `List<Pair<String, String>>` | HTTP headers specific to this service, sent with every request it makes. At request time, global headers, service headers, and per-request headers are concatenated in that order — if the same name appears in multiple lists, both values are sent (no deduplication). Use `DataBuoy.globalHeaderProvider` for auth headers shared across all services; use `serviceHeaders` only for headers unique to this service. See `docs/setup.md` § "Configure Global Auth Headers" for full details. |
+| `serviceHeaders` | `List<Pair<String, String>>` | HTTP headers specific to this service, sent with every request it makes. At request time, global headers, service headers, and per-request headers are concatenated in that order — if the same name appears in multiple lists, both values are sent (no deduplication). Use `Buoyient.globalHeaderProvider` for auth headers shared across all services; use `serviceHeaders` only for headers unique to this service. See `docs/setup.md` § "Configure Global Auth Headers" for full details. |
 
 ### SyncFetchConfig variants
 
@@ -253,7 +253,7 @@ The optional `connectivityChecker` parameter lets tests control online/offline s
 
 ### Pending request queue strategy
 
-When the device is offline (or a request times out), data-buoy queues pending requests in SQLite. The **queue strategy** controls how multiple pending requests for the same object are stored. You configure this via the `queueStrategy` parameter on `SyncableObjectService`.
+When the device is offline (or a request times out), buoyient queues pending requests in SQLite. The **queue strategy** controls how multiple pending requests for the same object are stored. You configure this via the `queueStrategy` parameter on `SyncableObjectService`.
 
 There are two strategies:
 
@@ -399,7 +399,7 @@ suspend fun updateItem(item: YourModel, newName: String): SyncableObjectServiceR
 
 ### Void (delete) operation
 
-Use the protected `void()` method. If the object was never synced to the server (serverId is null and no server attempt was made), data-buoy skips the server call and just marks it voided locally.
+Use the protected `void()` method. If the object was never synced to the server (serverId is null and no server attempt was made), buoyient skips the server call and just marks it voided locally.
 
 The `VoidRequestBuilder` receives the data, an idempotency key, and a list of any pending requests that have already been attempted on the server.
 
@@ -577,8 +577,8 @@ Add the dependency:
 
 ```kotlin
 // build.gradle.kts
-implementation("com.les.databuoy:syncable-objects:<version>")
-implementation("com.les.databuoy:syncable-objects-hilt:<version>")
+implementation("com.les.buoyient:syncable-objects:<version>")
+implementation("com.les.buoyient:syncable-objects-hilt:<version>")
 ```
 
 Then provide services' sync participants via a standard Hilt module:
@@ -598,15 +598,15 @@ object SyncModule {
 }
 ```
 
-### Option B: `DataBuoy.registerServices()` (simple, no Hilt required)
+### Option B: `Buoyient.registerServices()` (simple, no Hilt required)
 
-For apps that don't use Hilt, the `DataBuoy` object provides a one-liner registration API in `Application.onCreate()`:
+For apps that don't use Hilt, the `Buoyient` object provides a one-liner registration API in `Application.onCreate()`:
 
 ```kotlin
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        DataBuoy.registerServices(setOf(yourModelService, otherService))
+        Buoyient.registerServices(setOf(yourModelService, otherService))
     }
 }
 ```
@@ -614,7 +614,7 @@ class MyApp : Application() {
 Or for lazy/factory-based creation (participants are created fresh each time `SyncWorker` runs):
 
 ```kotlin
-DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
+Buoyient.registerServiceProvider(object : SyncServiceRegistryProvider {
     override fun createDrivers(context: Context) = listOf(
         YourModelService().syncDriver,
         OtherService().syncDriver,
@@ -723,11 +723,11 @@ For UI that shows sync state, remember to account for all three pending states (
 
 ## Placeholders for offline requests
 
-When building requests for objects that might not have a `serverId` yet (created offline), data-buoy provides placeholder values that are resolved automatically at sync time.
+When building requests for objects that might not have a `serverId` yet (created offline), buoyient provides placeholder values that are resolved automatically at sync time.
 
 ### Server ID placeholder
 
-Use `HttpRequest.serverIdOrPlaceholder()` in endpoint URLs and request bodies. It returns the real server ID when available, or a placeholder that data-buoy resolves after the create request succeeds:
+Use `HttpRequest.serverIdOrPlaceholder()` in endpoint URLs and request bodies. It returns the real server ID when available, or a placeholder that buoyient resolves after the create request succeeds:
 
 ```kotlin
 // Recommended — self-documenting and auto-completable:
@@ -749,8 +749,8 @@ put("version", HttpRequest.versionOrPlaceholder(data.version))
 
 Placeholders are replaced during sync-up, not at call time. The flow is:
 
-1. You call `create()` or `update()` — data-buoy stores the `HttpRequest` (with placeholders) in the pending queue.
-2. When the device is online and the background sync runs, data-buoy replaces `{serverId}` with the object's real server ID and `{version}` with the current version before sending the request.
+1. You call `create()` or `update()` — buoyient stores the `HttpRequest` (with placeholders) in the pending queue.
+2. When the device is online and the background sync runs, buoyient replaces `{serverId}` with the object's real server ID and `{version}` with the current version before sending the request.
 3. If the server ID isn't available yet (e.g., the create request hasn't succeeded), the request stays in the queue and is retried next cycle.
 
 ---
@@ -865,15 +865,15 @@ If Order CREATE fails (server error, network timeout):
 ### Debugging tips
 
 - **Payment stuck in pending queue?** Check that the referenced service's `serviceName` string in `crossServiceServerIdPlaceholder()` exactly matches the `serviceName` passed to the dependency's `SyncableObjectService` constructor.
-- **Enable logging** with `DataBuoyLog.logger = ...` to see placeholder resolution attempts. Look for log messages about skipped requests due to unresolved dependencies.
-- **Verify the dependency was created through data-buoy.** Cross-service resolution queries the `sync_data` table — the referenced object must exist there. Objects created outside data-buoy won't be found.
+- **Enable logging** with `BuoyientLog.logger = ...` to see placeholder resolution attempts. Look for log messages about skipped requests due to unresolved dependencies.
+- **Verify the dependency was created through buoyient.** Cross-service resolution queries the `sync_data` table — the referenced object must exist there. Objects created outside buoyient won't be found.
 
 ### Constraints
 
-- The referenced object must be created through data-buoy (so it exists in `sync_data`).
+- The referenced object must be created through buoyient (so it exists in `sync_data`).
 - The placeholder resolves to the object's `server_id` column — it does not support resolving other fields.
 - Circular dependencies will deadlock (both requests skip forever). Design your data flow to be acyclic.
-- Both services must share the same database instance (the default when using `DataBuoy` initialization).
+- Both services must share the same database instance (the default when using `Buoyient` initialization).
 
 ---
 
@@ -945,12 +945,12 @@ app/src/main/java/com/example/yourapp/data/
 
 ## Encryption at rest
 
-data-buoy can optionally encrypt all persisted JSON blobs in SQLite on a per-service basis. Encryption is off by default; to enable it, implement `EncryptionProvider` and pass it to your service constructor.
+buoyient can optionally encrypt all persisted JSON blobs in SQLite on a per-service basis. Encryption is off by default; to enable it, implement `EncryptionProvider` and pass it to your service constructor.
 
 ### Implement `EncryptionProvider`
 
 ```kotlin
-import com.les.databuoy.serviceconfigs.EncryptionProvider
+import com.les.buoyient.serviceconfigs.EncryptionProvider
 
 class AesGcmEncryptionProvider(
     private val keyAlias: String,
@@ -967,7 +967,7 @@ class AesGcmEncryptionProvider(
 }
 ```
 
-data-buoy is crypto-agnostic — use whatever algorithm and key management strategy your app requires (Android Keystore, Tink, Jetpack Security, etc.).
+buoyient is crypto-agnostic — use whatever algorithm and key management strategy your app requires (Android Keystore, Tink, Jetpack Security, etc.).
 
 ### Pass it to your service
 
@@ -998,7 +998,7 @@ Metadata columns (`service_name`, `client_id`, `server_id`, `sync_status`, `vers
 
 - **Per-service opt-in**: each service independently decides whether to encrypt. Encrypted and unencrypted services coexist in the same database.
 - **In-memory objects are always plaintext**: encryption only applies at the SQLite storage boundary.
-- **Key management is your responsibility**: data-buoy never touches cryptographic keys or primitives.
+- **Key management is your responsibility**: buoyient never touches cryptographic keys or primitives.
 - **No schema changes required**: encrypted values are stored as TEXT (e.g., Base64-encoded ciphertext) in the same columns.
 
 ### Testing with encryption

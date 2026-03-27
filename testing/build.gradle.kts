@@ -41,7 +41,7 @@ publishing {
             pom {
                 name.set("syncable-objects-testing")
                 description.set("Test utilities for syncable-objects: mock server, in-memory database, and test doubles.")
-                url.set("https://github.com/lauren2020/data-buoy")
+                url.set("https://github.com/lauren2020/buoyient")
                 licenses {
                     license {
                         name.set("The Apache License, Version 2.0")
@@ -56,9 +56,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection.set("scm:git:git://github.com/lauren2020/data-buoy.git")
-                    developerConnection.set("scm:git:ssh://github.com:lauren2020/data-buoy.git")
-                    url.set("https://github.com/lauren2020/data-buoy")
+                    connection.set("scm:git:git://github.com/lauren2020/buoyient.git")
+                    developerConnection.set("scm:git:ssh://github.com:lauren2020/buoyient.git")
+                    url.set("https://github.com/lauren2020/buoyient")
                 }
             }
         }

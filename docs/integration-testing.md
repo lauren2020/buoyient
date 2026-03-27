@@ -1,4 +1,4 @@
-# Writing Integration Tests for data-buoy Services
+# Writing Integration Tests for buoyient Services
 
 This guide covers how to write automated JVM integration tests for `SyncableObjectService` implementations using the `:testing` module. The module provides pre-built test doubles and a mock HTTP server so you don't need to manually wire Ktor `MockEngine`, `ServerManager`, `LocalStoreManager`, or anonymous stub implementations.
 
@@ -11,7 +11,7 @@ Add the testing module as a `testImplementation` dependency in the consuming app
 ```kotlin
 testImplementation(project(":testing"))
 // or, if consuming as a published artifact:
-testImplementation("com.les.databuoy:testing:<version>")
+testImplementation("com.les.buoyient:testing:<version>")
 ```
 
 The `:testing` module transitively provides everything from `:syncable-objects`, plus `ktor-client-mock` and an in-memory SQLite driver. No additional test dependencies are needed.
@@ -28,7 +28,7 @@ The `:testing` module transitively provides everything from `:syncable-objects`,
 |----------|------|---------|---------|
 | `mockRouter` | `MockEndpointRouter` | empty router | Register mock endpoint handlers |
 | `connectivityChecker` | `TestConnectivityChecker` | `online = true` | Control online/offline state |
-| `logger` | `DataBuoyLogger` | `NoOpSyncLogger` (silent) | Installed into `DataBuoyLog.logger`. Swap to `PrintSyncLogger` for debugging |
+| `logger` | `BuoyientLogger` | `NoOpSyncLogger` (silent) | Installed into `BuoyientLog.logger`. Swap to `PrintSyncLogger` for debugging |
 | `syncScheduleNotifier` | `SyncScheduleNotifier` | `NoOpSyncScheduleNotifier` | No-op (no WorkManager in tests) |
 | `idGenerator` | `IdGenerator` | `IncrementingIdGenerator` | Deterministic IDs: `test-id-1`, `test-id-2`, ... Installed as the global `IdGenerator.generator` |
 | `database` | `SyncDatabase` | in-memory SQLite | Isolated per `TestServiceEnvironment` instance |
@@ -95,7 +95,7 @@ Every integration test follows the same pattern:
 5. Assert on response, local DB state, and/or request log
 
 ```kotlin
-import com.les.databuoy.testing.*
+import com.les.buoyient.testing.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -364,7 +364,7 @@ Since `TestServiceEnvironment` installs `idGenerator` as the global `IdGenerator
 
 ## Debugging Failing Tests
 
-Pass `PrintSyncLogger` to `TestServiceEnvironment` to see all internal sync engine logs (it sets `DataBuoyLog.logger` automatically):
+Pass `PrintSyncLogger` to `TestServiceEnvironment` to see all internal sync engine logs (it sets `BuoyientLog.logger` automatically):
 
 ```kotlin
 val env = TestServiceEnvironment(logger = PrintSyncLogger)
@@ -529,7 +529,7 @@ now = 2000L
 
 ## Available Testing Utilities Reference
 
-All classes are in the `com.les.databuoy.testing` package:
+All classes are in the `com.les.buoyient.testing` package:
 
 | Class | Purpose |
 |-------|---------|

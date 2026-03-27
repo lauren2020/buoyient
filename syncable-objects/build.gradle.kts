@@ -93,14 +93,14 @@ tasks.withType<Jar> {
 sqldelight {
     databases {
         create("SyncDatabase") {
-            packageName.set("com.les.databuoy.db")
+            packageName.set("com.les.buoyient.db")
             dialect(libs.sqldelight.dialect)
         }
     }
 }
 
 android {
-    namespace = "com.les.databuoy"
+    namespace = "com.les.buoyient"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -140,7 +140,7 @@ publishing {
         pom {
             name.set("syncable-objects")
             description.set("Kotlin Multiplatform offline-first sync library with bidirectional sync, conflict resolution, and automatic retries.")
-            url.set("https://github.com/lauren2020/data-buoy")
+            url.set("https://github.com/lauren2020/buoyient")
             licenses {
                 license {
                     name.set("The Apache License, Version 2.0")
@@ -155,9 +155,9 @@ publishing {
                 }
             }
             scm {
-                connection.set("scm:git:git://github.com/lauren2020/data-buoy.git")
-                developerConnection.set("scm:git:ssh://github.com:lauren2020/data-buoy.git")
-                url.set("https://github.com/lauren2020/data-buoy")
+                connection.set("scm:git:git://github.com/lauren2020/buoyient.git")
+                developerConnection.set("scm:git:ssh://github.com:lauren2020/buoyient.git")
+                url.set("https://github.com/lauren2020/buoyient")
             }
         }
     }

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/icon.svg" alt="data-buoy icon" width="120"/>
+  <img src="assets/icon.svg" alt="buoyient icon" width="120"/>
 </p>
 
-# data-buoy
+# buoyient
 Keep data floating even when network conditions are rough.
 
 ## What
@@ -13,7 +13,7 @@ This is intended to be an agent optimized SDK.
 - This includes optimization through several rounds of testing having agents attempt to implement this SDK in a project and provide feedback. That feedback was then incrementally applied to the SDK to improve its agentic compatibility.
 - This SDK comes loaded with skills that should inform not only how to use the SDK, but also instruct agents regarding any concerns that should be considered to ensure the use is reliable and performant.
 
-**AI agents:** This repo includes agent instruction files with detailed integration instructions, key class reference, and conventions: [`CLAUDE.md`](CLAUDE.md), [`CODEX.md`](CODEX.md), [`.cursorrules`](.cursorrules), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md). If you are consuming data-buoy as a maven dependency, these are bundled in the published JAR under `META-INF/`. The [`docs/`](docs/) directory contains step-by-step guides for setup, service creation, testing, and mock mode.
+**AI agents:** This repo includes agent instruction files with detailed integration instructions, key class reference, and conventions: [`CLAUDE.md`](CLAUDE.md), [`CODEX.md`](CODEX.md), [`.cursorrules`](.cursorrules), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md). If you are consuming buoyient as a maven dependency, these are bundled in the published JAR under `META-INF/`. The [`docs/`](docs/) directory contains step-by-step guides for setup, service creation, testing, and mock mode.
 
 ## Features
 
@@ -53,7 +53,7 @@ This is intended to be an agent optimized SDK.
 
 ![img.png](img.png)
 
-## Getting started with data-buoy
+## Getting started with buoyient
 
 ### 1. Define your data model
 
@@ -139,8 +139,8 @@ Add the `syncable-objects-hilt` dependency and provide services via standard `@I
 
 ```kotlin
 // build.gradle.kts
-implementation("com.les.databuoy:syncable-objects:<version>")
-implementation("com.les.databuoy:syncable-objects-hilt:<version>")
+implementation("com.les.buoyient:syncable-objects:<version>")
+implementation("com.les.buoyient:syncable-objects-hilt:<version>")
 ```
 
 ```kotlin
@@ -154,7 +154,7 @@ object SyncModule {
 
 #### Without Hilt
 
-Use the `DataBuoy` convenience API in `Application.onCreate()`:
+Use the `Buoyient` convenience API in `Application.onCreate()`:
 
 ```kotlin
 class MyApp : Application() {
@@ -162,7 +162,7 @@ class MyApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        DataBuoy.registerServices(setOf(todoService))
+        Buoyient.registerServices(setOf(todoService))
     }
 }
 ```
@@ -170,7 +170,7 @@ class MyApp : Application() {
 Or register a factory that creates fresh service instances per sync pass:
 
 ```kotlin
-DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
+Buoyient.registerServiceProvider(object : SyncServiceRegistryProvider {
     override fun createDrivers(context: Context) = listOf(TodoService().syncDriver)
 })
 ```
@@ -180,7 +180,7 @@ DataBuoy.registerServiceProvider(object : SyncServiceRegistryProvider {
 ### CREATE
 SyncableObjectService offers a create() method. This is intended to be used for any request
 where you are instantiating a brand new object that does not exist yet.
-When this is leveraged, data-buoy will create a brand new data entry in the db.
+When this is leveraged, buoyient will create a brand new data entry in the db.
 
 Example flow:
 
@@ -193,7 +193,7 @@ data or it may be a non-traditional update like "completing" an object. update()
 to be a broad utility serving every use case where your service implementation wants to modify
 an existing object in any way.
 
-When this is leveraged, data-buoy will apply the updated data to the existing entry in the
+When this is leveraged, buoyient will apply the updated data to the existing entry in the
 db and if being processed async, queue up a pending request for sync.
 
 ### VOID
@@ -231,7 +231,7 @@ The `:testing` module provides utilities for both automated integration tests an
 
 ```kotlin
 // build.gradle.kts
-testImplementation("com.les.databuoy:testing:<version>")
+testImplementation("com.les.buoyient:testing:<version>")
 ```
 
 ### Integration Tests
@@ -286,7 +286,7 @@ Add the testing module as a regular dependency (scoped to debug builds) to run t
 
 ```kotlin
 // build.gradle.kts
-debugImplementation("com.les.databuoy:testing:<version>")
+debugImplementation("com.les.buoyient:testing:<version>")
 ```
 
 Wire a `MockEndpointRouter` into your DI graph behind a developer toggle:
@@ -329,17 +329,17 @@ fun provideServerManager(useMock: Boolean): ServerManager {
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:syncable-objects` | `com.les.databuoy:syncable-objects` | Core sync engine (KMP) |
-| `:hilt` | `com.les.databuoy:syncable-objects-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
-| `:testing` | `com.les.databuoy:testing` | Test utilities — mock server, in-memory DB, test doubles |
+| `:syncable-objects` | `com.les.buoyient:syncable-objects` | Core sync engine (KMP) |
+| `:hilt` | `com.les.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
+| `:testing` | `com.les.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
 
 ## Detailed Guides
 
-The `docs/` directory contains step-by-step guides for integrating data-buoy into a consuming application:
+The `docs/` directory contains step-by-step guides for integrating buoyient into a consuming application:
 
 | Guide | Description |
 |-------|-------------|
-| [Setup](docs/setup.md) | Adding data-buoy to your app — dependencies, initialization, and service registration |
+| [Setup](docs/setup.md) | Adding buoyient to your app — dependencies, initialization, and service registration |
 | [Creating a Service](docs/creating-a-service.md) | Data model, `ServerProcessingConfig`, service class, and registration |
 | [Integration Testing](docs/integration-testing.md) | Automated JVM tests with `TestServiceEnvironment` and mock server |
 | [Mock Mode](docs/mock-mode.md) | Runtime mock mode for manual testing without a real backend |

@@ -4,8 +4,8 @@
 
     <application>
         <!--
-            Auto-registers DataBuoyHiltInitializer via androidx.startup.
-            This initializer depends on DataBuoyInitializer (from the core library)
+            Auto-registers BuoyientHiltInitializer via androidx.startup.
+            This initializer depends on BuoyientInitializer (from the core library)
             so it runs after the platform context is captured.
 
             tools:node="merge" ensures this merges with the core library's
@@ -17,7 +17,7 @@
             android:exported="false"
             tools:node="merge">
             <meta-data
-                android:name="com.les.databuoy.hilt.DataBuoyHiltInitializer"
+                android:name="com.les.buoyient.hilt.BuoyientHiltInitializer"
                 android:value="androidx.startup" />
         </provider>
     </application>

@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "data-buoy"
+rootProject.name = "buoyient"
 include(":core")
 include(":syncable-objects")
 include(":hilt")

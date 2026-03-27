@@ -1,6 +1,6 @@
 # Setting Up Local Mock Mode for Manual Testing
 
-This guide covers how to configure a data-buoy app to run against a mock server at runtime, so developers can manually test the app without a real backend. This uses the same `MockEndpointRouter` from the `:testing` module but wired into the live app's dependency graph behind a developer toggle.
+This guide covers how to configure a buoyient app to run against a mock server at runtime, so developers can manually test the app without a real backend. This uses the same `MockEndpointRouter` from the `:testing` module but wired into the live app's dependency graph behind a developer toggle.
 
 ---
 
@@ -12,7 +12,7 @@ Add the testing module as a regular `implementation` dependency (not `testImplem
 // app/build.gradle.kts
 implementation(project(":testing"))
 // or, if consuming as a published artifact:
-implementation("com.les.databuoy:testing:<version>")
+implementation("com.les.buoyient:testing:<version>")
 ```
 
 **Important:** You may want to scope this to debug builds only to keep it out of production:
@@ -27,14 +27,14 @@ If using `debugImplementation`, the mock mode code must live in `src/debug/` or 
 
 ## Architecture Overview
 
-The mock mode works by setting `DataBuoy.httpClient` to a mock-backed HTTP client before creating any services. All services constructed after this point automatically route requests through the mock handlers. No changes to your service classes are needed.
+The mock mode works by setting `Buoyient.httpClient` to a mock-backed HTTP client before creating any services. All services constructed after this point automatically route requests through the mock handlers. No changes to your service classes are needed.
 
 ```
 Normal mode:
   SyncableObjectService ---> ServerManager ---> real Ktor HttpClient ---> real server
 
 Mock mode:
-  DataBuoy.httpClient = mockRouter.buildHttpClient()
+  Buoyient.httpClient = mockRouter.buildHttpClient()
   SyncableObjectService ---> ServerManager ---> MockEndpointRouter ---> mock handlers
 ```
 
@@ -47,9 +47,9 @@ Create a class that configures the `MockEndpointRouter` with realistic fake resp
 ```kotlin
 package com.example.yourapp.testing
 
-import com.les.databuoy.datatypes.HttpRequest
-import com.les.databuoy.testing.MockEndpointRouter
-import com.les.databuoy.testing.MockResponse
+import com.les.buoyient.datatypes.HttpRequest
+import com.les.buoyient.testing.MockEndpointRouter
+import com.les.buoyient.testing.MockResponse
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -147,16 +147,16 @@ class MockServerFixtures {
 
 ## Step 2: Create a Mock Mode Toggle
 
-Set `DataBuoy.httpClient` before creating any services. All services constructed after this point automatically route requests through the mock handlers — no per-service wiring needed.
+Set `Buoyient.httpClient` before creating any services. All services constructed after this point automatically route requests through the mock handlers — no per-service wiring needed.
 
 ### Option A: Hilt-based toggle (recommended for Hilt apps)
 
 ```kotlin
 package com.example.yourapp.di
 
-import com.les.databuoy.globalconfigs.DataBuoy
-import com.les.databuoy.utils.DataBuoyLog
-import com.les.databuoy.testing.PrintSyncLogger
+import com.les.buoyient.globalconfigs.Buoyient
+import com.les.buoyient.utils.BuoyientLog
+import com.les.buoyient.testing.PrintSyncLogger
 import com.example.yourapp.testing.MockServerFixtures
 import dagger.Module
 import dagger.Provides
@@ -181,8 +181,8 @@ object MockModeModule {
         if (!flag.enabled) return null
         val fixtures = MockServerFixtures()
         // Install the mock HTTP client globally — all services pick it up automatically
-        DataBuoy.httpClient = fixtures.router.buildHttpClient()
-        DataBuoyLog.logger = PrintSyncLogger  // verbose logging for mock mode
+        Buoyient.httpClient = fixtures.router.buildHttpClient()
+        BuoyientLog.logger = PrintSyncLogger  // verbose logging for mock mode
         return fixtures
     }
 }
@@ -206,8 +206,8 @@ object ServiceFactory {
     private val mockFixtures by lazy { MockServerFixtures() }
 
     fun enableMockMode() {
-        DataBuoy.httpClient = mockFixtures.router.buildHttpClient()
-        DataBuoyLog.logger = PrintSyncLogger
+        Buoyient.httpClient = mockFixtures.router.buildHttpClient()
+        BuoyientLog.logger = PrintSyncLogger
     }
 
     fun createItemService(): YourModelService = YourModelService()
@@ -248,7 +248,7 @@ object MockModePrefs {
         set(value) = prefs.edit().putBoolean(KEY, value).apply()
 
     private val prefs by lazy {
-        DataBuoyPlatformContext.appContext.getSharedPreferences("dev_settings", Context.MODE_PRIVATE)
+        BuoyientPlatformContext.appContext.getSharedPreferences("dev_settings", Context.MODE_PRIVATE)
     }
 }
 ```
@@ -413,7 +413,7 @@ Text("Server records: ${items.count()}")
 - **`TestConnectivityChecker` should be set to `online = true`** in mock mode so requests actually flow through the mock server. Setting it to `false` queues requests for background sync, which is fine for testing offline behavior but means you won't see immediate mock responses.
 - **The `SyncScheduleNotifier` should remain the real platform implementation** in mock mode (not the no-op). This way, background sync (WorkManager) still fires and processes the pending queue through the mock server, giving a realistic experience.
 - **Mock handlers are evaluated at request time**, not registration time. You can update handlers dynamically during a session.
-- **`DataBuoyLog.logger = PrintSyncLogger` is recommended** in mock mode so developers can see sync engine activity in Logcat. Set this once at startup before creating any services.
+- **`BuoyientLog.logger = PrintSyncLogger` is recommended** in mock mode so developers can see sync engine activity in Logcat. Set this once at startup before creating any services.
 - **`MockEndpointRouter` is thread-safe.** The request log uses `CopyOnWriteArrayList` and the route list is only written during setup.
 
 ---

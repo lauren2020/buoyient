@@ -54,7 +54,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.les.databuoy.core"
+    namespace = "com.les.buoyient.core"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -92,8 +92,8 @@ publishing {
     publications.withType<MavenPublication> {
         pom {
             name.set("core")
-            description.set("Core infrastructure for data-buoy: logging, connectivity, HTTP, and shared service abstractions.")
-            url.set("https://github.com/lauren2020/data-buoy")
+            description.set("Core infrastructure for buoyient: logging, connectivity, HTTP, and shared service abstractions.")
+            url.set("https://github.com/lauren2020/buoyient")
             licenses {
                 license {
                     name.set("The Apache License, Version 2.0")
@@ -108,9 +108,9 @@ publishing {
                 }
             }
             scm {
-                connection.set("scm:git:git://github.com/lauren2020/data-buoy.git")
-                developerConnection.set("scm:git:ssh://github.com:lauren2020/data-buoy.git")
-                url.set("https://github.com/lauren2020/data-buoy")
+                connection.set("scm:git:git://github.com/lauren2020/buoyient.git")
+                developerConnection.set("scm:git:ssh://github.com:lauren2020/buoyient.git")
+                url.set("https://github.com/lauren2020/buoyient")
             }
         }
     }

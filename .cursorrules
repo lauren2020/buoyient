@@ -1,12 +1,12 @@
-# data-buoy
+# buoyient
 
 Kotlin Multiplatform offline-first sync library. Handles bidirectional sync between local SQLite and a remote server with offline queuing, conflict resolution, and automatic retries.
 
 ## For AI agents working in a consuming app
 
-If you are integrating data-buoy into an application, **read the guides in `docs/`** before writing code:
+If you are integrating buoyient into an application, **read the guides in `docs/`** before writing code:
 
-- **`docs/setup.md`** — How to add data-buoy to an Android app: dependencies, automatic initialization, and service registration. Start here.
+- **`docs/setup.md`** — How to add buoyient to an Android app: dependencies, automatic initialization, and service registration. Start here.
 - **`docs/creating-a-service.md`** — Step-by-step guide to creating a `SyncableObjectService`: data model, `ServerProcessingConfig`, service class, and registration (Hilt or manual).
 - **`docs/integration-testing.md`** — How to write automated JVM tests using `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module.
 - **`docs/mock-mode.md`** — How to wire mock mode into the live app for manual testing without a real backend.
@@ -29,10 +29,10 @@ These guides contain complete templates, required field tables, and common patte
 | `PendingRequestQueueStrategy` | Controls how offline requests are queued: `Queue` (default, one entry per operation) or `Squash` (collapses consecutive offline edits into one request) |
 | `SquashRequestMerger` | Functional interface for merging an update into a pending create when using `Squash` strategy |
 | `SyncableObjectRebaseHandler<O>` | 3-way merge conflict detection and resolution |
-| `DataBuoyLog` | Process-wide logger singleton — set `DataBuoyLog.logger` to swap the backing `DataBuoyLogger` |
+| `BuoyientLog` | Process-wide logger singleton — set `BuoyientLog.logger` to swap the backing `BuoyientLogger` |
 | `EncryptionProvider` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
-| `GlobalHeaderProvider` | Functional interface for dynamic global headers (e.g., auth tokens) — set via `DataBuoy.globalHeaderProvider` |
-| `DataBuoy` | Convenience API for service registration and global header configuration |
+| `GlobalHeaderProvider` | Functional interface for dynamic global headers (e.g., auth tokens) — set via `Buoyient.globalHeaderProvider` |
+| `Buoyient` | Convenience API for service registration and global header configuration |
 | `TestServiceEnvironment` | All-in-one test harness (`:testing` module) |
 | `MockEndpointRouter` | Mock HTTP server for tests and mock mode (`:testing` module) |
 | `MockServerStore` | Stateful mock server with collections (`:testing` module) |
@@ -41,19 +41,19 @@ These guides contain complete templates, required field tables, and common patte
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:syncable-objects` | `com.les.databuoy:syncable-objects` | Core sync engine (KMP) |
-| `:hilt` | `com.les.databuoy:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
-| `:testing` | `com.les.databuoy:testing` | Test utilities — mock server, in-memory DB, test doubles |
+| `:syncable-objects` | `com.les.buoyient:syncable-objects` | Core sync engine (KMP) |
+| `:hilt` | `com.les.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
+| `:testing` | `com.les.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
 
 ## Important conventions
 
 - `serviceName` must be unique per service — it's the SQLite partition key.
 - Use `HttpRequest.SERVER_ID_PLACEHOLDER` (`{serverId}`) and `HttpRequest.VERSION_PLACEHOLDER` (`{version}`) in requests for objects that may not have synced yet.
-- Data models must be `@Serializable` and implement `withSyncStatus()`. Mark `syncStatus` as `@Transient` — data-buoy manages it separately.
+- Data models must be `@Serializable` and implement `withSyncStatus()`. Mark `syncStatus` as `@Transient` — buoyient manages it separately.
 - The service constructor takes a `KSerializer<O>` (from `kotlinx.serialization`) — not a manual deserializer.
 - `SyncableObject` companion constants use `_KEY` suffix: `SERVER_ID_KEY`, `CLIENT_ID_KEY`, `VERSION_KEY`.
 - Every operation (`create`, `update`, `void`) requires a `ServiceRequestTag` and uses functional interfaces: `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`.
 - `SyncUpConfig.fromResponseBody(requestTag, responseBody)` returns `SyncUpResult<O>`: `Success(data)`, `Failed.Retry` (re-queue), or `Failed.RemovePendingRequest` (drop from queue).
 - `getAllFromLocalStore(limit)` retrieves all items from the local database.
 - `LocalStoreManager` accepts an optional `queueStrategy` parameter (defaults to `Queue`). Use `Squash` when the API uses PUT/replace semantics and intermediate offline states don't matter; use `Queue` when request order matters or each write has side effects. See `docs/creating-a-service.md` § "Pending request queue strategy" for full guidance.
-- Registration for background sync: use Hilt `@IntoSet` multibinding with `:hilt`, or `DataBuoy.registerServices()` / `DataBuoy.registerServiceProvider()` without Hilt.
+- Registration for background sync: use Hilt `@IntoSet` multibinding with `:hilt`, or `Buoyient.registerServices()` / `Buoyient.registerServiceProvider()` without Hilt.

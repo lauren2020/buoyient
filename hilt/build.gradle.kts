@@ -18,7 +18,7 @@ ksp {
 }
 
 android {
-    namespace = "com.les.databuoy.hilt"
+    namespace = "com.les.buoyient.hilt"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -57,7 +57,7 @@ afterEvaluate {
                 pom {
                     name.set("syncable-objects-hilt")
                     description.set("Optional Hilt integration for syncable-objects: auto-registers SyncableObjectService instances via @IntoSet multibinding.")
-                    url.set("https://github.com/lauren2020/data-buoy")
+                    url.set("https://github.com/lauren2020/buoyient")
                     licenses {
                         license {
                             name.set("The Apache License, Version 2.0")
@@ -72,9 +72,9 @@ afterEvaluate {
                         }
                     }
                     scm {
-                        connection.set("scm:git:git://github.com/lauren2020/data-buoy.git")
-                        developerConnection.set("scm:git:ssh://github.com:lauren2020/data-buoy.git")
-                        url.set("https://github.com/lauren2020/data-buoy")
+                        connection.set("scm:git:git://github.com/lauren2020/buoyient.git")
+                        developerConnection.set("scm:git:ssh://github.com:lauren2020/buoyient.git")
+                        url.set("https://github.com/lauren2020/buoyient")
                     }
                 }
             }
