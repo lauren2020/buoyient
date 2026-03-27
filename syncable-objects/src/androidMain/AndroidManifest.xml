@@ -9,7 +9,7 @@
             android:authorities="${applicationId}.androidx-startup"
             android:exported="false">
             <meta-data
-                android:name="com.les.buoyient.BuoyientInitializer"
+                android:name="com.elvdev.buoyient.BuoyientInitializer"
                 android:value="androidx.startup" />
         </provider>
     </application>

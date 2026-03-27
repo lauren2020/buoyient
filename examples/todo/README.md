@@ -11,7 +11,7 @@ Use it together with the starter files in `templates/` when adding a new service
 
 The source lives under:
 
-- `examples/todo/src/main/kotlin/com/les/buoyient/examples/todo/`
-- `examples/todo/src/test/kotlin/com/les/buoyient/examples/todo/`
+- `examples/todo/src/main/kotlin/com/elvdev/buoyient/examples/todo/`
+- `examples/todo/src/test/kotlin/com/elvdev/buoyient/examples/todo/`
 
 Those files are compiled as part of `:syncable-objects`'s JVM tests so API drift shows up in CI.

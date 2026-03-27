@@ -12,7 +12,7 @@ Add the testing module as a regular `implementation` dependency (not `testImplem
 // app/build.gradle.kts
 implementation(project(":testing"))
 // or, if consuming as a published artifact:
-implementation("com.les.buoyient:testing:<version>")
+implementation("com.elvdev.buoyient:testing:<version>")
 ```
 
 **Important:** You may want to scope this to debug builds only to keep it out of production:
@@ -47,9 +47,9 @@ Create a class that configures the `MockEndpointRouter` with realistic fake resp
 ```kotlin
 package com.example.yourapp.testing
 
-import com.les.buoyient.datatypes.HttpRequest
-import com.les.buoyient.testing.MockEndpointRouter
-import com.les.buoyient.testing.MockResponse
+import com.elvdev.buoyient.datatypes.HttpRequest
+import com.elvdev.buoyient.testing.MockEndpointRouter
+import com.elvdev.buoyient.testing.MockResponse
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -154,9 +154,9 @@ Set `Buoyient.httpClient` before creating any services. All services constructed
 ```kotlin
 package com.example.yourapp.di
 
-import com.les.buoyient.globalconfigs.Buoyient
-import com.les.buoyient.utils.BuoyientLog
-import com.les.buoyient.testing.PrintSyncLogger
+import com.elvdev.buoyient.globalconfigs.Buoyient
+import com.elvdev.buoyient.utils.BuoyientLog
+import com.elvdev.buoyient.testing.PrintSyncLogger
 import com.example.yourapp.testing.MockServerFixtures
 import dagger.Module
 import dagger.Provides

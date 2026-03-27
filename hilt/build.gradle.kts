@@ -18,7 +18,7 @@ ksp {
 }
 
 android {
-    namespace = "com.les.buoyient.hilt"
+    namespace = "com.elvdev.buoyient.hilt"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -46,6 +46,11 @@ dependencies {
 afterEvaluate {
     signing {
         isRequired = !version.toString().endsWith("SNAPSHOT")
+        val signingKey = findProperty("signingKey") as? String
+        val signingPassword = findProperty("signingPassword") as? String
+        if (signingKey != null && signingPassword != null) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+        }
         sign(publishing.publications)
     }
 

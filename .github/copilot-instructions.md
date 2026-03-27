@@ -41,9 +41,9 @@ These guides contain complete templates, required field tables, and common patte
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:syncable-objects` | `com.les.buoyient:syncable-objects` | Core sync engine (KMP) |
-| `:hilt` | `com.les.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
-| `:testing` | `com.les.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
+| `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP) |
+| `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
+| `:testing` | `com.elvdev.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
 
 ## Important conventions
 

@@ -16,7 +16,7 @@ Add the testing module as a `testImplementation` dependency in the consuming app
 ```kotlin
 testImplementation(project(":testing"))
 // or, if consuming as a published artifact:
-testImplementation("com.les.buoyient:testing:<version>")
+testImplementation("com.elvdev.buoyient:testing:<version>")
 ```
 
 The `:testing` module transitively provides everything from `:syncable-objects`, plus `ktor-client-mock` and an in-memory SQLite driver. No additional test dependencies are needed.
@@ -100,7 +100,7 @@ Every integration test follows the same pattern:
 6. Assert on response, local DB state, and/or request log
 
 ```kotlin
-import com.les.buoyient.testing.*
+import com.elvdev.buoyient.testing.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals

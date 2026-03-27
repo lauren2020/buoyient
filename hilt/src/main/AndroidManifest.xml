@@ -17,7 +17,7 @@
             android:exported="false"
             tools:node="merge">
             <meta-data
-                android:name="com.les.buoyient.hilt.BuoyientHiltInitializer"
+                android:name="com.elvdev.buoyient.hilt.BuoyientHiltInitializer"
                 android:value="androidx.startup" />
         </provider>
     </application>

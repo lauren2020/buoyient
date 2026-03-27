@@ -14,7 +14,7 @@ Add the buoyient artifacts to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.les.buoyient:syncable-objects:<version>")
+    implementation("com.elvdev.buoyient:syncable-objects:<version>")
 }
 ```
 
@@ -22,8 +22,8 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("com.les.buoyient:syncable-objects:<version>")
-    implementation("com.les.buoyient:syncable-objects-hilt:<version>")
+    implementation("com.elvdev.buoyient:syncable-objects:<version>")
+    implementation("com.elvdev.buoyient:syncable-objects-hilt:<version>")
 }
 ```
 
@@ -31,10 +31,10 @@ dependencies {
 
 ```kotlin
 dependencies {
-    testImplementation("com.les.buoyient:testing:<version>")
+    testImplementation("com.elvdev.buoyient:testing:<version>")
 
     // Also needed for mock mode in debug builds:
-    debugImplementation("com.les.buoyient:testing:<version>")
+    debugImplementation("com.elvdev.buoyient:testing:<version>")
 }
 ```
 
@@ -89,7 +89,7 @@ AppInitializer.getInstance(this)
 
 Before buoyient can sync anything, you need to register your services for background sync. Choose the approach that fits your app:
 
-> **Import note:** `Buoyient`, `GlobalHeaderProvider`, and other project-level configuration classes live in the `com.les.buoyient.globalconfigs` package.
+> **Import note:** `Buoyient`, `GlobalHeaderProvider`, and other project-level configuration classes live in the `com.elvdev.buoyient.globalconfigs` package.
 
 ### Option A: Hilt multibinding (recommended for Hilt apps)
 

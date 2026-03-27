@@ -6,7 +6,7 @@ description: "How to set up local mock mode for manual testing of apps that use 
 Read the guide at `docs/mock-mode.md` for the complete, up-to-date instructions on setting up local mock mode for manual testing. That file is the authoritative reference and is kept in sync with the actual codebase.
 
 Key points to remember:
-- Mock mode works by setting `Buoyient.httpClient` (in `com.les.buoyient.globalconfigs`) to a mock-backed HTTP client before creating any services — no changes to service classes needed.
+- Mock mode works by setting `Buoyient.httpClient` (in `com.elvdev.buoyient.globalconfigs`) to a mock-backed HTTP client before creating any services — no changes to service classes needed.
 - Use `MockEndpointRouter` from the `:testing` module to register mock HTTP handlers.
 - Use `MockServerStore` for stateful mock mode with realistic CRUD behavior.
 - `TestConnectivityChecker` should be set to `online = true` in mock mode.

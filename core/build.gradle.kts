@@ -54,7 +54,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.les.buoyient.core"
+    namespace = "com.elvdev.buoyient.core"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -70,6 +70,11 @@ android {
 
 signing {
     isRequired = !version.toString().endsWith("SNAPSHOT")
+    val signingKey = findProperty("signingKey") as? String
+    val signingPassword = findProperty("signingPassword") as? String
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
     sign(publishing.publications)
 }
 

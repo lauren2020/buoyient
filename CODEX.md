@@ -66,9 +66,9 @@ If you are unsure about naming or wiring, prefer copying from `templates/` and `
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:syncable-objects` | `com.les.buoyient:syncable-objects` | Core sync engine (KMP) |
-| `:hilt` | `com.les.buoyient:syncable-objects-hilt` | Optional Hilt integration - auto-registers services |
-| `:testing` | `com.les.buoyient:testing` | Test utilities - mock server, in-memory DB, test doubles |
+| `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP) |
+| `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration - auto-registers services |
+| `:testing` | `com.elvdev.buoyient:testing` | Test utilities - mock server, in-memory DB, test doubles |
 
 ## Important conventions
 

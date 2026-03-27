@@ -93,14 +93,14 @@ tasks.withType<Jar> {
 sqldelight {
     databases {
         create("SyncDatabase") {
-            packageName.set("com.les.buoyient.db")
+            packageName.set("com.elvdev.buoyient.db")
             dialect(libs.sqldelight.dialect)
         }
     }
 }
 
 android {
-    namespace = "com.les.buoyient"
+    namespace = "com.elvdev.buoyient"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -115,8 +115,12 @@ android {
 }
 
 signing {
-    // Only sign when credentials are available (CI or release builds).
     isRequired = !version.toString().endsWith("SNAPSHOT")
+    val signingKey = findProperty("signingKey") as? String
+    val signingPassword = findProperty("signingPassword") as? String
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
     sign(publishing.publications)
 }
 

@@ -67,7 +67,7 @@ The `SyncableObject` companion object provides constants for the metadata keys u
 ```kotlin
 package com.example.yourapp.data.models
 
-import com.les.buoyient.SyncableObject
+import com.elvdev.buoyient.SyncableObject
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import java.util.UUID
@@ -105,7 +105,7 @@ Define an enum implementing `ServiceRequestTag` to identify the different reques
 ```kotlin
 package com.example.yourapp.data.services
 
-import com.les.buoyient.ServiceRequestTag
+import com.elvdev.buoyient.ServiceRequestTag
 
 enum class YourModelRequestTag(override val value: String) : ServiceRequestTag {
     CREATE("create"),
@@ -120,7 +120,7 @@ enum class YourModelRequestTag(override val value: String) : ServiceRequestTag {
 
 Implement `ServerProcessingConfig<YourModel>` to tell buoyient how to fetch data from and push data to your server.
 
-> **Import note:** `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, and other service-level configuration classes live in the `com.les.buoyient.serviceconfigs` package. Other optional service constructor params — `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, and `SyncableObjectRebaseHandler` — are also in `serviceconfigs`.
+> **Import note:** `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, and other service-level configuration classes live in the `com.elvdev.buoyient.serviceconfigs` package. Other optional service constructor params — `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, and `SyncableObjectRebaseHandler` — are also in `serviceconfigs`.
 
 ### Required members
 
@@ -577,8 +577,8 @@ Add the dependency:
 
 ```kotlin
 // build.gradle.kts
-implementation("com.les.buoyient:syncable-objects:<version>")
-implementation("com.les.buoyient:syncable-objects-hilt:<version>")
+implementation("com.elvdev.buoyient:syncable-objects:<version>")
+implementation("com.elvdev.buoyient:syncable-objects-hilt:<version>")
 ```
 
 Then provide services' sync participants via a standard Hilt module:
@@ -950,7 +950,7 @@ buoyient can optionally encrypt all persisted JSON blobs in SQLite on a per-serv
 ### Implement `EncryptionProvider`
 
 ```kotlin
-import com.les.buoyient.serviceconfigs.EncryptionProvider
+import com.elvdev.buoyient.serviceconfigs.EncryptionProvider
 
 class AesGcmEncryptionProvider(
     private val keyAlias: String,

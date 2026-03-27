@@ -19,11 +19,11 @@ The `:syncable-objects` module organizes its public API into packages by role:
 
 | Package | Purpose |
 |---------|---------|
-| `com.les.buoyient` (top level) | Primary classes consumers build on: `SyncableObject`, `SyncableObjectService`, `ServiceRequestTag`, `Service` |
-| `com.les.buoyient.globalconfigs` | Project-level configuration: `Buoyient`, `GlobalHeaderProvider`, `DatabaseProvider`, `HttpClientOverride`, `DatabaseOverride` |
-| `com.les.buoyient.serviceconfigs` | Per-service configuration: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler` |
-| `com.les.buoyient.datatypes` | Data types for interacting with `SyncableObjectService`: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger` |
-| `com.les.buoyient.utils` | Utilities: `SyncCodec`, `BuoyientLog`, `BuoyientLogger` |
+| `com.elvdev.buoyient` (top level) | Primary classes consumers build on: `SyncableObject`, `SyncableObjectService`, `ServiceRequestTag`, `Service` |
+| `com.elvdev.buoyient.globalconfigs` | Project-level configuration: `Buoyient`, `GlobalHeaderProvider`, `DatabaseProvider`, `HttpClientOverride`, `DatabaseOverride` |
+| `com.elvdev.buoyient.serviceconfigs` | Per-service configuration: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler` |
+| `com.elvdev.buoyient.datatypes` | Data types for interacting with `SyncableObjectService`: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger` |
+| `com.elvdev.buoyient.utils` | Utilities: `SyncCodec`, `BuoyientLog`, `BuoyientLogger` |
 
 Internal packages (`managers`, `sync`) are not part of the public API.
 
@@ -65,9 +65,9 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:syncable-objects` | `com.les.buoyient:syncable-objects` | Core sync engine (KMP) |
-| `:hilt` | `com.les.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
-| `:testing` | `com.les.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
+| `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP) |
+| `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
+| `:testing` | `com.elvdev.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
 
 ## Important conventions
 

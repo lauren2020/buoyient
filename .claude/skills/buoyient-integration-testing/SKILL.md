@@ -16,7 +16,7 @@ Add the testing module as a `testImplementation` dependency in the consuming app
 ```kotlin
 testImplementation(project(":testing"))
 // or, if consuming as a published artifact:
-testImplementation("com.les.buoyient:testing:<version>")
+testImplementation("com.elvdev.buoyient:testing:<version>")
 ```
 
 The `:testing` module transitively provides everything from `:syncable-objects`, plus `ktor-client-mock` and an in-memory SQLite driver. No additional test dependencies are needed.
@@ -25,10 +25,10 @@ The `:testing` module transitively provides everything from `:syncable-objects`,
 
 ## Imports
 
-Classes from the `:testing` module are in `com.les.buoyient.testing`. When writing tests you'll also need types from the core library — note the package reorganization:
-- Service configs (`ServerProcessingConfig`, `ConnectivityChecker`, etc.) are in `com.les.buoyient.serviceconfigs`
-- Data types for service operations (`HttpRequest`, `SyncableObjectServiceResponse`, etc.) are in `com.les.buoyient.datatypes`
-- Utilities (`SyncCodec`, `BuoyientLog`) are in `com.les.buoyient.utils`
+Classes from the `:testing` module are in `com.elvdev.buoyient.testing`. When writing tests you'll also need types from the core library — note the package reorganization:
+- Service configs (`ServerProcessingConfig`, `ConnectivityChecker`, etc.) are in `com.elvdev.buoyient.serviceconfigs`
+- Data types for service operations (`HttpRequest`, `SyncableObjectServiceResponse`, etc.) are in `com.elvdev.buoyient.datatypes`
+- Utilities (`SyncCodec`, `BuoyientLog`) are in `com.elvdev.buoyient.utils`
 
 ---
 
@@ -109,7 +109,7 @@ Every integration test follows the same pattern:
 6. Assert on response, local DB state, and/or request log
 
 ```kotlin
-import com.les.buoyient.testing.*
+import com.elvdev.buoyient.testing.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -550,7 +550,7 @@ now = 2000L
 
 ## Available Testing Utilities Reference
 
-All classes are in the `com.les.buoyient.testing` package:
+All classes are in the `com.elvdev.buoyient.testing` package:
 
 | Class | Purpose |
 |-------|---------|
