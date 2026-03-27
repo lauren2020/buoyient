@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup Guide — buoyient</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a href="why-buoyient.html" class="logo">
+    <svg width="32" height="32" viewBox="0 0 80 80" fill="none">
+      <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+      <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
+      <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+      <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
+      <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+    </svg>
+    buoyient
+  </a>
+  <button class="nav-toggle" onclick="document.querySelector('.site-header nav').classList.toggle('open')">&#9776;</button>
+  <nav>
+    <a href="why-buoyient.html">Why buoyient?</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html" class="active">Setup Guide</a>
+  </nav>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>Get started with <span class="highlight">buoyient</span></h1>
+  <p class="subtitle">Five steps to offline-first sync</p>
+</div>
+
+<!-- ── Sticky Step Bar ── -->
+<div class="step-bar" id="stepBar">
+  <div class="step-dot-group">
+    <div class="step-dot active" data-step="1">1</div>
+    <div class="step-line" data-after="1"></div>
+    <div class="step-dot" data-step="2">2</div>
+    <div class="step-line" data-after="2"></div>
+    <div class="step-dot" data-step="3">3</div>
+    <div class="step-line" data-after="3"></div>
+    <div class="step-dot" data-step="4">4</div>
+    <div class="step-line" data-after="4"></div>
+    <div class="step-dot" data-step="5">5</div>
+  </div>
+</div>
+
+<!-- ══════════ STEP 1: Dependencies ══════════ -->
+<section class="section" id="step1">
+  <h2><span class="num">01</span> Add dependencies</h2>
+  <p class="section-desc">Add buoyient to your module-level <code>build.gradle.kts</code>. Pick the modules you need.</p>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(this, 'dep')">Core Only</button>
+    <button class="tab-btn" onclick="switchTab(this, 'dep')">With Hilt</button>
+    <button class="tab-btn" onclick="switchTab(this, 'dep')">Everything</button>
+  </div>
+
+  <div class="tab-content active" data-group="dep" data-tab="Core Only">
+    <div class="code-block">
+      <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code><span class="fn">dependencies</span> {
+    <span class="fn">implementation</span>(<span class="str">"com.les.buoyient:syncable-objects:&lt;version&gt;"</span>)
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="tab-content" data-group="dep" data-tab="With Hilt">
+    <div class="code-block">
+      <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code><span class="fn">dependencies</span> {
+    <span class="fn">implementation</span>(<span class="str">"com.les.buoyient:syncable-objects:&lt;version&gt;"</span>)
+    <span class="fn">implementation</span>(<span class="str">"com.les.buoyient:syncable-objects-hilt:&lt;version&gt;"</span>)
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="tab-content" data-group="dep" data-tab="Everything">
+    <div class="code-block">
+      <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code><span class="fn">dependencies</span> {
+    <span class="fn">implementation</span>(<span class="str">"com.les.buoyient:syncable-objects:&lt;version&gt;"</span>)
+    <span class="fn">implementation</span>(<span class="str">"com.les.buoyient:syncable-objects-hilt:&lt;version&gt;"</span>)
+    <span class="fn">testImplementation</span>(<span class="str">"com.les.buoyient:testing:&lt;version&gt;"</span>)
+    <span class="fn">debugImplementation</span>(<span class="str">"com.les.buoyient:testing:&lt;version&gt;"</span>) <span class="cmt">// for mock mode</span>
+}</code></pre>
+    </div>
+  </div>
+
+  <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);">
+    That's it for dependencies. buoyient auto-initializes via <code>androidx.startup</code> &mdash; no <code>Application.onCreate()</code> code needed for initialization.
+  </p>
+</section>
+
+<!-- ══════════ STEP 2: Data Model ══════════ -->
+<section class="section" id="step2">
+  <h2><span class="num">02</span> Define your data model</h2>
+  <p class="section-desc">Describe your domain object below and watch the code generate in real time. Or skip ahead &mdash; you can always copy the template.</p>
+
+  <div class="split-panel">
+    <div>
+      <h3 class="mb-16">Your model</h3>
+      <div class="mb-16">
+        <label style="font-size: 0.82rem; color: var(--text-dim); display: block; margin-bottom: 6px;">Model name</label>
+        <input class="input-field" id="modelName" type="text" placeholder="Todo" oninput="updateModelPreview()">
+      </div>
+      <div>
+        <label style="font-size: 0.82rem; color: var(--text-dim); display: block; margin-bottom: 6px;">Fields</label>
+        <div id="fieldsList">
+          <div class="field-row">
+            <input class="input-field" placeholder="field name" value="title" oninput="updateModelPreview()">
+            <input class="input-field" placeholder="type" value="String" oninput="updateModelPreview()" style="max-width: 120px;">
+            <button class="remove-field" onclick="removeField(this)">&times;</button>
+          </div>
+          <div class="field-row">
+            <input class="input-field" placeholder="field name" value="completed" oninput="updateModelPreview()">
+            <input class="input-field" placeholder="type" value="Boolean" oninput="updateModelPreview()" style="max-width: 120px;">
+            <button class="remove-field" onclick="removeField(this)">&times;</button>
+          </div>
+        </div>
+        <button class="add-field-btn mt-8" onclick="addField()">+ Add field</button>
+      </div>
+    </div>
+    <div>
+      <h3 class="mb-16">Generated code</h3>
+      <div class="code-block glow-teal">
+        <div class="code-header"><span id="modelFileName">Todo.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code id="modelPreview"></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ STEP 3: Request Tag ══════════ -->
+<section class="section" id="step3">
+  <h2><span class="num">03</span> Create a request tag</h2>
+  <p class="section-desc">Each operation type gets a tag. This lets buoyient route responses and lets you customize handling per operation.</p>
+
+  <div style="max-width: 600px;">
+    <div class="code-block">
+      <div class="code-header"><span id="tagFileName">TodoRequestTag.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code id="tagPreview"></code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ STEP 4: Service ══════════ -->
+<section class="section" id="step4">
+  <h2><span class="num">04</span> Implement your service</h2>
+  <p class="section-desc">Extend <code>SyncableObjectService</code> and expose domain-specific methods using the protected <code>create()</code>, <code>update()</code>, <code>void()</code>, and <code>get()</code> methods.</p>
+
+  <div style="max-width: 700px;">
+    <div class="code-block">
+      <div class="code-header"><span id="serviceFileName">TodoService.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code id="servicePreview"></code></pre>
+    </div>
+
+    <div class="card mt-24" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow);">Key things to notice</h4>
+      <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-top: 8px; padding-left: 20px;">
+        <li><code>CreateRequestBuilder</code> is a lambda that builds the HTTP request &mdash; it receives the data, an idempotency key, and connectivity info</li>
+        <li><code>ResponseUnpacker</code> extracts your object from the server response JSON</li>
+        <li>The <code>serviceName</code> must be unique &mdash; it's the SQLite partition key</li>
+        <li>Use <code>HttpRequest.serverIdOrPlaceholder(serverId)</code> in update/void URLs for offline safety</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ STEP 5: Registration ══════════ -->
+<section class="section" id="step5">
+  <h2><span class="num">05</span> Register for background sync</h2>
+  <p class="section-desc">Tell buoyient about your service so it can sync in the background via WorkManager.</p>
+
+  <div style="max-width: 600px;">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this, 'reg')">With Hilt</button>
+      <button class="tab-btn" onclick="switchTab(this, 'reg')">Without Hilt</button>
+      <button class="tab-btn" onclick="switchTab(this, 'reg')">Service Provider</button>
+    </div>
+
+    <div class="tab-content active" data-group="reg" data-tab="With Hilt">
+      <div class="code-block">
+        <div class="code-header"><span>SyncModule.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code id="regHiltPreview"></code></pre>
+      </div>
+    </div>
+
+    <div class="tab-content" data-group="reg" data-tab="Without Hilt">
+      <div class="code-block">
+        <div class="code-header"><span>MyApp.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code id="regManualPreview"></code></pre>
+      </div>
+    </div>
+
+    <div class="tab-content" data-group="reg" data-tab="Service Provider">
+      <div class="code-block">
+        <div class="code-header"><span>MyApp.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code id="regProviderPreview"></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ Verification Checklist ══════════ -->
+<section class="section" id="verification">
+  <h2>Verify your setup</h2>
+  <p class="section-desc">Run through this checklist to make sure everything is wired up correctly.</p>
+
+  <div style="max-width: 520px;">
+    <ul class="checklist" id="checklist">
+      <li onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <span>Project builds without errors</span>
+      </li>
+      <li onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <span>App launches &mdash; check logcat for <code>BuoyientInitializer</code></span>
+      </li>
+      <li onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <span>Create an item &mdash; verify it appears in the local store</span>
+      </li>
+      <li onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <span>Kill and relaunch the app &mdash; data persists</span>
+      </li>
+      <li onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <span>Observe background sync in logcat after ~60 seconds</span>
+      </li>
+      <li onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <span>Call <code>Buoyient.syncNow()</code> &mdash; verify immediate sync</span>
+      </li>
+    </ul>
+
+    <div class="celebration" id="celebration">
+      <svg width="48" height="48" viewBox="0 0 80 80" fill="none" style="margin: 0 auto 12px; display: block; animation: beacon-pulse 2s ease-in-out infinite;">
+        <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+        <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
+        <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+        <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
+        <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+      </svg>
+      <h3>You're all set!</h3>
+      <p>Your app now has offline-first sync. Time to build something great.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ What's Next ══════════ -->
+<section class="section">
+  <h2>What's next?</h2>
+  <p class="section-desc">Dive deeper into the full documentation for advanced patterns.</p>
+
+  <div class="card-grid card-grid-3 stagger">
+    <a href="../docs/creating-a-service.md" class="card fade-in" style="text-decoration: none;">
+      <h4>Creating a Service</h4>
+      <p>ServerProcessingConfig, request builders, response unpacking, flow-based operations, and cross-service dependencies.</p>
+      <span class="text-blue mt-8" style="display: block; font-size: 0.85rem;">Read guide &rarr;</span>
+    </a>
+    <a href="../docs/integration-testing.md" class="card fade-in" style="text-decoration: none;">
+      <h4>Integration Testing</h4>
+      <p>TestServiceEnvironment, mock HTTP handlers, offline path testing, stateful mock server, and conflict simulation.</p>
+      <span class="text-blue mt-8" style="display: block; font-size: 0.85rem;">Read guide &rarr;</span>
+    </a>
+    <a href="../docs/mock-mode.md" class="card fade-in" style="text-decoration: none;">
+      <h4>Mock Mode</h4>
+      <p>Run your full app against fake data with a developer toggle. No real backend needed for manual testing.</p>
+      <span class="text-blue mt-8" style="display: block; font-size: 0.85rem;">Read guide &rarr;</span>
+    </a>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<div class="wave-separator">
+  <svg viewBox="0 0 1200 40" preserveAspectRatio="none">
+    <path d="M0 20 Q150 5 300 20 T600 18 T900 22 T1200 16 V40 H0 Z" fill="#1a1d27" opacity="0.5"/>
+    <path d="M0 28 Q200 14 400 26 T800 24 T1200 22 V40 H0 Z" fill="#1a1d27"/>
+  </svg>
+</div>
+<footer class="site-footer">
+  <p class="tagline">keep your client up even when the network is down</p>
+  <div class="footer-links">
+    <a href="https://github.com/user/buoyient">GitHub</a>
+    <a href="why-buoyient.html">Why</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup</a>
+  </div>
+  <p class="copy">buoyient &mdash; offline-first sync for Kotlin Multiplatform</p>
+</footer>
+
+<!-- ── Scripts ── -->
+<script>
+// --- Scroll fade-in ---
+const fadeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => fadeObserver.observe(el));
+
+// --- Step bar progress ---
+const stepSections = [
+  document.getElementById('step1'),
+  document.getElementById('step2'),
+  document.getElementById('step3'),
+  document.getElementById('step4'),
+  document.getElementById('step5'),
+];
+
+const stepObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const idx = stepSections.indexOf(entry.target);
+      if (idx >= 0) updateStepBar(idx + 1);
+    }
+  });
+}, { threshold: 0.3 });
+
+stepSections.forEach(s => { if (s) stepObserver.observe(s); });
+
+function updateStepBar(activeStep) {
+  document.querySelectorAll('.step-dot').forEach(dot => {
+    const s = parseInt(dot.dataset.step);
+    dot.classList.toggle('done', s < activeStep);
+    dot.classList.toggle('active', s === activeStep);
+  });
+  document.querySelectorAll('.step-line').forEach(line => {
+    const s = parseInt(line.dataset.after);
+    line.classList.toggle('done', s < activeStep);
+  });
+}
+
+// --- Tabs ---
+function switchTab(btn, group) {
+  const tabName = btn.textContent;
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll(`.tab-content[data-group="${group}"]`).forEach(c => {
+    c.classList.toggle('active', c.dataset.tab === tabName);
+  });
+}
+
+// --- Copy to clipboard ---
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// --- Interactive Model Builder ---
+function getModelName() {
+  return (document.getElementById('modelName').value || 'Todo').trim();
+}
+
+function getFields() {
+  const rows = document.querySelectorAll('#fieldsList .field-row');
+  const fields = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('.input-field');
+    const name = (inputs[0].value || '').trim();
+    const type = (inputs[1].value || 'String').trim();
+    if (name) fields.push({ name, type });
+  });
+  return fields;
+}
+
+function defaultValue(type) {
+  const t = type.toLowerCase();
+  if (t === 'boolean') return 'false';
+  if (t === 'int' || t === 'long' || t === 'float' || t === 'double') return '0';
+  if (t === 'string') return '""';
+  return 'null';
+}
+
+function updateModelPreview() {
+  const name = getModelName();
+  const fields = getFields();
+  const lcName = name.charAt(0).toLowerCase() + name.slice(1);
+
+  // Model file name
+  document.getElementById('modelFileName').textContent = name + '.kt';
+  document.getElementById('tagFileName').textContent = name + 'RequestTag.kt';
+  document.getElementById('serviceFileName').textContent = name + 'Service.kt';
+
+  // Model code
+  let fieldLines = fields.map(f => `    <span class="kw">val</span> ${f.name}: <span class="typ">${f.type}</span> = ${defaultValue(f.type)},`).join('\n');
+  if (fields.length === 0) fieldLines = `    <span class="cmt">// add your fields above</span>`;
+
+  document.getElementById('modelPreview').innerHTML =
+`<span class="ann">@Serializable</span>
+<span class="kw">data class</span> <span class="typ">${esc(name)}</span>(
+    <span class="kw">override val</span> serverId: <span class="typ">String</span>? = <span class="kw">null</span>,
+    <span class="kw">override val</span> clientId: <span class="typ">String</span> = UUID.<span class="fn">randomUUID</span>().<span class="fn">toString</span>(),
+    <span class="kw">override val</span> version: <span class="typ">String</span>? = <span class="kw">null</span>,
+    <span class="ann">@Transient</span> <span class="kw">override val</span> syncStatus: <span class="typ">SyncStatus</span> = <span class="typ">SyncStatus</span>.LocalOnly,
+${fieldLines}
+) : <span class="typ">SyncableObject</span>&lt;<span class="typ">${esc(name)}</span>&gt; {
+    <span class="kw">override fun</span> <span class="fn">withSyncStatus</span>(syncStatus: <span class="typ">SyncStatus</span>): <span class="typ">${esc(name)}</span> =
+        <span class="fn">copy</span>(syncStatus = syncStatus)
+}`;
+
+  // Tag code
+  document.getElementById('tagPreview').innerHTML =
+`<span class="kw">enum class</span> <span class="typ">${esc(name)}RequestTag</span>(
+    <span class="kw">override val</span> value: <span class="typ">String</span>
+) : <span class="typ">ServiceRequestTag</span> {
+    CREATE(<span class="str">"create"</span>),
+    UPDATE(<span class="str">"update"</span>),
+    VOID(<span class="str">"void"</span>),
+}`;
+
+  // Service code
+  document.getElementById('servicePreview').innerHTML =
+`<span class="kw">class</span> <span class="typ">${esc(name)}Service</span>(
+    serverProcessingConfig: <span class="typ">ServerProcessingConfig</span>&lt;<span class="typ">${esc(name)}</span>&gt;,
+) : <span class="typ">SyncableObjectService</span>&lt;<span class="typ">${esc(name)}</span>, <span class="typ">${esc(name)}RequestTag</span>&gt;(
+    serializer = <span class="typ">${esc(name)}</span>.<span class="fn">serializer</span>(),
+    serverProcessingConfig = serverProcessingConfig,
+    serviceName = <span class="str">"${esc(lcName)}s"</span>,
+) {
+    <span class="kw">suspend fun</span> <span class="fn">create${esc(name)}</span>(${fields.length > 0 ? fields.map(f => f.name + ': ' + f.type).join(', ') : '/* params */'}):
+        <span class="typ">SyncableObjectServiceResponse</span>&lt;<span class="typ">${esc(name)}</span>&gt; {
+      <span class="kw">val</span> item = <span class="typ">${esc(name)}</span>(${fields.length > 0 ? fields.map(f => f.name + ' = ' + f.name).join(', ') : '/* ... */'})
+      <span class="kw">return</span> <span class="fn">create</span>(
+        data = item,
+        requestTag = <span class="typ">${esc(name)}RequestTag</span>.CREATE,
+        request = <span class="typ">CreateRequestBuilder</span> { data, key, _, _ -&gt;
+          <span class="typ">HttpRequest</span>(
+            method = <span class="typ">HttpRequest</span>.HttpMethod.POST,
+            endpointUrl = <span class="str">"https://api.example.com/${esc(lcName)}s"</span>,
+            requestBody = <span class="fn">buildJsonObject</span> {
+              <span class="fn">put</span>(<span class="str">"idempotency_key"</span>, key)
+              <span class="fn">put</span>(<span class="str">"reference_id"</span>, data.clientId)${fields.map(f => `
+              <span class="fn">put</span>(<span class="str">"${f.name}"</span>, data.${f.name})`).join('')}
+            },
+          )
+        },
+        unpackSyncData = unpacker,
+      )
+    }
+}`;
+
+  // Registration code
+  document.getElementById('regHiltPreview').innerHTML =
+`<span class="ann">@Module</span>
+<span class="ann">@InstallIn</span>(<span class="typ">SingletonComponent</span>::<span class="kw">class</span>)
+<span class="kw">object</span> <span class="typ">SyncModule</span> {
+    <span class="ann">@Provides</span> <span class="ann">@IntoSet</span>
+    <span class="kw">fun</span> <span class="fn">${lcName}Service</span>(): <span class="typ">SyncDriver</span>&lt;*, *&gt; =
+        <span class="typ">${esc(name)}Service</span>(${esc(name)}ServerProcessingConfig()).<span class="fn">syncDriver</span>
+}`;
+
+  document.getElementById('regManualPreview').innerHTML =
+`<span class="kw">class</span> <span class="typ">MyApp</span> : <span class="typ">Application</span>() {
+    <span class="kw">val</span> ${lcName}Service = <span class="typ">${esc(name)}Service</span>(${esc(name)}ServerProcessingConfig())
+
+    <span class="kw">override fun</span> <span class="fn">onCreate</span>() {
+        <span class="kw">super</span>.<span class="fn">onCreate</span>()
+        <span class="typ">Buoyient</span>.<span class="fn">registerServices</span>(<span class="fn">setOf</span>(${lcName}Service))
+    }
+}`;
+
+  document.getElementById('regProviderPreview').innerHTML =
+`<span class="typ">Buoyient</span>.<span class="fn">registerServiceProvider</span>(<span class="kw">object</span> : <span class="typ">SyncServiceRegistryProvider</span> {
+    <span class="kw">override fun</span> <span class="fn">createDrivers</span>(context: <span class="typ">Context</span>) =
+        <span class="fn">listOf</span>(<span class="typ">${esc(name)}Service</span>(${esc(name)}ServerProcessingConfig()).<span class="fn">syncDriver</span>)
+})`;
+}
+
+function esc(s) {
+  return s.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function addField() {
+  const list = document.getElementById('fieldsList');
+  const row = document.createElement('div');
+  row.className = 'field-row';
+  row.innerHTML = `<input class="input-field" placeholder="field name" oninput="updateModelPreview()"><input class="input-field" placeholder="type" value="String" oninput="updateModelPreview()" style="max-width: 120px;"><button class="remove-field" onclick="removeField(this)">&times;</button>`;
+  list.appendChild(row);
+  row.querySelector('.input-field').focus();
+}
+
+function removeField(btn) {
+  const rows = document.querySelectorAll('#fieldsList .field-row');
+  if (rows.length > 1) {
+    btn.closest('.field-row').remove();
+    updateModelPreview();
+  }
+}
+
+// Initial render
+updateModelPreview();
+
+// --- Checklist ---
+function toggleCheck(li) {
+  li.classList.toggle('checked');
+  checkCompletion();
+}
+
+function checkCompletion() {
+  const items = document.querySelectorAll('#checklist li');
+  const checked = document.querySelectorAll('#checklist li.checked');
+  const celebration = document.getElementById('celebration');
+  if (checked.length === items.length) {
+    celebration.classList.add('show');
+  } else {
+    celebration.classList.remove('show');
+  }
+}
+</script>
+
+</body>
+</html>

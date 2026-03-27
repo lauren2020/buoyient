@@ -8,12 +8,19 @@ keep your client up even when the network is down
 ## What
 An offline first Kotlin Multiplatform SDK that keeps a local data store in sync with a remote server for a seamless client experience on- or off-line. App code performs data operations through a single API regardless of connectivity - changes persist locally immediately, queue for server transport when offline, and reconcile automatically when connectivity returns. Includes conflict resolution, automatic retries, and periodic sync-down from the server.
 
-## Agent Optimized
-This is intended to be an agent optimized SDK.
-- This includes optimization through several rounds of testing having agents attempt to implement this SDK in a project and provide feedback. That feedback was then incrementally applied to the SDK to improve its agentic compatibility.
-- This SDK comes loaded with skills that should inform not only how to use the SDK, but also instruct agents regarding any concerns that should be considered to ensure the use is reliable and performant.
+## Agent Optimized - /+/ -> Human Optimized
+**Humans:**
+This README.md focuses on the content agents need - md text is a good format for agents, but it lacks space for a full experience that humans benefit the most from.
+
+For humans, this project offers an (ironically, agent generated) html formatted walkthrough experience covering:
+- Why buoyient?
+- How it works
+- Setup guidance
+
+Check it out: [Why buoyient?](https://github.com/lauren2020/buoyient/docs-site/setup.html)
 
 **AI agents:** This repo includes agent instruction files with detailed integration instructions, key class reference, and conventions: [`CLAUDE.md`](CLAUDE.md), [`CODEX.md`](CODEX.md), [`.cursorrules`](.cursorrules), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md). If you are consuming buoyient as a maven dependency, these are bundled in the published JAR under `META-INF/`. The [`docs/`](docs/) directory contains step-by-step guides for setup, service creation, testing, and mock mode.
+- This includes optimization through several rounds of testing having agents attempt to implement this SDK in a project and provide feedback. That feedback was then incrementally applied to the SDK to improve its agentic compatibility.
 
 ## Features
 

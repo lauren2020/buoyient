@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How buoyient Works — Visual Architecture Tour</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a href="why-buoyient.html" class="logo">
+    <svg width="32" height="32" viewBox="0 0 80 80" fill="none">
+      <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+      <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
+      <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+      <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
+      <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+    </svg>
+    buoyient
+  </a>
+  <button class="nav-toggle" onclick="document.querySelector('.site-header nav').classList.toggle('open')">&#9776;</button>
+  <nav>
+    <a href="why-buoyient.html">Why buoyient?</a>
+    <a href="how-it-works.html" class="active">How It Works</a>
+    <a href="setup.html">Setup Guide</a>
+  </nav>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>How <span class="highlight">buoyient</span> works</h1>
+  <p class="subtitle">A visual tour of the sync engine</p>
+</div>
+
+<!-- ── Architecture Overview ── -->
+<section class="section">
+  <h2>The big picture</h2>
+  <p class="section-desc">Your app talks to buoyient. buoyient talks to your server. Your app never needs to worry about connectivity.</p>
+
+  <div class="arch-diagram fade-in">
+    <!-- App Layer -->
+    <div class="arch-layer">
+      <div class="arch-box app-layer">
+        <div class="arch-label">Your App</div>
+        <div class="arch-sub">TodoService, InvoiceService, &hellip;</div>
+      </div>
+    </div>
+
+    <!-- Arrow down -->
+    <div class="arch-arrow">
+      <span class="arrow-label text-orange">create() &middot; update() &middot; void() &middot; get()</span>
+      <svg width="24" height="32" viewBox="0 0 24 32"><path d="M12 0v28M6 22l6 6 6-6" stroke="#ff6b35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <div class="flow-dot down"></div>
+    </div>
+
+    <!-- Engine Layer -->
+    <div class="arch-layer">
+      <div class="arch-box engine-layer" style="min-width: 400px;">
+        <div class="arch-label" style="color: var(--beacon-yellow);">buoyient Engine</div>
+        <div style="display: flex; gap: 20px; margin-top: 12px; justify-content: center; flex-wrap: wrap;">
+          <div class="badge badge-yellow">Local Store (SQLite)</div>
+          <div class="badge badge-orange">Pending Queue</div>
+          <div class="badge badge-blue">Sync Driver</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrows up and down -->
+    <div style="display: flex; justify-content: center; gap: 80px;">
+      <div class="arch-arrow">
+        <span class="arrow-label text-teal">Sync Up</span>
+        <svg width="24" height="32" viewBox="0 0 24 32"><path d="M12 32V4M6 10l6-6 6 6" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <div class="flow-dot up-teal"></div>
+      </div>
+      <div class="arch-arrow">
+        <span class="arrow-label text-blue">Sync Down</span>
+        <svg width="24" height="32" viewBox="0 0 24 32"><path d="M12 0v28M6 22l6 6 6-6" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <div class="flow-dot down-blue"></div>
+      </div>
+    </div>
+
+    <!-- Server Layer -->
+    <div class="arch-layer">
+      <div class="arch-box server-layer">
+        <div class="arch-label">Your Server</div>
+        <div class="arch-sub">REST API, GraphQL, whatever you've got</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Follow a CREATE ── -->
+<section class="section">
+  <h2>Follow a CREATE</h2>
+  <p class="section-desc">Click through to see what happens when your app creates a new object, step by step.</p>
+
+  <div style="max-width: 560px; margin: 0 auto;">
+    <!-- Flow steps -->
+    <div id="flowSteps">
+      <div class="flow-step active" data-step="0">
+        <div class="step-label">Step 1</div>
+        <div class="step-text">Your app calls <code>service.createTodo(todo)</code></div>
+      </div>
+      <div class="flow-arrow active" data-step="0">&darr;</div>
+
+      <div class="flow-step" data-step="1">
+        <div class="step-label">Step 2</div>
+        <div class="step-text">buoyient saves the object to SQLite with status <span class="badge badge-yellow">LocalOnly</span></div>
+      </div>
+      <div class="flow-arrow" data-step="1">&darr;</div>
+
+      <div class="flow-step" data-step="2" style="border-color: var(--beacon-yellow);">
+        <div class="step-label">Step 3</div>
+        <div class="step-text" style="color: var(--beacon-yellow);">Is the device online?</div>
+      </div>
+
+      <!-- Branching paths -->
+      <div id="branchContainer" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px;">
+        <!-- Online path -->
+        <div>
+          <div class="flow-arrow" data-step="3a" style="color: var(--current-teal);">&darr; Yes</div>
+          <div class="flow-step" data-step="3a">
+            <div class="step-label" style="color: var(--current-teal);">Online</div>
+            <div class="step-text">HTTP request sent to your server immediately</div>
+          </div>
+          <div class="flow-arrow" data-step="4a">&darr;</div>
+          <div class="flow-step" data-step="4a">
+            <div class="step-label" style="color: var(--current-teal);">Response</div>
+            <div class="step-text">Server returns <code>serverId</code> + <code>version</code></div>
+          </div>
+          <div class="flow-arrow" data-step="5a">&darr;</div>
+          <div class="flow-step" data-step="5a">
+            <div class="step-label" style="color: var(--current-teal);">Done</div>
+            <div class="step-text">Local store updated &rarr; <span class="badge badge-teal">Synced</span></div>
+          </div>
+        </div>
+        <!-- Offline path -->
+        <div>
+          <div class="flow-arrow" data-step="3b" style="color: var(--beacon-yellow);">&darr; No</div>
+          <div class="flow-step" data-step="3b">
+            <div class="step-label" style="color: var(--beacon-yellow);">Offline</div>
+            <div class="step-text">Request added to <span class="badge badge-orange">Pending Queue</span></div>
+          </div>
+          <div class="flow-arrow" data-step="4b">&darr;</div>
+          <div class="flow-step" data-step="4b">
+            <div class="step-label" style="color: var(--beacon-yellow);">Later&hellip;</div>
+            <div class="step-text">Connectivity returns. SyncDriver wakes up.</div>
+          </div>
+          <div class="flow-arrow" data-step="5b">&darr;</div>
+          <div class="flow-step" data-step="5b">
+            <div class="step-label" style="color: var(--beacon-yellow);">Resolve</div>
+            <div class="step-text"><code>{serverId}</code> placeholders resolved, request sent &rarr; <span class="badge badge-teal">Synced</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="flex-center gap-16 mt-32">
+      <button class="btn btn-sm btn-secondary" onclick="flowPrev()">&#8592; Back</button>
+      <span id="flowCounter" style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-dim);">1 / 6</span>
+      <button class="btn btn-sm btn-primary" onclick="flowNext()">Next &#8594;</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Sync Status Lifecycle ── -->
+<section class="section">
+  <h2>Object lifecycle</h2>
+  <p class="section-desc">Every <code>SyncableObject</code> carries a sync status that tracks where it is in its journey from local to server.</p>
+
+  <div class="fade-in" style="overflow-x: auto;">
+    <div style="display: flex; align-items: center; gap: 8px; min-width: 700px; justify-content: center; padding: 20px 0;">
+      <div class="badge badge-yellow" style="padding: 8px 16px; font-size: 0.82rem; cursor: pointer;" onclick="highlightState(this)" title="Object exists only on the device">LocalOnly</div>
+      <span style="color: var(--text-dim);">&rarr;</span>
+      <div class="badge badge-orange" style="padding: 8px 16px; font-size: 0.82rem; cursor: pointer;" onclick="highlightState(this)" title="Create request queued for sync-up">PendingCreate</div>
+      <span style="color: var(--text-dim);">&rarr;</span>
+      <div class="badge badge-teal" style="padding: 8px 16px; font-size: 0.82rem; cursor: pointer;" onclick="highlightState(this)" title="Server and local are in agreement">Synced</div>
+      <span style="color: var(--text-dim);">&rarr;</span>
+      <div class="badge badge-orange" style="padding: 8px 16px; font-size: 0.82rem; cursor: pointer;" onclick="highlightState(this)" title="Update request queued for sync-up">PendingUpdate</div>
+      <span style="color: var(--text-dim);">&rarr;</span>
+      <div class="badge badge-teal" style="padding: 8px 16px; font-size: 0.82rem; cursor: pointer;" onclick="highlightState(this)" title="Back in sync after the update">Synced</div>
+    </div>
+    <div style="display: flex; justify-content: center; gap: 16px; margin-top: 8px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="color: var(--text-dim); font-size: 0.82rem;">or from Synced &rarr;</span>
+        <div class="badge badge-orange" style="padding: 8px 16px; font-size: 0.82rem;">PendingVoid</div>
+        <span style="color: var(--text-dim); font-size: 0.82rem;">&rarr; voided</span>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: center; gap: 8px; margin-top: 12px;">
+      <span style="color: var(--text-dim); font-size: 0.82rem;">conflict path:</span>
+      <div class="badge badge-orange" style="padding: 6px 14px; font-size: 0.78rem;">PendingUpdate</div>
+      <span style="color: var(--text-dim); font-size: 0.82rem;">&rarr;</span>
+      <div class="badge badge-red" style="padding: 6px 14px; font-size: 0.78rem;">Conflict</div>
+      <span style="color: var(--text-dim); font-size: 0.82rem;">&rarr; resolve &rarr;</span>
+      <div class="badge badge-teal" style="padding: 6px 14px; font-size: 0.78rem;">Synced</div>
+    </div>
+  </div>
+
+  <div id="stateDetail" class="card mt-32" style="max-width: 500px; margin-left: auto; margin-right: auto; display: none;">
+    <p id="stateDetailText" style="font-size: 0.88rem; text-align: center;"></p>
+  </div>
+</section>
+
+<!-- ── Pending Queue ── -->
+<section class="section">
+  <h2>The pending request queue</h2>
+  <p class="section-desc">When offline, operations queue up. When connectivity returns, buoyient drains the queue in order, resolving placeholders as it goes.</p>
+
+  <div style="max-width: 480px; margin: 0 auto;">
+    <div class="flex-center gap-12 mb-24">
+      <button class="btn btn-sm btn-secondary" onclick="addToQueue()">+ Add Request</button>
+      <button class="btn btn-sm btn-primary" onclick="processQueue()">Process Queue &rarr;</button>
+    </div>
+
+    <div style="display: flex; gap: 32px; align-items: flex-start; justify-content: center;">
+      <div style="flex: 1;">
+        <h3 class="mb-16">Queue</h3>
+        <div id="queueItems" style="min-height: 60px;"></div>
+        <p id="queueEmpty" style="font-size: 0.82rem; color: var(--text-dim); text-align: center; padding: 20px 0;">Queue is empty</p>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 40px;">
+        <svg width="40" height="24" viewBox="0 0 40 24"><path d="M4 12h28M28 6l6 6-6 6" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </div>
+      <div style="min-width: 80px; text-align: center; padding-top: 40px;">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <rect x="4" y="8" width="40" height="32" rx="6" stroke="#4a9eff" stroke-width="2" fill="none"/>
+          <path d="M16 20h16M16 26h12M16 32h8" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+        <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Server</div>
+        <div id="serverCount" style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--current-teal); margin-top: 4px;">0 received</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Placeholder Resolution ── -->
+<section class="section">
+  <h2>Placeholder resolution</h2>
+  <p class="section-desc">When you create an object offline, it doesn't have a server ID yet. buoyient lets you reference it with a placeholder that gets resolved at sync time.</p>
+
+  <div style="max-width: 560px; margin: 0 auto;">
+    <div class="split-panel" style="gap: 16px;">
+      <div>
+        <h3 class="mb-16">Before sync</h3>
+        <div class="code-block">
+          <div class="code-header">HttpRequest (queued offline)</div>
+          <pre><code><span class="kw">PUT</span> /todos/<span id="ph1" class="placeholder">{serverId}</span>
+
+{
+  <span class="str">"title"</span>: <span class="str">"Buy milk"</span>,
+  <span class="str">"version"</span>: <span id="ph2" class="placeholder">{version}</span>
+}</code></pre>
+        </div>
+      </div>
+      <div>
+        <h3 class="mb-16">After sync</h3>
+        <div class="code-block glow-teal">
+          <div class="code-header">HttpRequest (resolved)</div>
+          <pre><code><span class="kw">PUT</span> /todos/<span id="res1" class="resolved" style="opacity: 0.3;">srv-a1b2c3</span>
+
+{
+  <span class="str">"title"</span>: <span class="str">"Buy milk"</span>,
+  <span class="str">"version"</span>: <span id="res2" class="resolved" style="opacity: 0.3;">42</span>
+}</code></pre>
+        </div>
+      </div>
+    </div>
+    <div class="flex-center mt-24">
+      <button class="btn btn-sm btn-primary" onclick="resolvePlaceholders()">Resolve Placeholders &rarr;</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Conflict Resolution ── -->
+<section class="section">
+  <h2>Conflict resolution</h2>
+  <p class="section-desc">When the server and local store diverge, buoyient does a field-level 3-way merge. Only truly conflicting fields need your attention.</p>
+
+  <div class="fade-in" style="max-width: 700px; margin: 0 auto;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center;">
+      <div>
+        <h3 class="mb-16">Base (last synced)</h3>
+        <div class="card" style="text-align: left; font-family: var(--font-mono); font-size: 0.82rem; line-height: 2;">
+          <div>title: <span class="str">"Buy milk"</span></div>
+          <div>completed: <span class="kw">false</span></div>
+          <div>priority: <span class="str">"low"</span></div>
+        </div>
+      </div>
+      <div>
+        <h3 class="mb-16" style="color: var(--beacon-yellow);">Local changes</h3>
+        <div class="card" style="text-align: left; font-family: var(--font-mono); font-size: 0.82rem; line-height: 2; border-color: var(--beacon-yellow);">
+          <div>title: <span class="str">"Buy oat milk"</span> <span class="badge badge-yellow" style="font-size: 0.65rem;">changed</span></div>
+          <div>completed: <span class="kw">false</span></div>
+          <div>priority: <span class="str">"high"</span> <span class="badge badge-yellow" style="font-size: 0.65rem;">changed</span></div>
+        </div>
+      </div>
+      <div>
+        <h3 class="mb-16" style="color: var(--ocean-blue);">Server changes</h3>
+        <div class="card" style="text-align: left; font-family: var(--font-mono); font-size: 0.82rem; line-height: 2; border-color: var(--ocean-blue);">
+          <div>title: <span class="str">"Buy milk"</span></div>
+          <div>completed: <span class="kw">true</span> <span class="badge badge-blue" style="font-size: 0.65rem;">changed</span></div>
+          <div>priority: <span class="str">"medium"</span> <span class="badge badge-blue" style="font-size: 0.65rem;">changed</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex-center mt-32">
+      <svg width="24" height="32" viewBox="0 0 24 32"><path d="M12 0v28M6 22l6 6 6-6" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    </div>
+
+    <div style="max-width: 360px; margin: 16px auto 0;">
+      <h3 class="mb-16 text-center" style="color: var(--current-teal);">Merged result</h3>
+      <div class="card" style="text-align: left; font-family: var(--font-mono); font-size: 0.82rem; line-height: 2; border-color: var(--current-teal);">
+        <div>title: <span class="str">"Buy oat milk"</span> <span style="font-size: 0.72rem; color: var(--current-teal);">&larr; local wins (only local changed)</span></div>
+        <div>completed: <span class="kw">true</span> <span style="font-size: 0.72rem; color: var(--current-teal);">&larr; server wins (only server changed)</span></div>
+        <div>priority: <span class="badge badge-red" style="font-size: 0.65rem;">CONFLICT</span> <span style="font-size: 0.72rem; color: var(--text-dim);">&larr; both changed &mdash; your RebaseHandler decides</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="section text-center" style="border-top: none; padding-top: 0;">
+  <h2 class="mb-24">Ready to set up?</h2>
+  <div class="flex-center gap-16 flex-wrap">
+    <a href="setup.html" class="btn btn-primary">Get started &rarr;</a>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<div class="wave-separator">
+  <svg viewBox="0 0 1200 40" preserveAspectRatio="none">
+    <path d="M0 20 Q150 5 300 20 T600 18 T900 22 T1200 16 V40 H0 Z" fill="#1a1d27" opacity="0.5"/>
+    <path d="M0 28 Q200 14 400 26 T800 24 T1200 22 V40 H0 Z" fill="#1a1d27"/>
+  </svg>
+</div>
+<footer class="site-footer">
+  <p class="tagline">keep your client up even when the network is down</p>
+  <div class="footer-links">
+    <a href="https://github.com/user/buoyient">GitHub</a>
+    <a href="why-buoyient.html">Why</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup</a>
+  </div>
+  <p class="copy">buoyient &mdash; offline-first sync for Kotlin Multiplatform</p>
+</footer>
+
+<!-- ── Scripts ── -->
+<script>
+// --- Scroll fade-in ---
+const fadeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => fadeObserver.observe(el));
+
+// --- CREATE Flow Walkthrough ---
+const flowSequence = [
+  ['0'],
+  ['0','1'],
+  ['0','1','2'],
+  ['0','1','2','3a'],
+  ['0','1','2','3a','4a'],
+  ['0','1','2','3a','4a','5a'],
+];
+const offlineSequence = [
+  ['0','1','2','3b'],
+  ['0','1','2','3b','4b'],
+  ['0','1','2','3b','4b','5b'],
+];
+let flowStep = 0;
+let showingOffline = false;
+
+function updateFlow() {
+  const seq = showingOffline ? [...flowSequence[2], ...offlineSequence[flowStep - 6].filter(s => !flowSequence[2].includes(s))] : flowSequence[flowStep];
+  const activeSet = new Set(showingOffline ? offlineSequence[flowStep - 6] : flowSequence[flowStep]);
+
+  document.querySelectorAll('.flow-step, .flow-arrow').forEach(el => {
+    const s = el.dataset.step;
+    if (!s) return;
+    const inSeq = activeSet.has(s) || (showingOffline && flowSequence[2].includes(s));
+    el.classList.toggle('active', activeSet.has(s));
+    el.classList.toggle('done', inSeq && !activeSet.has(s));
+    if (!inSeq && !flowSequence[2].includes(s) && !showingOffline) {
+      el.classList.remove('active', 'done');
+    }
+  });
+
+  const total = 9;
+  const current = (showingOffline ? flowStep + 1 : flowStep + 1);
+  document.getElementById('flowCounter').textContent = current + ' / ' + total;
+}
+
+function flowNext() {
+  if (!showingOffline && flowStep < 5) { flowStep++; }
+  else if (!showingOffline && flowStep === 5) { showingOffline = true; flowStep = 6; }
+  else if (showingOffline && flowStep < 8) { flowStep++; }
+  updateFlow();
+}
+
+function flowPrev() {
+  if (showingOffline && flowStep > 6) { flowStep--; }
+  else if (showingOffline && flowStep === 6) { showingOffline = false; flowStep = 5; }
+  else if (!showingOffline && flowStep > 0) { flowStep--; }
+  updateFlow();
+}
+
+updateFlow();
+
+// --- State detail on click ---
+const stateDescriptions = {
+  'LocalOnly': 'Object exists only on the device. Created while offline or before the first sync-up.',
+  'PendingCreate': 'A create request is queued in the pending request queue, waiting for sync-up.',
+  'Synced': 'Server and local store agree. The object has a serverId and matching version.',
+  'PendingUpdate': 'An update request is queued. Local data has been updated, pending sync to server.',
+  'PendingVoid': 'A void (soft-delete) request is queued. The object is marked as voided locally.',
+  'Conflict': 'Both local and server changed the same fields. Your RebaseHandler resolves the conflict.',
+};
+
+function highlightState(el) {
+  const text = el.textContent.trim();
+  const desc = stateDescriptions[text];
+  if (desc) {
+    const detail = document.getElementById('stateDetail');
+    document.getElementById('stateDetailText').textContent = desc;
+    detail.style.display = 'block';
+  }
+}
+
+// --- Pending Queue ---
+let queueData = [];
+let serverReceived = 0;
+const queueOps = [
+  { type: 'CREATE', tag: 'create_todo', url: 'POST /todos' },
+  { type: 'UPDATE', tag: 'update_todo', url: 'PUT /todos/{serverId}' },
+  { type: 'CREATE', tag: 'create_invoice', url: 'POST /invoices' },
+  { type: 'VOID', tag: 'void_todo', url: 'DELETE /todos/{serverId}' },
+  { type: 'UPDATE', tag: 'complete_todo', url: 'PUT /todos/{serverId}' },
+];
+let queueOpIdx = 0;
+
+function renderQueue() {
+  const container = document.getElementById('queueItems');
+  const empty = document.getElementById('queueEmpty');
+  container.innerHTML = '';
+  if (queueData.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  queueData.forEach((item, i) => {
+    const el = document.createElement('div');
+    el.className = 'todo-item';
+    el.id = 'q-' + i;
+    const badgeClass = item.type === 'CREATE' ? 'badge-teal' : item.type === 'UPDATE' ? 'badge-orange' : 'badge-red';
+    el.innerHTML = `<span class="badge ${badgeClass}" style="margin-right: 8px; font-size: 0.68rem;">${item.type}</span><span class="todo-text" style="font-size: 0.8rem; font-family: var(--font-mono);">${item.url}</span>`;
+    container.appendChild(el);
+  });
+}
+
+function addToQueue() {
+  const op = queueOps[queueOpIdx % queueOps.length];
+  queueOpIdx++;
+  queueData.push(op);
+  renderQueue();
+}
+
+function processQueue() {
+  if (queueData.length === 0) return;
+  const first = document.getElementById('q-0');
+  if (first) {
+    first.classList.add('drain');
+    setTimeout(() => {
+      queueData.shift();
+      serverReceived++;
+      document.getElementById('serverCount').textContent = serverReceived + ' received';
+      renderQueue();
+    }, 400);
+  }
+}
+
+renderQueue();
+
+// --- Placeholder Resolution ---
+let placeholdersResolved = false;
+function resolvePlaceholders() {
+  if (placeholdersResolved) return;
+  placeholdersResolved = true;
+
+  const ph1 = document.getElementById('ph1');
+  const ph2 = document.getElementById('ph2');
+  const res1 = document.getElementById('res1');
+  const res2 = document.getElementById('res2');
+
+  ph1.style.transition = 'opacity 0.4s';
+  ph2.style.transition = 'opacity 0.4s';
+  ph1.style.opacity = '0.3';
+  ph2.style.opacity = '0.3';
+
+  res1.style.transition = 'opacity 0.6s';
+  res2.style.transition = 'opacity 0.6s';
+
+  setTimeout(() => {
+    res1.style.opacity = '1';
+    res2.style.opacity = '1';
+  }, 400);
+}
+</script>
+
+</body>
+</html>

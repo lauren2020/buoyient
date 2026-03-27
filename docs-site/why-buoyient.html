@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why buoyient? — Offline-first sync for Kotlin Multiplatform</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a href="why-buoyient.html" class="logo">
+    <svg width="32" height="32" viewBox="0 0 80 80" fill="none">
+      <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+      <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
+      <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+      <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
+      <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+    </svg>
+    buoyient
+  </a>
+  <button class="nav-toggle" onclick="document.querySelector('.site-header nav').classList.toggle('open')">&#9776;</button>
+  <nav>
+    <a href="why-buoyient.html" class="active">Why buoyient?</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup Guide</a>
+  </nav>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <svg class="hero-icon" width="80" height="80" viewBox="0 0 80 80" fill="none">
+    <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+    <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
+    <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+    <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
+    <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+  </svg>
+  <h1>Why <span class="highlight">buoyient</span>?</h1>
+  <p class="subtitle">keep your client up even when the network is down</p>
+</div>
+
+<!-- ── The Problem ── -->
+<section class="section">
+  <h2>The problem</h2>
+  <p class="section-desc">Your users don't live in a world of perfect connectivity. But most apps are built as if they do.</p>
+
+  <div class="card-grid card-grid-3 stagger">
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <circle cx="20" cy="20" r="16" stroke="#ff4757" stroke-width="2" stroke-dasharray="4 3" fill="none"/>
+          <path d="M14 14 L26 26 M26 14 L14 26" stroke="#ff4757" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h4>Spinners and error screens</h4>
+      <p>Users tap a button and see a loading spinner... then an error. They're in an elevator, on a subway, in a rural area. The app is useless.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <rect x="6" y="8" width="28" height="24" rx="3" stroke="#ff4757" stroke-width="2" fill="none"/>
+          <path d="M12 16h16 M12 20h12 M12 24h8" stroke="#ff4757" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+          <path d="M6 8 L34 32" stroke="#ff4757" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h4>Rebuilding sync from scratch</h4>
+      <p>Every new feature needs its own connectivity checks, local caching, retry logic, and queue management. You've written this code three times already.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <rect x="4" y="10" width="14" height="18" rx="2" stroke="#ff4757" stroke-width="2" fill="none"/>
+          <rect x="22" y="10" width="14" height="18" rx="2" stroke="#ff4757" stroke-width="2" fill="none"/>
+          <path d="M18 16 L22 16 M18 22 L22 22" stroke="#ff4757" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 2"/>
+          <text x="9" y="22" font-size="8" fill="#ff4757" text-anchor="middle" font-family="monospace">A</text>
+          <text x="29" y="22" font-size="8" fill="#ff4757" text-anchor="middle" font-family="monospace">B</text>
+        </svg>
+      </div>
+      <h4>Silent data conflicts</h4>
+      <p>Two edits happen at once &mdash; one offline, one on the server. Without proper conflict resolution, someone's work gets silently overwritten.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Interactive Demo ── -->
+<section class="section">
+  <h2>Try it: online vs offline</h2>
+  <p class="section-desc">This demo simulates how an app using buoyient handles connectivity changes. Toggle the network and add some todos.</p>
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 24px;">
+    <div class="toggle-wrap">
+      <div id="netToggle" class="toggle" onclick="toggleNetwork()"></div>
+      <span class="toggle-label">Network: <span id="netStatus" class="status online">Online</span></span>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-header">
+        <span class="app-name">Todo App</span>
+        <span id="syncIndicator" class="badge badge-teal">synced</span>
+      </div>
+      <div class="phone-content" id="todoList">
+        <div class="todo-item">
+          <span class="todo-text">Buy groceries</span>
+          <span class="badge badge-teal">synced</span>
+        </div>
+        <div class="todo-item">
+          <span class="todo-text">Review PR #42</span>
+          <span class="badge badge-teal">synced</span>
+        </div>
+      </div>
+      <div class="queue-counter" id="queueCounter" style="display: none;">
+        <span class="count" id="queueCount">0</span> pending requests in queue
+      </div>
+      <div style="padding: 8px 0;">
+        <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="addTodo()">+ Add Todo</button>
+      </div>
+    </div>
+
+    <p style="font-size: 0.82rem; color: var(--text-dim); max-width: 400px; text-align: center;">
+      Toggle offline, add items, then toggle back online. Watch the pending items sync up automatically.
+    </p>
+  </div>
+</section>
+
+<!-- ── Code Comparison ── -->
+<section class="section">
+  <h2>Less code, more confidence</h2>
+  <p class="section-desc">Here's what it takes to create an offline-capable todo item, with and without buoyient.</p>
+
+  <div class="split-panel fade-in">
+    <div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <h3 style="margin-bottom: 0;">Without buoyient</h3>
+        <span class="badge-lines">~45 lines</span>
+      </div>
+      <div class="code-block dimmed">
+        <pre><code><span class="kw">suspend fun</span> <span class="fn">createTodo</span>(title: <span class="typ">String</span>) {
+  <span class="kw">val</span> todo = <span class="typ">Todo</span>(title = title)
+
+  <span class="cmt">// Save locally first</span>
+  db.todoDao().<span class="fn">insert</span>(todo)
+
+  <span class="kw">if</span> (<span class="fn">isNetworkAvailable</span>()) {
+    <span class="kw">try</span> {
+      <span class="kw">val</span> response = api.<span class="fn">post</span>(<span class="str">"/todos"</span>, todo)
+      <span class="kw">if</span> (response.isSuccessful) {
+        <span class="kw">val</span> server = response.body()
+        db.todoDao().<span class="fn">update</span>(
+          todo.<span class="fn">copy</span>(
+            serverId = server.id,
+            version = server.version,
+            syncStatus = <span class="str">"synced"</span>
+          )
+        )
+      } <span class="kw">else</span> {
+        <span class="fn">enqueueRetry</span>(todo)
+      }
+    } <span class="kw">catch</span> (e: <span class="typ">IOException</span>) {
+      <span class="fn">enqueueRetry</span>(todo)
+    }
+  } <span class="kw">else</span> {
+    <span class="fn">enqueueRetry</span>(todo)
+  }
+}
+
+<span class="cmt">// Plus you still need:</span>
+<span class="cmt">// - RetryQueue with SQLite persistence</span>
+<span class="cmt">// - WorkManager job to drain the queue</span>
+<span class="cmt">// - Conflict detection on sync-down</span>
+<span class="cmt">// - Idempotency key management</span>
+<span class="cmt">// - Placeholder ID resolution</span>
+<span class="cmt">// - ConnectivityManager listener</span>
+<span class="cmt">// - Error handling per retry attempt</span>
+<span class="cmt">// ... for every single entity type</span></code></pre>
+      </div>
+    </div>
+    <div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <h3 style="margin-bottom: 0;">With buoyient</h3>
+        <span class="badge-lines text-teal">~16 lines</span>
+      </div>
+      <div class="code-block glow-teal">
+        <pre><code><span class="kw">suspend fun</span> <span class="fn">createTodo</span>(title: <span class="typ">String</span>):
+    <span class="typ">SyncableObjectServiceResponse</span>&lt;<span class="typ">Todo</span>&gt; {
+  <span class="kw">val</span> todo = <span class="typ">Todo</span>(title = title)
+  <span class="kw">return</span> <span class="fn">create</span>(
+    data = todo,
+    requestTag = <span class="typ">TodoRequestTag</span>.CREATE,
+    request = <span class="typ">CreateRequestBuilder</span> { data, key, _, _ -&gt;
+      <span class="typ">HttpRequest</span>(
+        method = <span class="typ">HttpRequest</span>.HttpMethod.POST,
+        endpointUrl = <span class="str">"https://api.example.com/todos"</span>,
+        requestBody = <span class="fn">buildJsonObject</span> {
+          <span class="fn">put</span>(<span class="str">"idempotency_key"</span>, key)
+          <span class="fn">put</span>(<span class="str">"title"</span>, data.title)
+          <span class="fn">put</span>(<span class="str">"reference_id"</span>, data.clientId)
+        },
+      )
+    },
+    unpackSyncData = unpacker,
+  )
+}</code></pre>
+      </div>
+      <p class="mt-16" style="font-size: 0.85rem; color: var(--text-secondary);">
+        Offline queueing, retries, conflict detection, sync-down, placeholder resolution, and idempotency are all handled automatically by the engine.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Value Props ── -->
+<section class="section">
+  <h2>What you get</h2>
+  <p class="section-desc">buoyient handles the hard parts so you can focus on your domain logic.</p>
+
+  <div class="card-grid card-grid-3 stagger">
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <path d="M8 18 Q12 14 18 18 Q24 22 28 18" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M18 8v6 M14 11l4 3 4-3" stroke="#ffe066" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="18" cy="28" r="3" fill="#ff6b35"/>
+        </svg>
+      </div>
+      <h4>Offline-First</h4>
+      <p>Operations succeed immediately, regardless of connectivity. Data is persisted locally and synced when the network returns.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <path d="M10 12 A10 10 0 0 1 26 12" stroke="#ffe066" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M26 24 A10 10 0 0 1 10 24" stroke="#ffe066" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M26 15 l-3-3 m3 3 l-3 3" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 21 l3 3 m-3-3 l3-3" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h4>Bidirectional Sync</h4>
+      <p>Periodic sync-down pulls server changes. Sync-up pushes local changes. Both directions handled automatically.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <path d="M12 8v20 M24 8v20" stroke="#4a9eff" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 18 L18 12 L24 18" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="18" cy="12" r="2.5" fill="#ffe066"/>
+        </svg>
+      </div>
+      <h4>3-Way Merge</h4>
+      <p>Field-level conflict detection compares base, local, and server states. Pluggable merge policies let you decide how to resolve.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <rect x="8" y="8" width="20" height="5" rx="2" fill="#ff6b35" opacity="0.4"/>
+          <rect x="8" y="15" width="20" height="5" rx="2" fill="#ff6b35" opacity="0.6"/>
+          <rect x="8" y="22" width="20" height="5" rx="2" fill="#ff6b35" opacity="0.9"/>
+          <path d="M30 24 l4 0 m-2-2 v4" stroke="#ffe066" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h4>Persistent Queue</h4>
+      <p>Pending requests are saved to SQLite. They survive app restarts and process in order with automatic retries.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <rect x="6" y="12" width="24" height="12" rx="3" stroke="#ffe066" stroke-width="2" fill="none"/>
+          <text x="18" y="21" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" fill="#ffe066" font-weight="600">{id}</text>
+          <path d="M18 6v4 M18 26v4" stroke="#00dcc6" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h4>Placeholder Resolution</h4>
+      <p>Reference objects that haven't synced yet with <code>{serverId}</code> placeholders. Resolved automatically at sync time.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <rect x="10" y="10" width="16" height="16" rx="4" stroke="#4a9eff" stroke-width="2" fill="none"/>
+          <circle cx="18" cy="16" r="3" stroke="#ffe066" stroke-width="1.5" fill="none"/>
+          <path d="M14 23 h8" stroke="#ffe066" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M30 10 l-4 4 M30 10 h-4 M30 10 v4" stroke="#00dcc6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h4>Agent Optimized</h4>
+      <p>Built for AI-assisted integration. Includes detailed instruction files, step-by-step guides, and skills for Claude, Copilot, and Cursor.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="section text-center" style="border-top: none; padding-top: 0;">
+  <h2 class="mb-24">Ready to dive in?</h2>
+  <div class="flex-center gap-16 flex-wrap">
+    <a href="how-it-works.html" class="btn btn-secondary">See how it works &rarr;</a>
+    <a href="setup.html" class="btn btn-primary">Get started &rarr;</a>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<div class="wave-separator">
+  <svg viewBox="0 0 1200 40" preserveAspectRatio="none">
+    <path d="M0 20 Q150 5 300 20 T600 18 T900 22 T1200 16 V40 H0 Z" fill="#1a1d27" opacity="0.5"/>
+    <path d="M0 28 Q200 14 400 26 T800 24 T1200 22 V40 H0 Z" fill="#1a1d27"/>
+  </svg>
+</div>
+<footer class="site-footer">
+  <p class="tagline">keep your client up even when the network is down</p>
+  <div class="footer-links">
+    <a href="https://github.com/user/buoyient">GitHub</a>
+    <a href="why-buoyient.html">Why</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup</a>
+  </div>
+  <p class="copy">buoyient &mdash; offline-first sync for Kotlin Multiplatform</p>
+</footer>
+
+<!-- ── Scripts ── -->
+<script>
+// --- Scroll-triggered fade-in ---
+const fadeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => fadeObserver.observe(el));
+
+// --- Network toggle / Todo demo ---
+let isOnline = true;
+let pendingCount = 0;
+const todoNames = ['Ship feature flag', 'Refactor sync logic', 'Update dependencies', 'Write integration tests', 'Deploy to staging', 'Fix auth token refresh', 'Add dark mode toggle', 'Optimize database queries'];
+let todoIndex = 0;
+
+function toggleNetwork() {
+  isOnline = !isOnline;
+  const toggle = document.getElementById('netToggle');
+  const status = document.getElementById('netStatus');
+  const indicator = document.getElementById('syncIndicator');
+
+  toggle.classList.toggle('off', !isOnline);
+  status.textContent = isOnline ? 'Online' : 'Offline';
+  status.className = 'status ' + (isOnline ? 'online' : 'offline');
+
+  if (isOnline && pendingCount > 0) {
+    syncPending();
+  }
+
+  indicator.className = 'badge ' + (isOnline ? 'badge-teal' : 'badge-yellow');
+  indicator.textContent = isOnline ? 'synced' : 'offline';
+}
+
+function addTodo() {
+  const list = document.getElementById('todoList');
+  const name = todoNames[todoIndex % todoNames.length];
+  todoIndex++;
+
+  const item = document.createElement('div');
+  item.className = 'todo-item';
+
+  if (isOnline) {
+    item.innerHTML = `<span class="todo-text">${name}</span><span class="badge badge-teal">synced</span>`;
+  } else {
+    pendingCount++;
+    item.innerHTML = `<span class="todo-text">${name}</span><span class="badge badge-yellow pending-badge">pending</span>`;
+    updateQueueCounter();
+  }
+  list.appendChild(item);
+}
+
+function updateQueueCounter() {
+  const counter = document.getElementById('queueCounter');
+  const count = document.getElementById('queueCount');
+  counter.style.display = pendingCount > 0 ? 'block' : 'none';
+  count.textContent = pendingCount;
+}
+
+function syncPending() {
+  const badges = document.querySelectorAll('.pending-badge');
+  let delay = 0;
+  badges.forEach(badge => {
+    setTimeout(() => {
+      badge.className = 'badge badge-syncing';
+      setTimeout(() => {
+        badge.className = 'badge badge-teal';
+        badge.textContent = 'synced';
+        pendingCount--;
+        updateQueueCounter();
+      }, 600);
+    }, delay);
+    delay += 300;
+  });
+}
+</script>
+
+</body>
+</html>
