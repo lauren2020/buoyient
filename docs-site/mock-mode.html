@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mock Mode — Test Without a Server | buoyient</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ── Mock Mode page-specific styles ── */
+
+.mock-diagram {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  margin: 40px auto; max-width: 560px;
+}
+.mock-diagram .diagram-box {
+  background: var(--surface-dark); border: 1.5px solid var(--border-color);
+  border-radius: 12px; padding: 20px 28px; text-align: center; width: 100%;
+  transition: border-color 0.3s;
+}
+.mock-diagram .diagram-box.highlight-orange { border-color: var(--buoy-orange); }
+.mock-diagram .diagram-box.highlight-teal { border-color: var(--current-teal); }
+.mock-diagram .diagram-box.highlight-blue { border-color: var(--ocean-blue); }
+.mock-diagram .diagram-box.highlight-yellow { border-color: var(--beacon-yellow); }
+.mock-diagram .diagram-box .box-title {
+  font-family: var(--font-heading); font-weight: 600; font-size: 0.95rem; margin-bottom: 4px;
+}
+.mock-diagram .diagram-box .box-sub {
+  font-size: 0.8rem; color: var(--text-secondary);
+}
+.mock-diagram .diagram-arrow {
+  padding: 6px 0; display: flex; flex-direction: column; align-items: center;
+}
+.mock-diagram .diagram-arrow .arrow-text {
+  font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono); margin-bottom: 2px;
+}
+.mock-diagram .diagram-box.struck {
+  opacity: 0.3; text-decoration: line-through; position: relative;
+}
+.mock-diagram .diagram-box.struck::after {
+  content: ''; position: absolute; top: 50%; left: 10%; right: 10%;
+  height: 2px; background: var(--danger);
+}
+
+/* Comparison layout */
+.compare-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+  margin: 32px 0;
+}
+.compare-col h3 {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+}
+.compare-col h3 .icon { font-size: 1.2rem; }
+
+/* Step cards */
+.setup-steps {
+  display: flex; flex-direction: column; gap: 32px;
+  margin: 40px 0; counter-reset: step-counter;
+}
+.setup-step {
+  display: grid; grid-template-columns: 56px 1fr; gap: 20px;
+  align-items: start;
+}
+.setup-step .step-num {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid var(--buoy-orange);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 600; font-size: 0.9rem;
+  color: var(--buoy-orange); flex-shrink: 0;
+  counter-increment: step-counter;
+}
+.setup-step .step-body h3 {
+  font-size: 1.1rem; color: var(--text-primary); margin-bottom: 8px;
+}
+.setup-step .step-body p {
+  font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;
+}
+
+/* Scenario cards */
+.scenario-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px; margin: 32px 0;
+}
+.scenario-card {
+  background: var(--surface-dark); border: 1px solid var(--border-color);
+  border-radius: 12px; padding: 20px; transition: border-color 0.25s, transform 0.25s;
+}
+.scenario-card:hover { border-color: var(--ocean-blue); transform: translateY(-2px); }
+.scenario-card .scenario-icon { font-size: 1.4rem; margin-bottom: 10px; }
+.scenario-card h4 {
+  font-family: var(--font-heading); font-size: 0.95rem; font-weight: 600; margin-bottom: 6px;
+}
+.scenario-card p { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; }
+.scenario-card code {
+  font-family: var(--font-mono); font-size: 0.78rem;
+  background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px;
+}
+
+/* Quick start builder demo */
+.builder-demo {
+  background: var(--surface-dark); border: 1px solid var(--border-color);
+  border-radius: 14px; padding: 28px; margin: 32px 0;
+}
+.builder-demo .demo-label {
+  font-family: var(--font-mono); font-size: 0.75rem; color: var(--current-teal);
+  margin-bottom: 12px; letter-spacing: 0.5px;
+}
+
+/* Toggle demo */
+.toggle-demo-container {
+  display: flex; justify-content: center; align-items: center;
+  gap: 40px; margin: 40px 0; flex-wrap: wrap;
+}
+.toggle-demo-phone {
+  transition: all 0.4s;
+}
+.toggle-demo-phone.mock-active .phone-header {
+  border-bottom-color: var(--current-teal);
+}
+
+/* Lines counter */
+.lines-comparison {
+  display: flex; justify-content: center; gap: 48px; margin: 24px 0;
+}
+.lines-stat {
+  text-align: center;
+}
+.lines-stat .lines-num {
+  font-family: var(--font-heading); font-size: 2.4rem; font-weight: 700;
+}
+.lines-stat .lines-label {
+  font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;
+}
+.lines-stat.before .lines-num { color: var(--danger); }
+.lines-stat.after .lines-num { color: var(--current-teal); }
+
+@media (max-width: 768px) {
+  .compare-grid { grid-template-columns: 1fr; }
+  .setup-step { grid-template-columns: 40px 1fr; gap: 12px; }
+  .setup-step .step-num { width: 36px; height: 36px; font-size: 0.8rem; }
+  .scenario-grid { grid-template-columns: 1fr; }
+  .lines-comparison { gap: 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a href="why-buoyient.html" class="logo">
+    <svg width="32" height="32" viewBox="0 0 80 80" fill="none">
+      <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+      <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
+      <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+      <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
+      <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+    </svg>
+    buoyient
+  </a>
+  <button class="nav-toggle" onclick="document.querySelector('.site-header nav').classList.toggle('open')">&#9776;</button>
+  <nav>
+    <a href="why-buoyient.html">Why buoyient?</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup Guide</a>
+    <a href="mock-mode.html" class="active">Mock Mode</a>
+  </nav>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>Test without a <span class="highlight">server</span></h1>
+  <p class="subtitle">Mock mode lets you run the full app against fake endpoints &mdash; no real backend needed</p>
+</div>
+
+<!-- ── How Mock Mode Works ── -->
+<section class="section">
+  <h2>How it works</h2>
+  <p class="section-desc">One line swaps every service from real HTTP to a mock router. Your service classes stay exactly the same.</p>
+
+  <div class="compare-grid fade-in">
+    <div class="compare-col">
+      <h3><span class="icon">&#127760;</span> Normal Mode</h3>
+      <div class="mock-diagram">
+        <div class="diagram-box">
+          <div class="box-title">Your App</div>
+          <div class="box-sub">NoteService, TaskService, &hellip;</div>
+        </div>
+        <div class="diagram-arrow">
+          <svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 0v24M4 18l6 6 6-6" stroke="#ff6b35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <div class="diagram-box highlight-yellow">
+          <div class="box-title" style="color: var(--beacon-yellow);">buoyient Engine</div>
+          <div class="box-sub">SyncableObjectService</div>
+        </div>
+        <div class="diagram-arrow">
+          <svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 0v24M4 18l6 6 6-6" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <div class="diagram-box highlight-blue">
+          <div class="box-title">Real Server</div>
+          <div class="box-sub">REST API</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="compare-col">
+      <h3><span class="icon">&#129529;</span> Mock Mode</h3>
+      <div class="mock-diagram">
+        <div class="diagram-box">
+          <div class="box-title">Your App</div>
+          <div class="box-sub">Same service classes, unchanged</div>
+        </div>
+        <div class="diagram-arrow">
+          <svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 0v24M4 18l6 6 6-6" stroke="#ff6b35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <div class="diagram-box highlight-yellow">
+          <div class="box-title" style="color: var(--beacon-yellow);">buoyient Engine</div>
+          <div class="box-sub">SyncableObjectService</div>
+        </div>
+        <div class="diagram-arrow">
+          <div class="arrow-text">Buoyient.httpClient = mock</div>
+          <svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 0v24M4 18l6 6 6-6" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <div class="diagram-box highlight-teal">
+          <div class="box-title" style="color: var(--current-teal);">MockEndpointRouter</div>
+          <div class="box-sub">Fake responses, stateful store</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Quick Start ── -->
+<section class="section">
+  <h2>Quick start with <span style="color: var(--current-teal);">MockModeBuilder</span></h2>
+  <p class="section-desc">Three steps to a fully functional mock app. No real server required.</p>
+
+  <div class="setup-steps">
+    <!-- Step 1 -->
+    <div class="setup-step fade-in">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Add the dependency</h3>
+        <p>Add the testing module as a <code>debugImplementation</code> so it's stripped from release builds.</p>
+        <div class="code-block">
+          <div class="code-header">
+            <span>app/build.gradle.kts</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+<pre><code><span class="cmt">// buoyient core</span>
+<span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects:0.1.0"</span>)
+
+<span class="cmt">// mock mode (debug only)</span>
+<span class="fn">debugImplementation</span>(<span class="str">"com.elvdev.buoyient:testing:0.1.0"</span>)</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="setup-step fade-in">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Install mock mode</h3>
+        <p>Use <code>MockModeBuilder</code> to declare your services with seed data. One call to <code>.install()</code> wires everything up.</p>
+        <div class="code-block glow-teal">
+          <div class="code-header">
+            <span>src/debug/.../DebugApp.kt</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+<pre><code><span class="kw">class</span> <span class="typ">DebugApp</span> : <span class="typ">Application</span>() {
+    <span class="kw">override fun</span> <span class="fn">onCreate</span>(savedInstanceState: <span class="typ">Bundle</span>?) {
+        <span class="kw">super</span>.onCreate(savedInstanceState)
+
+        <span class="kw">val</span> mockMode = <span class="typ">MockModeBuilder</span>()
+            .<span class="fn">service</span>(
+                name = <span class="str">"notes"</span>,
+                baseUrl = <span class="str">"https://api.example.com/v1/notes"</span>,
+                seeds = listOf(
+                    <span class="typ">MockModeBuilder.SeedEntry</span>(
+                        data = <span class="fn">buildJsonObject</span> {
+                            <span class="fn">put</span>(<span class="str">"title"</span>, <span class="str">"Welcome"</span>)
+                            <span class="fn">put</span>(<span class="str">"body"</span>, <span class="str">"Hello from mock!"</span>)
+                        },
+                        serverId = <span class="str">"srv-1"</span>,
+                    ),
+                ),
+            )
+            .<span class="fn">install</span>()
+        <span class="cmt">// Done! All services now route through the mock.</span>
+    }
+}</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="setup-step fade-in">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Add the debug manifest</h3>
+        <p>Override the application class for debug builds so <code>DebugApp</code> runs instead of your production Application class.</p>
+        <div class="code-block">
+          <div class="code-header">
+            <span>src/debug/AndroidManifest.xml</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+<pre><code><span class="kw">&lt;manifest</span> ...&gt;
+    <span class="kw">&lt;application</span>
+        <span class="fn">android:name</span>=<span class="str">".DebugApp"</span>
+        <span class="fn">tools:replace</span>=<span class="str">"android:name"</span> /&gt;
+<span class="kw">&lt;/manifest&gt;</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="builder-demo fade-in">
+    <div class="demo-label">WHAT install() DOES UNDER THE HOOD</div>
+    <div style="display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;">
+      <div class="badge badge-teal">Creates MockEndpointRouter</div>
+      <div class="badge badge-yellow">Creates MockServerStore</div>
+      <div class="badge badge-orange">Registers CRUD handlers</div>
+      <div class="badge badge-blue">Seeds initial data</div>
+      <div class="badge badge-teal">Sets Buoyient.httpClient</div>
+      <div class="badge badge-yellow">Enables PrintSyncLogger</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── MockModeHandle ── -->
+<section class="section">
+  <h2>The <span style="color: var(--buoy-orange);">MockModeHandle</span></h2>
+  <p class="section-desc"><code>install()</code> returns a handle with everything you need for advanced testing scenarios.</p>
+
+  <div class="card-grid fade-in" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="card">
+      <div class="card-icon"><span class="badge badge-teal">router</span></div>
+      <h4>MockEndpointRouter</h4>
+      <p>Add custom handlers, override specific endpoints, or inspect <code>requestLog</code> to see what the app sent.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon"><span class="badge badge-yellow">store</span></div>
+      <h4>MockServerStore</h4>
+      <p>Access collections to seed data, mutate records (simulate another device), or inspect server-side state.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon"><span class="badge badge-blue">connectivityChecker</span></div>
+      <h4>TestConnectivityChecker</h4>
+      <p>Set <code>.online = false</code> to simulate offline mode. Requests queue locally instead of hitting the mock server.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Simulate Scenarios ── -->
+<section class="section">
+  <h2>Simulate anything</h2>
+  <p class="section-desc">Mock mode isn't just for happy paths. Simulate the edge cases that break real apps.</p>
+
+  <div class="scenario-grid fade-in">
+    <div class="scenario-card">
+      <div class="scenario-icon">&#128268;</div>
+      <h4>Offline Mode</h4>
+      <p>Set <code>mockMode.connectivityChecker.online = false</code> and all operations queue locally with pending status badges.</p>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-icon">&#128165;</div>
+      <h4>Server Errors</h4>
+      <p>Return <code>MockResponse(500, ...)</code> from any handler to test error UI, retry logic, and user messaging.</p>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-icon">&#9201;</div>
+      <h4>Timeouts</h4>
+      <p>Throw <code>MockConnectionException</code> in a handler to simulate network timeouts and connection failures.</p>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-icon">&#9876;</div>
+      <h4>Sync Conflicts</h4>
+      <p>Call <code>store.collection("items").mutate(...)</code> to change server data while the app has local edits, then trigger sync.</p>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-icon">&#128269;</div>
+      <h4>Inspect Traffic</h4>
+      <p>Read <code>router.requestLog</code> to see every request the app made &mdash; method, URL, headers, and body.</p>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-icon">&#128241;</div>
+      <h4>Multi-Device</h4>
+      <p>Use <code>store.collection("items").create(...)</code> in a debug drawer to simulate records arriving from another device.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Custom Handlers ── -->
+<section class="section">
+  <h2>Custom response shapes</h2>
+  <p class="section-desc">If your API wraps responses differently than the default <code>{"data": ...}</code>, pass custom wrappers.</p>
+
+  <div class="code-block fade-in">
+    <div class="code-header">
+      <span>Custom response wrappers</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+<pre><code><span class="typ">MockModeBuilder</span>()
+    .<span class="fn">service</span>(
+        name = <span class="str">"invoices"</span>,
+        baseUrl = <span class="str">"https://api.example.com/v2/invoices"</span>,
+        responseWrapper = { record ->
+            <span class="fn">buildJsonObject</span> {
+                <span class="fn">put</span>(<span class="str">"invoice"</span>, record.<span class="fn">toJsonObject</span>(
+                    serverIdKey = <span class="str">"id"</span>,
+                    clientIdKey = <span class="str">"reference_id"</span>,
+                ))
+            }
+        },
+        listResponseWrapper = { records ->
+            <span class="fn">buildJsonObject</span> {
+                <span class="fn">put</span>(<span class="str">"invoices"</span>, <span class="typ">JsonArray</span>(records.map {
+                    it.<span class="fn">toJsonObject</span>(serverIdKey = <span class="str">"id"</span>)
+                }))
+            }
+        },
+    )
+    .<span class="fn">install</span>()</code></pre>
+  </div>
+
+  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px;">
+    <code>toJsonObject()</code> accepts optional <code>serverIdKey</code>, <code>clientIdKey</code>, <code>versionKey</code>, and <code>voidedKey</code> parameters to match your API's field names.
+  </p>
+</section>
+
+<!-- ── File Organization ── -->
+<section class="section">
+  <h2>Project structure</h2>
+  <p class="section-desc">Keep mock code in <code>src/debug/</code> so it's automatically stripped from release builds.</p>
+
+  <div class="code-block fade-in">
+    <div class="code-header"><span>Recommended layout</span></div>
+<pre><code>app/src/
+<span class="str">├── main/</span>java/com/example/yourapp/
+<span class="cmt">│   ├── data/services/           # Service classes (unchanged)</span>
+<span class="cmt">│   └── ServiceLocator.kt        # Abstraction for debug/release</span>
+<span class="str">├── debug/</span>
+<span class="cmt">│   ├── java/com/example/yourapp/</span>
+<span class="cmt">│   │   └── DebugApp.kt          # MockModeBuilder setup</span>
+<span class="cmt">│   └── AndroidManifest.xml      # Overrides android:name</span>
+<span class="str">└── release/</span>java/com/example/yourapp/
+<span class="cmt">    └── ReleaseApp.kt            # (Optional) real service wiring</span></code></pre>
+  </div>
+</section>
+
+<!-- ── Important Rules ── -->
+<section class="section">
+  <h2>Important rules</h2>
+
+  <div class="card-grid fade-in" style="grid-template-columns: 1fr 1fr;">
+    <div class="card">
+      <h4 style="color: var(--current-teal);">Shared database</h4>
+      <p>Mock mode uses the same SQLite database as real mode. Clear the DB when switching modes if you want a fresh start.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--current-teal);">Keep connectivity online</h4>
+      <p>Set <code>TestConnectivityChecker.online = true</code> so requests flow through the mock server. Set to <code>false</code> only to test offline queueing.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--current-teal);">Set before constructing</h4>
+      <p>Call <code>MockModeBuilder.install()</code> (or set <code>Buoyient.httpClient</code>) before creating any service instances.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--current-teal);">Thread-safe</h4>
+      <p><code>MockEndpointRouter</code> and <code>MockServerStore</code> are fully thread-safe. Mock handlers are evaluated at request time, not registration time.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<div class="wave-separator">
+  <svg viewBox="0 0 1200 40" preserveAspectRatio="none">
+    <path d="M0 20 Q150 5 300 20 T600 18 T900 22 T1200 16 V40 H0 Z" fill="#1a1d27" opacity="0.5"/>
+    <path d="M0 28 Q200 14 400 26 T800 24 T1200 22 V40 H0 Z" fill="#1a1d27"/>
+  </svg>
+</div>
+<footer class="site-footer">
+  <p class="tagline">keep your client up even when the network is down</p>
+  <div class="footer-links">
+    <a href="https://github.com/user/buoyient">GitHub</a>
+    <a href="why-buoyient.html">Why</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup</a>
+    <a href="mock-mode.html">Mock Mode</a>
+  </div>
+  <p class="copy">buoyient &mdash; offline-first sync for Kotlin Multiplatform</p>
+</footer>
+
+<!-- ── Scripts ── -->
+<script>
+// --- Scroll fade-in ---
+const fadeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => fadeObserver.observe(el));
+
+// --- Copy code ---
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

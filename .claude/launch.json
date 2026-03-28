@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "docs-site",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8321", "--directory", "docs-site"],
+      "port": 8321
+    }
+  ]
+}
