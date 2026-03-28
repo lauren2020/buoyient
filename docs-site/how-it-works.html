@@ -62,7 +62,8 @@
     <!-- Engine Layer -->
     <div class="arch-layer">
       <div class="arch-box engine-layer" style="min-width: 400px;">
-        <div class="arch-label" style="color: var(--beacon-yellow);">buoyient Engine</div>
+        <div class="arch-label" style="color: var(--beacon-yellow);">SyncableObjectService</div>
+        <div class="arch-sub" style="color: var(--text-dim);">powered by <code style="color: var(--beacon-yellow);">buoyient Engine</code></div>
         <div style="display: flex; gap: 20px; margin-top: 12px; justify-content: center; flex-wrap: wrap;">
           <div class="badge badge-yellow">Local Store (SQLite)</div>
           <div class="badge badge-orange">Pending Queue</div>
@@ -109,14 +110,8 @@
       </div>
       <div class="flow-arrow active" data-step="0">&darr;</div>
 
-      <div class="flow-step" data-step="1">
+      <div class="flow-step" data-step="1" style="border-color: var(--beacon-yellow);">
         <div class="step-label">Step 2</div>
-        <div class="step-text">buoyient saves the object to SQLite with status <span class="badge badge-yellow">LocalOnly</span></div>
-      </div>
-      <div class="flow-arrow" data-step="1">&darr;</div>
-
-      <div class="flow-step" data-step="2" style="border-color: var(--beacon-yellow);">
-        <div class="step-label">Step 3</div>
         <div class="step-text" style="color: var(--beacon-yellow);">Is the device online?</div>
       </div>
 
@@ -127,7 +122,7 @@
           <div class="flow-arrow" data-step="3a" style="color: var(--current-teal);">&darr; Yes</div>
           <div class="flow-step" data-step="3a">
             <div class="step-label" style="color: var(--current-teal);">Online</div>
-            <div class="step-text">HTTP request sent to your server immediately</div>
+            <div class="step-text">HTTP request sent to your server immediately, wait for response synchronously</div>
           </div>
           <div class="flow-arrow" data-step="4a">&darr;</div>
           <div class="flow-step" data-step="4a">
@@ -143,9 +138,19 @@
         <!-- Offline path -->
         <div>
           <div class="flow-arrow" data-step="3b" style="color: var(--beacon-yellow);">&darr; No</div>
-          <div class="flow-step" data-step="3b">
-            <div class="step-label" style="color: var(--beacon-yellow);">Offline</div>
-            <div class="step-text">Request added to <span class="badge badge-orange">Pending Queue</span></div>
+          <div style="position: relative;">
+            <div class="flow-step" data-step="3b">
+              <div class="step-label" style="color: var(--beacon-yellow);">Offline</div>
+              <div class="step-text">Request added to <span class="badge badge-orange">Pending Queue</span>, status <span class="badge badge-orange">PendingCreate</span></div>
+            </div>
+            <!-- Instant response — positioned to the right -->
+            <div style="position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+              <svg width="32" height="24" viewBox="0 0 32 24" style="flex-shrink: 0;"><path d="M0 12h24M20 6l6 6-6 6" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+              <div class="flow-step" style="border-color: var(--current-teal); min-width: 110px;">
+                <div class="step-label" style="color: var(--current-teal);">Instant</div>
+                <div class="step-text" style="font-size: 0.78rem;">Response returned immediately</div>
+              </div>
+            </div>
           </div>
           <div class="flow-arrow" data-step="4b">&darr;</div>
           <div class="flow-step" data-step="4b">
@@ -164,9 +169,13 @@
     <!-- Controls -->
     <div class="flex-center gap-16 mt-32">
       <button class="btn btn-sm btn-secondary" onclick="flowPrev()">&#8592; Back</button>
-      <span id="flowCounter" style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-dim);">1 / 6</span>
+      <span id="flowCounter" style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-dim);">1 / 8</span>
       <button class="btn btn-sm btn-primary" onclick="flowNext()">Next &#8594;</button>
     </div>
+  </div>
+
+  <div class="card mt-32" style="max-width: 560px; margin-left: auto; margin-right: auto; border-color: var(--ocean-blue);">
+    <p style="margin: 0; font-size: 0.88rem;"><strong>Connectivity is configurable</strong> &mdash; The &ldquo;Is the device online?&rdquo; check uses real network connectivity by default, but you have two ways to customize it: pass <code>ProcessingConstraints</code> on a per-request basis to force online or offline behavior, or provide a custom <code>ConnectivityChecker</code> implementation to override the global connectivity logic for a service.</p>
   </div>
 </section>
 
@@ -239,6 +248,9 @@
       </div>
     </div>
   </div>
+
+  <h3>Queue ordering guarantee</h3>
+  <p class="section-desc">Request order is strictly preserved across all services in your app &mdash; not just within a single service. This matters when services have dependencies: for example, if a user creates an Order offline and then applies a Payment against that order, buoyient guarantees the order creation request reaches the server before the payment creation request, even though they belong to different services.</p>
 </section>
 
 <!-- ── Placeholder Resolution ── -->
@@ -276,6 +288,10 @@
     <div class="flex-center mt-24">
       <button class="btn btn-sm btn-primary" onclick="resolvePlaceholders()">Resolve Placeholders &rarr;</button>
     </div>
+  </div>
+
+  <div class="card mt-32" style="max-width: 560px; margin-left: auto; margin-right: auto; border-color: var(--ocean-blue);">
+    <p style="margin: 0; font-size: 0.88rem;"><strong>Cross-service placeholders</strong> &mdash; Need to reference another service's server ID in an offline request? buoyient supports cross-service placeholder resolution too. For example, a Payment can reference an Order's server ID before the Order has synced &mdash; the placeholder is resolved automatically during sync-up.</p>
   </div>
 </section>
 
@@ -325,6 +341,10 @@
       </div>
     </div>
   </div>
+
+  <div class="card mt-32" style="max-width: 560px; margin-left: auto; margin-right: auto; border-color: var(--ocean-blue);">
+    <p style="margin: 0; font-size: 0.88rem;"><strong>Customizable strategies</strong> &mdash; The 3-way merge logic and conflict handling come with sensible defaults out of the box, but you can fully override and customize the behavior by providing your own <code>SyncableObjectRebaseHandler</code> implementation.</p>
+  </div>
 </section>
 
 <!-- ── CTA ── -->
@@ -365,49 +385,48 @@ document.querySelectorAll('.fade-in').forEach(el => fadeObserver.observe(el));
 const flowSequence = [
   ['0'],
   ['0','1'],
-  ['0','1','2'],
-  ['0','1','2','3a'],
-  ['0','1','2','3a','4a'],
-  ['0','1','2','3a','4a','5a'],
+  ['0','1','3a'],
+  ['0','1','3a','4a'],
+  ['0','1','3a','4a','5a'],
 ];
 const offlineSequence = [
-  ['0','1','2','3b'],
-  ['0','1','2','3b','4b'],
-  ['0','1','2','3b','4b','5b'],
+  ['0','1','3b'],
+  ['0','1','3b','4b'],
+  ['0','1','3b','4b','5b'],
 ];
 let flowStep = 0;
 let showingOffline = false;
 
 function updateFlow() {
-  const seq = showingOffline ? [...flowSequence[2], ...offlineSequence[flowStep - 6].filter(s => !flowSequence[2].includes(s))] : flowSequence[flowStep];
-  const activeSet = new Set(showingOffline ? offlineSequence[flowStep - 6] : flowSequence[flowStep]);
+  const seq = showingOffline ? [...flowSequence[1], ...offlineSequence[flowStep - 5].filter(s => !flowSequence[1].includes(s))] : flowSequence[flowStep];
+  const activeSet = new Set(showingOffline ? offlineSequence[flowStep - 5] : flowSequence[flowStep]);
 
   document.querySelectorAll('.flow-step, .flow-arrow').forEach(el => {
     const s = el.dataset.step;
     if (!s) return;
-    const inSeq = activeSet.has(s) || (showingOffline && flowSequence[2].includes(s));
+    const inSeq = activeSet.has(s) || (showingOffline && flowSequence[1].includes(s));
     el.classList.toggle('active', activeSet.has(s));
     el.classList.toggle('done', inSeq && !activeSet.has(s));
-    if (!inSeq && !flowSequence[2].includes(s) && !showingOffline) {
+    if (!inSeq && !flowSequence[1].includes(s) && !showingOffline) {
       el.classList.remove('active', 'done');
     }
   });
 
-  const total = 9;
+  const total = 8;
   const current = (showingOffline ? flowStep + 1 : flowStep + 1);
   document.getElementById('flowCounter').textContent = current + ' / ' + total;
 }
 
 function flowNext() {
-  if (!showingOffline && flowStep < 5) { flowStep++; }
-  else if (!showingOffline && flowStep === 5) { showingOffline = true; flowStep = 6; }
-  else if (showingOffline && flowStep < 8) { flowStep++; }
+  if (!showingOffline && flowStep < 4) { flowStep++; }
+  else if (!showingOffline && flowStep === 4) { showingOffline = true; flowStep = 5; }
+  else if (showingOffline && flowStep < 7) { flowStep++; }
   updateFlow();
 }
 
 function flowPrev() {
-  if (showingOffline && flowStep > 6) { flowStep--; }
-  else if (showingOffline && flowStep === 6) { showingOffline = false; flowStep = 5; }
+  if (showingOffline && flowStep > 5) { flowStep--; }
+  else if (showingOffline && flowStep === 5) { showingOffline = false; flowStep = 4; }
   else if (!showingOffline && flowStep > 0) { flowStep--; }
   updateFlow();
 }
