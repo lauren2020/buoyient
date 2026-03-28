@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.sqldelight)
     id("maven-publish")
     id("signing")
+    alias(libs.plugins.nmcp)
 }
 
 group = property("GROUP") as String
@@ -125,22 +126,12 @@ signing {
 }
 
 publishing {
-    repositories {
-        mavenLocal()
-        maven {
-            name = "mavenCentral"
-            url = if (version.toString().endsWith("SNAPSHOT")) {
-                uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-            } else {
-                uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-            }
-            credentials {
-                username = findProperty("mavenCentralUsername") as String? ?: ""
-                password = findProperty("mavenCentralPassword") as String? ?: ""
-            }
-        }
-    }
     publications.withType<MavenPublication> {
+        val pubName = name
+        artifact(tasks.register("${pubName}JavadocJar", Jar::class) {
+            archiveClassifier.set("javadoc")
+            archiveAppendix.set(pubName)
+        })
         pom {
             name.set("syncable-objects")
             description.set("Kotlin Multiplatform offline-first sync library with bidirectional sync, conflict resolution, and automatic retries.")

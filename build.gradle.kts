@@ -8,4 +8,21 @@ plugins {
     alias(libs.plugins.sqldelight) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.nmcp) apply false
+    alias(libs.plugins.nmcp.aggregation)
+}
+
+dependencies {
+    nmcpAggregation(project(":core"))
+    nmcpAggregation(project(":syncable-objects"))
+    nmcpAggregation(project(":testing"))
+    nmcpAggregation(project(":hilt"))
+}
+
+nmcpAggregation {
+    centralPortal {
+        username = findProperty("mavenCentralUsername") as String? ?: ""
+        password = findProperty("mavenCentralPassword") as String? ?: ""
+        publishingType = "AUTOMATIC"
+    }
 }

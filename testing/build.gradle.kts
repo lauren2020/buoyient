@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     id("maven-publish")
     id("signing")
+    alias(libs.plugins.nmcp)
 }
 
 group = property("GROUP") as String
@@ -27,6 +28,11 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
 }
 
 signing {
@@ -65,21 +71,6 @@ publishing {
                     developerConnection.set("scm:git:ssh://github.com:lauren2020/buoyient.git")
                     url.set("https://github.com/lauren2020/buoyient")
                 }
-            }
-        }
-    }
-    repositories {
-        mavenLocal()
-        maven {
-            name = "mavenCentral"
-            url = if (version.toString().endsWith("SNAPSHOT")) {
-                uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-            } else {
-                uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-            }
-            credentials {
-                username = findProperty("mavenCentralUsername") as String? ?: ""
-                password = findProperty("mavenCentralPassword") as String? ?: ""
             }
         }
     }
