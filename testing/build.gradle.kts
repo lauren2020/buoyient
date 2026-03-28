@@ -13,8 +13,10 @@ kotlin {
 }
 
 dependencies {
-    // Depend on the JVM variant of the KMP :syncable-objects module.
-    api(project(":syncable-objects")) {
+    // compileOnly so the JVM variant doesn't leak into Android consumers' classpaths.
+    // Consumers already depend on syncable-objects-android (or another platform variant)
+    // which provides these classes at runtime.
+    compileOnly(project(":syncable-objects")) {
         attributes {
             attribute(
                 org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.attribute,
@@ -22,10 +24,20 @@ dependencies {
             )
         }
     }
-    implementation(libs.ktor.client.mock)
+    // api so consumers get HttpClient on their classpath (needed for Buoyient.httpClient setter
+    // and MockEndpointRouter.buildHttpClient())
+    api(libs.ktor.client.mock)
     implementation(libs.sqldelight.sqlite.driver)
-    implementation(libs.kotlinx.serialization.json)
+    api(libs.kotlinx.serialization.json)
 
+    testImplementation(project(":syncable-objects")) {
+        attributes {
+            attribute(
+                org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.attribute,
+                org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.jvm,
+            )
+        }
+    }
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
 }

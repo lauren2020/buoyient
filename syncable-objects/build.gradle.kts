@@ -33,7 +33,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 api(project(":core"))
-                implementation(libs.ktor.client.core)
+                api(libs.ktor.client.core)
                 implementation(libs.kotlinx.coroutines.core)
                 api(libs.kotlinx.serialization.json)
                 implementation(libs.sqldelight.runtime)

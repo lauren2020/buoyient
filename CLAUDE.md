@@ -45,7 +45,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `EncryptionProvider` | `serviceconfigs` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
 | `ConnectivityChecker` | `serviceconfigs` | Interface for online/offline detection — pass to service constructor |
 | `HttpRequest` | `datatypes` | HTTP request builder with placeholder resolution for offline requests |
-| `SyncableObjectServiceResponse<O>` | `datatypes` | Sealed response type for all service operations |
+| `SyncableObjectServiceResponse<O>` | `datatypes` | Sealed response type for all service operations. Extension helpers: `dataOrNull()`, `onSuccess {}`, `onFailure {}`, `isSuccess`, `isFailure` |
 | `SyncableObjectServiceRequestState<O>` | `datatypes` | Sealed state type for flow-based operations: `Loading` or `Result(response)` |
 | `GetResponse<O>` | `datatypes` | Sealed response type for `get()` operations |
 | `ResolveConflictResult<O>` | `datatypes` | Sealed result type for conflict resolution |
@@ -60,6 +60,8 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `TestServiceEnvironment` | `:testing` module | All-in-one test harness |
 | `MockEndpointRouter` | `:testing` module | Mock HTTP server for tests and mock mode |
 | `MockServerStore` | `:testing` module | Stateful mock server with collections |
+| `MockModeBuilder` | `:testing` module | Quick-start builder for mock mode setup — creates router, store, CRUD handlers, and installs global overrides |
+| `MockModeHandle` | `:testing` module | Handle returned by `MockModeBuilder.install()` with references to router, store, and connectivity checker |
 
 ## Modules
 
