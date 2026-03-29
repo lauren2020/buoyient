@@ -282,8 +282,28 @@
       <div class="step-num">3</div>
       <div class="step-body">
         <h3>Install mock mode</h3>
-        <p>Use <code>MockModeBuilder</code> to declare your services and point each one at its seed file. One call to <code>.install()</code> wires everything up.</p>
+        <p>Define a <code>MockServiceServer</code> subclass for each service, then register them with <code>MockModeBuilder</code>. One call to <code>.install()</code> wires everything up.</p>
         <div class="code-block glow-teal">
+          <div class="code-header">
+            <span>src/debug/.../MockNoteServer.kt</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+<pre><code><span class="kw">class</span> <span class="typ">MockNoteServer</span> : <span class="typ">MockServiceServer</span>() {
+    <span class="kw">override val</span> name = <span class="str">"notes"</span>
+    <span class="kw">override val</span> seedFile = <span class="str">"seeds/notes.json"</span>
+
+    <span class="kw">override fun</span> <span class="fn">registerHandlers</span>(
+        router: <span class="typ">MockEndpointRouter</span>,
+        collection: <span class="typ">MockServerCollection</span>,
+    ) {
+        router.<span class="fn">registerCrudHandlers</span>(
+            collection = collection,
+            baseUrl = <span class="str">"https://api.example.com/v1/notes"</span>,
+        )
+    }
+}</code></pre>
+        </div>
+        <div class="code-block glow-teal" style="margin-top: 16px;">
           <div class="code-header">
             <span>src/debug/.../DebugApp.kt</span>
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
@@ -293,23 +313,15 @@
         <span class="kw">super</span>.onCreate(savedInstanceState)
 
         <span class="kw">val</span> mockMode = <span class="typ">MockModeBuilder</span>()
-            .<span class="fn">service</span>(
-                name = <span class="str">"notes"</span>,
-                baseUrl = <span class="str">"https://api.example.com/v1/notes"</span>,
-                seedFile = <span class="str">"seeds/notes.json"</span>,
-            )
-            .<span class="fn">service</span>(
-                name = <span class="str">"tasks"</span>,
-                baseUrl = <span class="str">"https://api.example.com/v1/tasks"</span>,
-                <span class="cmt">// No seed file — starts empty</span>
-            )
+            .<span class="fn">service</span>(<span class="typ">MockNoteServer</span>())
+            .<span class="fn">service</span>(<span class="typ">MockTaskServer</span>())
             .<span class="fn">install</span>()
         <span class="cmt">// Done! All services now route through the mock.</span>
     }
 }</code></pre>
         </div>
         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 12px;">
-          Server IDs are auto-generated for each seed entry. You can also pass inline <code>seeds</code> if you prefer &mdash; see the <a href="#inline-seeds" style="color: var(--current-teal);">inline seeds</a> section below.
+          Each <code>MockServiceServer</code> owns its seed data and handler registration. See the <a href="#inline-seeds" style="color: var(--current-teal);">inline seeds</a> section below for defining seeds in code.
         </p>
       </div>
     </div>
@@ -340,7 +352,7 @@
     <div style="display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;">
       <div class="badge badge-teal">Creates MockEndpointRouter</div>
       <div class="badge badge-yellow">Creates MockServerStore</div>
-      <div class="badge badge-orange">Registers CRUD handlers</div>
+      <div class="badge badge-orange">Calls registerHandlers()</div>
       <div class="badge badge-blue">Seeds initial data</div>
       <div class="badge badge-teal">Sets Buoyient.httpClient</div>
       <div class="badge badge-yellow">Enables PrintSyncLogger</div>
@@ -421,25 +433,32 @@
       <span>Inline seed data</span>
       <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     </div>
-<pre><code><span class="typ">MockModeBuilder</span>()
-    .<span class="fn">service</span>(
-        name = <span class="str">"notes"</span>,
-        baseUrl = <span class="str">"https://api.example.com/v1/notes"</span>,
-        seeds = listOf(
-            <span class="typ">MockModeBuilder.SeedEntry</span>(
-                data = <span class="fn">buildJsonObject</span> {
-                    <span class="fn">put</span>(<span class="str">"title"</span>, <span class="str">"Welcome"</span>)
-                    <span class="fn">put</span>(<span class="str">"body"</span>, <span class="str">"Hello from mock!"</span>)
-                },
-                serverId = <span class="str">"srv-1"</span>,  <span class="cmt">// optional — auto-generated if omitted</span>
-            ),
+<pre><code><span class="kw">class</span> <span class="typ">MockNoteServer</span> : <span class="typ">MockServiceServer</span>() {
+    <span class="kw">override val</span> name = <span class="str">"notes"</span>
+    <span class="kw">override val</span> seeds = listOf(
+        <span class="typ">SeedEntry</span>(
+            data = <span class="fn">buildJsonObject</span> {
+                <span class="fn">put</span>(<span class="str">"title"</span>, <span class="str">"Welcome"</span>)
+                <span class="fn">put</span>(<span class="str">"body"</span>, <span class="str">"Hello from mock!"</span>)
+            },
+            serverId = <span class="str">"srv-1"</span>,  <span class="cmt">// optional — auto-generated if omitted</span>
         ),
     )
-    .<span class="fn">install</span>()</code></pre>
+
+    <span class="kw">override fun</span> <span class="fn">registerHandlers</span>(
+        router: <span class="typ">MockEndpointRouter</span>,
+        collection: <span class="typ">MockServerCollection</span>,
+    ) {
+        router.<span class="fn">registerCrudHandlers</span>(
+            collection = collection,
+            baseUrl = <span class="str">"https://api.example.com/v1/notes"</span>,
+        )
+    }
+}</code></pre>
   </div>
 
   <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 12px;">
-    Inline seeds support explicit <code>serverId</code>, <code>clientId</code>, and <code>version</code> via <code>SeedEntry</code>. You can also pass a plain <code>List&lt;JsonObject&gt;</code> for simpler cases where auto-generated IDs are fine.
+    Inline seeds support explicit <code>serverId</code>, <code>clientId</code>, and <code>version</code> via <code>SeedEntry</code>. This is mutually exclusive with <code>seedFile</code> &mdash; use one or the other.
   </p>
 </section>
 
@@ -453,27 +472,35 @@
       <span>Custom response wrappers</span>
       <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     </div>
-<pre><code><span class="typ">MockModeBuilder</span>()
-    .<span class="fn">service</span>(
-        name = <span class="str">"invoices"</span>,
-        baseUrl = <span class="str">"https://api.example.com/v2/invoices"</span>,
-        responseWrapper = { record ->
-            <span class="fn">buildJsonObject</span> {
-                <span class="fn">put</span>(<span class="str">"invoice"</span>, record.<span class="fn">toJsonObject</span>(
-                    serverIdKey = <span class="str">"id"</span>,
-                    clientIdKey = <span class="str">"reference_id"</span>,
-                ))
-            }
-        },
-        listResponseWrapper = { records ->
-            <span class="fn">buildJsonObject</span> {
-                <span class="fn">put</span>(<span class="str">"invoices"</span>, <span class="typ">JsonArray</span>(records.map {
-                    it.<span class="fn">toJsonObject</span>(serverIdKey = <span class="str">"id"</span>)
-                }))
-            }
-        },
-    )
-    .<span class="fn">install</span>()</code></pre>
+<pre><code><span class="kw">class</span> <span class="typ">MockInvoiceServer</span> : <span class="typ">MockServiceServer</span>() {
+    <span class="kw">override val</span> name = <span class="str">"invoices"</span>
+    <span class="kw">override val</span> seedFile = <span class="str">"seeds/invoices.json"</span>
+
+    <span class="kw">override fun</span> <span class="fn">registerHandlers</span>(
+        router: <span class="typ">MockEndpointRouter</span>,
+        collection: <span class="typ">MockServerCollection</span>,
+    ) {
+        router.<span class="fn">registerCrudHandlers</span>(
+            collection = collection,
+            baseUrl = <span class="str">"https://api.example.com/v2/invoices"</span>,
+            responseWrapper = { record ->
+                <span class="fn">buildJsonObject</span> {
+                    <span class="fn">put</span>(<span class="str">"invoice"</span>, record.<span class="fn">toJsonObject</span>(
+                        serverIdKey = <span class="str">"id"</span>,
+                        clientIdKey = <span class="str">"reference_id"</span>,
+                    ))
+                }
+            },
+            listResponseWrapper = { records ->
+                <span class="fn">buildJsonObject</span> {
+                    <span class="fn">put</span>(<span class="str">"invoices"</span>, <span class="typ">JsonArray</span>(records.map {
+                        it.<span class="fn">toJsonObject</span>(serverIdKey = <span class="str">"id"</span>)
+                    }))
+                }
+            },
+        )
+    }
+}</code></pre>
   </div>
 
   <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px;">
@@ -494,7 +521,9 @@
 <span class="cmt">│   └── ServiceLocator.kt        # Abstraction for debug/release</span>
 <span class="str">├── debug/</span>
 <span class="cmt">│   ├── java/com/example/yourapp/</span>
-<span class="cmt">│   │   └── DebugApp.kt          # MockModeBuilder setup</span>
+<span class="cmt">│   │   ├── DebugApp.kt          # MockModeBuilder setup</span>
+<span class="cmt">│   │   ├── MockNoteServer.kt    # MockServiceServer for notes</span>
+<span class="cmt">│   │   └── MockTaskServer.kt    # MockServiceServer for tasks</span>
 <span class="cmt">│   ├── resources/seeds/         # Seed data (classpath JSON files)</span>
 <span class="cmt">│   │   ├── notes.json</span>
 <span class="cmt">│   │   └── tasks.json</span>

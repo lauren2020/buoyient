@@ -3,163 +3,44 @@ package com.elvdev.buoyient.testing
 import com.elvdev.buoyient.globalconfigs.Buoyient
 import com.elvdev.buoyient.utils.BuoyientLog
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
 
 /**
  * Builder for quickly setting up mock mode in a consuming app.
  *
  * Reduces mock mode setup to a few lines by creating the [MockEndpointRouter],
- * [MockServerStore], and wiring [registerCrudHandlers] for each service, then
- * installing the mock HTTP client globally via [Buoyient.httpClient].
+ * [MockServerStore], and wiring handlers for each service, then installing the
+ * mock HTTP client globally via [Buoyient.httpClient].
  *
  * ## Quick start
  *
  * ```kotlin
  * val mockMode = MockModeBuilder()
- *     .service(
- *         name = "notes",
- *         baseUrl = "https://api.example.com/v1/notes",
- *         seeds = listOf(
- *             buildJsonObject { put("title", "Welcome"); put("body", "Hello") },
- *         ),
- *     )
- *     .service(
- *         name = "tasks",
- *         baseUrl = "https://api.example.com/v1/tasks",
- *     )
+ *     .service(MockNoteServer())
+ *     .service(MockTaskServer())
  *     .install()
  *
  * // Use mockMode.router, mockMode.store, mockMode.connectivityChecker for advanced use
  * ```
  *
- * For more control over response shapes, use [service] with custom [responseWrapper]
- * and [listResponseWrapper] parameters.
+ * Each service is a [MockServiceServer] subclass that encapsulates its seed data
+ * and handler registration.
+ *
+ * @see MockServiceServer
  */
 public class MockModeBuilder {
 
-    private data class ServiceConfig(
-        val name: String,
-        val baseUrl: String,
-        val seeds: List<SeedEntry>,
-        val seedFile: String?,
-        val responseWrapper: ((MockServerRecord) -> JsonObject)?,
-        val listResponseWrapper: ((List<MockServerRecord>) -> JsonObject)?,
-    )
-
-    /**
-     * A seed entry for pre-populating a mock server collection.
-     *
-     * @property data the domain fields for this record.
-     * @property serverId optional explicit server ID (auto-generated if null).
-     * @property clientId optional client ID for correlation.
-     * @property version the version number (defaults to 1).
-     */
-    public data class SeedEntry(
-        val data: JsonObject,
-        val serverId: String? = null,
-        val clientId: String? = null,
-        val version: Int = 1,
-    )
-
-    private val services = mutableListOf<ServiceConfig>()
+    private val servers = mutableListOf<MockServiceServer>()
     private var enableLogging = true
 
     /**
-     * Registers a service for mock mode with automatic CRUD handlers.
+     * Registers a [MockServiceServer] for mock mode.
      *
-     * @param name the collection name (typically matches your service's `serviceName`).
-     * @param baseUrl the base URL for the resource endpoints.
-     * @param seeds optional list of records to pre-populate in the mock server.
-     * @param responseWrapper optional custom single-record response wrapper.
-     *   Defaults to `{"data": <record>}`.
-     * @param listResponseWrapper optional custom list response wrapper.
-     *   Defaults to `{"data": [<records>]}`.
+     * @param server the mock service server defining seed data and handlers.
      * @return this builder, for chaining.
      */
-    public fun service(
-        name: String,
-        baseUrl: String,
-        seeds: List<SeedEntry> = emptyList(),
-        responseWrapper: ((MockServerRecord) -> JsonObject)? = null,
-        listResponseWrapper: ((List<MockServerRecord>) -> JsonObject)? = null,
-    ): MockModeBuilder {
-        services.add(ServiceConfig(name, baseUrl, seeds, seedFile = null, responseWrapper, listResponseWrapper))
-        return this
-    }
-
-    /**
-     * Convenience overload that accepts raw [JsonObject] seeds without explicit IDs.
-     *
-     * @param name the collection name.
-     * @param baseUrl the base URL for the resource endpoints.
-     * @param seeds list of [JsonObject] data to pre-populate. Server IDs are auto-generated.
-     * @param responseWrapper optional custom single-record response wrapper.
-     * @param listResponseWrapper optional custom list response wrapper.
-     * @return this builder, for chaining.
-     */
-    public fun service(
-        name: String,
-        baseUrl: String,
-        seeds: List<JsonObject>,
-        responseWrapper: ((MockServerRecord) -> JsonObject)? = null,
-        listResponseWrapper: ((List<MockServerRecord>) -> JsonObject)? = null,
-        @Suppress("UNUSED_PARAMETER") jsonSeeds: Unit = Unit, // disambiguation marker
-    ): MockModeBuilder {
-        services.add(
-            ServiceConfig(
-                name = name,
-                baseUrl = baseUrl,
-                seeds = seeds.map { SeedEntry(data = it) },
-                seedFile = null,
-                responseWrapper = responseWrapper,
-                listResponseWrapper = listResponseWrapper,
-            )
-        )
-        return this
-    }
-
-    /**
-     * Registers a service for mock mode, loading seed data from a classpath JSON resource.
-     *
-     * The file must contain a JSON array of domain objects, e.g.:
-     * ```json
-     * [
-     *   { "title": "Welcome", "body": "Hello" },
-     *   { "name": "Minimal example", "amount": 42 }
-     * ]
-     * ```
-     *
-     * Server IDs are auto-generated for each entry (same behavior as passing `List<JsonObject>`
-     * seeds directly).
-     *
-     * This is mutually exclusive with the in-memory seed overloads — use one or the other.
-     *
-     * @param name the collection name (typically matches your service's `serviceName`).
-     * @param baseUrl the base URL for the resource endpoints.
-     * @param seedFile classpath resource path to a JSON file (e.g. `"seeds/notes.json"`).
-     * @param responseWrapper optional custom single-record response wrapper.
-     * @param listResponseWrapper optional custom list response wrapper.
-     * @return this builder, for chaining.
-     */
-    public fun service(
-        name: String,
-        baseUrl: String,
-        seedFile: String,
-        responseWrapper: ((MockServerRecord) -> JsonObject)? = null,
-        listResponseWrapper: ((List<MockServerRecord>) -> JsonObject)? = null,
-    ): MockModeBuilder {
-        services.add(
-            ServiceConfig(
-                name = name,
-                baseUrl = baseUrl,
-                seeds = emptyList(),
-                seedFile = seedFile,
-                responseWrapper = responseWrapper,
-                listResponseWrapper = listResponseWrapper,
-            )
-        )
+    public fun service(server: MockServiceServer): MockModeBuilder {
+        servers.add(server)
         return this
     }
 
@@ -187,22 +68,22 @@ public class MockModeBuilder {
         val router = MockEndpointRouter()
         val connectivityChecker = TestConnectivityChecker(online = true)
 
-        for (config in services) {
-            val collection = store.collection(config.name)
+        for (server in servers) {
+            val collection = store.collection(server.name)
 
             // Resolve seeds: either from in-memory list or classpath file
-            val seeds = if (config.seedFile != null) {
+            val seeds = if (server.seedFile != null) {
                 val resourceUrl = Thread.currentThread().contextClassLoader
-                    ?.getResource(config.seedFile)
+                    ?.getResource(server.seedFile!!)
                     ?: error(
-                        "Seed file '${config.seedFile}' not found on the classpath. " +
+                        "Seed file '${server.seedFile}' not found on the classpath. " +
                             "Place it in src/main/resources/ or src/debug/resources/."
                     )
                 val json = resourceUrl.readText()
                 val parsed = Json.decodeFromString<List<JsonObject>>(json)
-                parsed.map { SeedEntry(data = it) }
+                parsed.map { MockServiceServer.SeedEntry(data = it) }
             } else {
-                config.seeds
+                server.seeds
             }
 
             // Seed data
@@ -220,16 +101,8 @@ public class MockModeBuilder {
                 }
             }
 
-            // Register CRUD handlers
-            val singleWrapper = config.responseWrapper ?: ::defaultSingleWrapper
-            val listWrapper = config.listResponseWrapper ?: ::defaultListWrapper
-
-            router.registerCrudHandlers(
-                collection = collection,
-                baseUrl = config.baseUrl,
-                responseWrapper = singleWrapper,
-                listResponseWrapper = listWrapper,
-            )
+            // Let the service register its handlers
+            server.registerHandlers(router, collection)
         }
 
         // Install globally
@@ -261,13 +134,3 @@ public data class MockModeHandle(
     /** Connectivity checker for simulating offline mode. Set [TestConnectivityChecker.online] to `false`. */
     public val connectivityChecker: TestConnectivityChecker,
 )
-
-// -- Default response wrappers (match MockServerStoreRouter defaults) --
-
-private fun defaultSingleWrapper(record: MockServerRecord): JsonObject = buildJsonObject {
-    put("data", record.toJsonObject())
-}
-
-private fun defaultListWrapper(records: List<MockServerRecord>): JsonObject = buildJsonObject {
-    put("data", JsonArray(records.map { it.toJsonObject() }))
-}

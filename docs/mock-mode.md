@@ -32,7 +32,65 @@ Mock mode:
 
 ## Quick Start with MockModeBuilder
 
-The fastest way to set up mock mode is with `MockModeBuilder`, which handles creating the router, store, CRUD handlers, and global overrides in a few lines:
+The fastest way to set up mock mode is with `MockModeBuilder` and `MockServiceServer`. Each service defines a self-contained mock server class that encapsulates its seed data and HTTP handler registration.
+
+### Step 1: Define your MockServiceServer classes
+
+Each service gets its own class that extends `MockServiceServer`:
+
+```kotlin
+// src/debug/java/.../MockItemServer.kt
+import com.elvdev.buoyient.testing.MockServiceServer
+import com.elvdev.buoyient.testing.MockEndpointRouter
+import com.elvdev.buoyient.testing.MockServerCollection
+import com.elvdev.buoyient.testing.registerCrudHandlers
+
+class MockItemServer : MockServiceServer() {
+    override val name = "items"
+    override val seedFile = "seeds/items.json"
+
+    override fun registerHandlers(
+        router: MockEndpointRouter,
+        collection: MockServerCollection,
+    ) {
+        router.registerCrudHandlers(
+            collection = collection,
+            baseUrl = "https://api.example.com/v2/items",
+        )
+    }
+}
+```
+
+The `registerHandlers` method gives you full control over what endpoints the mock server responds to. Use the router's `onGet`, `onPost`, `onPut`, `onDelete` methods directly, or use `registerCrudHandlers` as a convenience for standard REST endpoints.
+
+For custom response shapes (when your API doesn't use `{"data": ...}`):
+
+```kotlin
+class MockItemServer : MockServiceServer() {
+    override val name = "items"
+    override val seedFile = "seeds/items.json"
+
+    override fun registerHandlers(
+        router: MockEndpointRouter,
+        collection: MockServerCollection,
+    ) {
+        router.registerCrudHandlers(
+            collection = collection,
+            baseUrl = "https://api.example.com/v2/items",
+            responseWrapper = { record ->
+                buildJsonObject { put("item", record.toJsonObject()) }
+            },
+            listResponseWrapper = { records ->
+                buildJsonObject {
+                    put("items", JsonArray(records.map { it.toJsonObject() }))
+                }
+            },
+        )
+    }
+}
+```
+
+### Step 2: Wire them into MockModeBuilder
 
 ```kotlin
 // In src/debug/java/.../DebugApp.kt
@@ -43,24 +101,8 @@ class DebugApp : Application() {
         super.onCreate()
 
         val mockMode = MockModeBuilder()
-            .service(
-                name = "items",
-                baseUrl = "https://api.example.com/v2/items",
-                seeds = listOf(
-                    MockModeBuilder.SeedEntry(
-                        data = buildJsonObject {
-                            put("name", "Sample Item A")
-                            put("amount", 1500)
-                        },
-                        serverId = "mock-srv-1",
-                        clientId = "mock-client-1",
-                    ),
-                ),
-            )
-            .service(
-                name = "orders",
-                baseUrl = "https://api.example.com/v2/orders",
-            )
+            .service(MockItemServer())
+            .service(MockOrderServer())
             .install()
 
         // mockMode.router — add custom handlers or inspect requestLog
@@ -72,9 +114,11 @@ class DebugApp : Application() {
 
 `MockModeBuilder.install()` calls `Buoyient.httpClient = router.buildHttpClient()` and sets `BuoyientLog.logger = PrintSyncLogger` automatically.
 
-### Loading seeds from a JSON file
+### Seed data
 
-Instead of inline seed data, you can load seeds from a classpath JSON resource. Place a file in `src/debug/resources/` (or `src/main/resources/` for JVM):
+You can provide seed data in two ways (mutually exclusive per service):
+
+**From a classpath JSON file** — place a file in `src/debug/resources/` (or `src/main/resources/` for JVM):
 
 ```json
 // src/debug/resources/seeds/items.json
@@ -84,35 +128,34 @@ Instead of inline seed data, you can load seeds from a classpath JSON resource. 
 ]
 ```
 
-Then reference it by path:
+Then set `override val seedFile = "seeds/items.json"` on your `MockServiceServer`. Server IDs are auto-generated for each entry.
+
+**Inline seeds** — override the `seeds` property with explicit `SeedEntry` objects for more control:
 
 ```kotlin
-val mockMode = MockModeBuilder()
-    .service(
-        name = "items",
-        baseUrl = "https://api.example.com/v2/items",
-        seedFile = "seeds/items.json",
+class MockItemServer : MockServiceServer() {
+    override val name = "items"
+    override val seeds = listOf(
+        SeedEntry(
+            data = buildJsonObject {
+                put("name", "Sample Item A")
+                put("amount", 1500)
+            },
+            serverId = "mock-srv-1",
+            clientId = "mock-client-1",
+        ),
     )
-    .install()
-```
 
-Server IDs are auto-generated for each entry. This is mutually exclusive with the in-memory `seeds` parameter — use one or the other per service.
-
-For custom response shapes (when your API doesn't use `{"data": ...}`), pass `responseWrapper` and `listResponseWrapper`:
-
-```kotlin
-.service(
-    name = "items",
-    baseUrl = "https://api.example.com/v2/items",
-    responseWrapper = { record ->
-        buildJsonObject { put("item", record.toJsonObject()) }
-    },
-    listResponseWrapper = { records ->
-        buildJsonObject {
-            put("items", JsonArray(records.map { it.toJsonObject() }))
-        }
-    },
-)
+    override fun registerHandlers(
+        router: MockEndpointRouter,
+        collection: MockServerCollection,
+    ) {
+        router.registerCrudHandlers(
+            collection = collection,
+            baseUrl = "https://api.example.com/v2/items",
+        )
+    }
+}
 ```
 
 ---
@@ -145,8 +188,8 @@ class DebugApp : Application() {
         super.onCreate()
 
         val mockMode = MockModeBuilder()
-            .service(name = "notes", baseUrl = NoteService.BASE_ENDPOINT)
-            .service(name = "tasks", baseUrl = TaskService.BASE_ENDPOINT)
+            .service(MockNoteServer())
+            .service(MockTaskServer())
             .install()
 
         ServiceLocator.isMockMode = true
@@ -185,8 +228,8 @@ app/src/
 ├── debug/
 │   ├── java/com/example/yourapp/
 │   │   ├── DebugApp.kt              # Application subclass that initializes mock mode
-│   │   └── testing/
-│   │       └── MockServerFixtures.kt  # (Optional) custom fixtures if not using MockModeBuilder
+│   │   ├── MockNoteServer.kt        # MockServiceServer for notes
+│   │   └── MockTaskServer.kt        # MockServiceServer for tasks
 │   └── AndroidManifest.xml           # Overrides android:name to DebugApp
 └── release/java/com/example/yourapp/
     └── ReleaseApp.kt                 # (Optional) Application subclass for real services
