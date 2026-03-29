@@ -58,11 +58,11 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `SyncCodec<O>` | `utils` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
 | `BuoyientLog` | `utils` | Process-wide logger singleton — set `BuoyientLog.logger` to swap the backing `BuoyientLogger` |
 | `TestServiceEnvironment` | `:testing` module | All-in-one test harness |
-| `MockEndpointRouter` | `:testing` module | Mock HTTP server for tests and mock mode |
-| `MockServerStore` | `:testing` module | Stateful mock server with collections |
-| `MockServiceServer` | `:testing` module | Abstract base class for self-contained mock servers — subclass to define seed data and handler registration per service |
-| `MockModeBuilder` | `:testing` module | Quick-start builder for mock mode setup — accepts `MockServiceServer` instances and installs global overrides |
-| `MockModeHandle` | `:testing` module | Handle returned by `MockModeBuilder.install()` with references to router, store, and connectivity checker |
+| `MockEndpointRouter` | `:mock-infra` module | Mock HTTP server for tests and mock mode |
+| `MockServerStore` | `:mock-infra` module | Stateful mock server with collections |
+| `MockServiceServer` | `:mock-mode` module | Abstract base class for self-contained mock servers — subclass to define seed data and handler registration per service |
+| `MockModeBuilder` | `:mock-mode` module | Quick-start builder for mock mode setup — accepts `MockServiceServer` instances and installs global overrides |
+| `MockModeHandle` | `:mock-mode` module | Handle returned by `MockModeBuilder.install()` with references to router, store, and connectivity checker |
 
 ## Modules
 
@@ -70,7 +70,9 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 |--------|----------|---------|
 | `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP) |
 | `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
-| `:testing` | `com.elvdev.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
+| `:mock-infra` | `com.elvdev.buoyient:syncable-objects-mock-infra` | Shared mock infrastructure — mock HTTP routing, stateful server store, test doubles |
+| `:mock-mode` | `com.elvdev.buoyient:syncable-objects-mock-mode` | Mock mode builder for running apps against fake server responses |
+| `:testing` | `com.elvdev.buoyient:syncable-objects-testing` | Test utilities — in-memory DB, test harness, sync helpers |
 
 ## Important conventions
 

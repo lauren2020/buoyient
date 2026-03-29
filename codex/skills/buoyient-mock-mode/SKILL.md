@@ -7,9 +7,9 @@ Use `docs/mock-mode.md` as the authoritative guide, and `CODEX.md` for the share
 
 Key points to remember:
 - Mock mode works by swapping the `ServerManager` passed to `SyncableObjectService` constructors - no changes to core library or service classes needed.
-- Use `MockEndpointRouter` from the `:testing` module to register mock HTTP handlers.
+- Use `MockEndpointRouter` from the `:mock-mode` module to register mock HTTP handlers.
 - Use `MockServerStore` for stateful mock mode with realistic CRUD behavior.
 - `TestConnectivityChecker` should be set to `online = true` in mock mode.
 - Conflict simulation uses `SyncableObjectRebaseHandler` rather than a separate merge handler.
 - Include all fields that `SyncUpConfig.fromResponseBody()` expects in mock responses - missing fields will cause it to return `SyncUpResult.Failed.RemovePendingRequest`.
-- Scope the `:testing` dependency to debug builds with `debugImplementation`.
+- Scope the `:mock-mode` dependency to debug builds with `debugImplementation`.

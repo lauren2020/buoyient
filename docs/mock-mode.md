@@ -1,17 +1,19 @@
 # Setting Up Local Mock Mode for Manual Testing
 
-This guide covers how to configure a buoyient app to run against a mock server at runtime, so developers can manually test the app without a real backend. This uses the same `MockEndpointRouter` from the `:testing` module but wired into the live app's dependency graph behind a developer toggle.
+This guide covers how to configure a buoyient app to run against a mock server at runtime, so developers can manually test the app without a real backend. This uses `MockEndpointRouter` from the `:mock-mode` module wired into the live app's dependency graph behind a developer toggle.
 
 ---
 
 ## Dependencies
 
-Add the testing module as a `debugImplementation` dependency in the app module so it's stripped from release builds:
+Add the mock-mode module as a `debugImplementation` dependency in the app module so it's stripped from release builds:
 
 ```kotlin
 // app/build.gradle.kts
-debugImplementation("com.elvdev.buoyient:testing:<version>")
+debugImplementation("com.elvdev.buoyient:syncable-objects-mock-mode:<version>")
 ```
+
+The `:mock-mode` module transitively includes `:mock-infra`, which provides `MockEndpointRouter`, `MockServerStore`, `TestConnectivityChecker`, and related classes.
 
 ---
 
@@ -162,7 +164,7 @@ class MockItemServer : MockServiceServer() {
 
 ## Using `debugImplementation` with Source Sets
 
-When the testing module is added as `debugImplementation`, mock mode code must live in `src/debug/` because the main source set cannot reference debug-only classes. This requires a few pieces of setup:
+When the mock-mode module is added as `debugImplementation`, mock mode code must live in `src/debug/` because the main source set cannot reference debug-only classes. This requires a few pieces of setup:
 
 ### 1. Service locator in main source set
 

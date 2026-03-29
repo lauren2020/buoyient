@@ -15,6 +15,8 @@ plugins {
 dependencies {
     nmcpAggregation(project(":core"))
     nmcpAggregation(project(":syncable-objects"))
+    nmcpAggregation(project(":mock-infra"))
+    nmcpAggregation(project(":mock-mode"))
     nmcpAggregation(project(":testing"))
     nmcpAggregation(project(":hilt"))
 }

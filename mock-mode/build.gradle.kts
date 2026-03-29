@@ -25,7 +25,6 @@ dependencies {
             )
         }
     }
-    implementation(libs.sqldelight.sqlite.driver)
 
     testImplementation(project(":syncable-objects")) {
         attributes {
@@ -59,8 +58,8 @@ publishing {
         create<MavenPublication>("maven") {
             from(components["java"])
             pom {
-                name.set("syncable-objects-testing")
-                description.set("Test utilities for syncable-objects: mock server, in-memory database, and test doubles.")
+                name.set("syncable-objects-mock-mode")
+                description.set("Mock mode builder for buoyient: run apps against fake server responses without a real backend.")
                 url.set("https://github.com/lauren2020/buoyient")
                 licenses {
                     license {

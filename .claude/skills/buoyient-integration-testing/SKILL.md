@@ -16,10 +16,10 @@ Add the testing module as a `testImplementation` dependency in the consuming app
 ```kotlin
 testImplementation(project(":testing"))
 // or, if consuming as a published artifact:
-testImplementation("com.elvdev.buoyient:testing:<version>")
+testImplementation("com.elvdev.buoyient:syncable-objects-testing:<version>")
 ```
 
-The `:testing` module transitively provides everything from `:syncable-objects`, plus `ktor-client-mock` and an in-memory SQLite driver. No additional test dependencies are needed.
+The `:testing` module transitively provides `:mock-infra` (which includes `MockEndpointRouter`, `MockServerStore`, `ktor-client-mock`, and `kotlinx-serialization-json`) plus an in-memory SQLite driver. No additional test dependencies are needed.
 
 ---
 

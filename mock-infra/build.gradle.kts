@@ -13,7 +13,6 @@ kotlin {
 }
 
 dependencies {
-    api(project(":mock-infra"))
     // compileOnly so the JVM variant doesn't leak into Android consumers' classpaths.
     // Consumers already depend on syncable-objects-android (or another platform variant)
     // which provides these classes at runtime.
@@ -25,7 +24,10 @@ dependencies {
             )
         }
     }
-    implementation(libs.sqldelight.sqlite.driver)
+    // api so consumers get HttpClient on their classpath (needed for Buoyient.httpClient setter
+    // and MockEndpointRouter.buildHttpClient())
+    api(libs.ktor.client.mock)
+    api(libs.kotlinx.serialization.json)
 
     testImplementation(project(":syncable-objects")) {
         attributes {
@@ -59,8 +61,8 @@ publishing {
         create<MavenPublication>("maven") {
             from(components["java"])
             pom {
-                name.set("syncable-objects-testing")
-                description.set("Test utilities for syncable-objects: mock server, in-memory database, and test doubles.")
+                name.set("syncable-objects-mock-infra")
+                description.set("Shared mock infrastructure for buoyient: mock HTTP routing, stateful server store, and test doubles.")
                 url.set("https://github.com/lauren2020/buoyient")
                 licenses {
                     license {

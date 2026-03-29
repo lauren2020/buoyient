@@ -20,4 +20,6 @@ rootProject.name = "buoyient"
 include(":core")
 include(":syncable-objects")
 include(":hilt")
+include(":mock-infra")
+include(":mock-mode")
 include(":testing")

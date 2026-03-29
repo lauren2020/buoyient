@@ -6,7 +6,7 @@ description: "How to set up and install the buoyient offline-first sync library 
 Read the guide at `docs/setup.md` for the complete, up-to-date instructions on setting up buoyient in a consuming app. That file is the authoritative reference and is kept in sync with the actual codebase.
 
 Key points to remember:
-- The `:syncable-objects` artifact (`com.elvdev.buoyient:syncable-objects`) is the only required dependency. Add `:syncable-objects-hilt` for Hilt apps, `:testing` for tests and mock mode.
+- The `:syncable-objects` artifact (`com.elvdev.buoyient:syncable-objects`) is the only required dependency. Add `:syncable-objects-hilt` for Hilt apps, `:testing` for automated tests, `:mock-mode` for manual mock testing.
 - Initialization is automatic via `androidx.startup` — no manifest changes or `Application.onCreate()` code needed for the library itself.
 - Services must be registered so `SyncWorker` can include them in background sync. Three approaches: Hilt `@IntoSet` multibinding (recommended), `Buoyient.registerServices()`, or `SyncWorker.registerServiceProvider()`.
 - Project-level configuration classes (`Buoyient`, `GlobalHeaderProvider`, `DatabaseProvider`, etc.) are in the `com.elvdev.buoyient.globalconfigs` package.
