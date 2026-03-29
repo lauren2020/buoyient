@@ -60,9 +60,10 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `TestServiceEnvironment` | `:testing` module | All-in-one test harness |
 | `MockEndpointRouter` | `:mock-infra` module | Mock HTTP server for tests and mock mode |
 | `MockServerStore` | `:mock-infra` module | Stateful mock server with collections |
-| `MockServiceServer` | `:mock-mode` module | Abstract base class for self-contained mock servers — subclass to define seed data and handler registration per service |
+| `MockEndpoint` | `:mock-infra` module | Declares a mock HTTP endpoint with method, URL pattern, label, and handler |
+| `MockServiceServer` | `:mock-mode` module | Abstract base class for self-contained mock servers — subclass to define seed data and declare endpoints per service |
 | `MockModeBuilder` | `:mock-mode` module | Quick-start builder for mock mode setup — accepts `MockServiceServer` instances and installs global overrides |
-| `MockModeHandle` | `:mock-mode` module | Handle returned by `MockModeBuilder.install()` with references to router, store, and connectivity checker |
+| `MockModeHandle` | `:mock-mode` module | Handle returned by `MockModeBuilder.install()` with references to router, store, connectivity checker, and endpoint index |
 
 ## Modules
 

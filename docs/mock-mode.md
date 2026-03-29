@@ -43,27 +43,23 @@ Each service gets its own class that extends `MockServiceServer`:
 ```kotlin
 // src/debug/java/.../MockItemServer.kt
 import com.elvdev.buoyient.testing.MockServiceServer
-import com.elvdev.buoyient.testing.MockEndpointRouter
+import com.elvdev.buoyient.testing.MockEndpoint
 import com.elvdev.buoyient.testing.MockServerCollection
-import com.elvdev.buoyient.testing.registerCrudHandlers
+import com.elvdev.buoyient.testing.crudEndpoints
 
 class MockItemServer : MockServiceServer() {
     override val name = "items"
     override val seedFile = "seeds/items.json"
 
-    override fun registerHandlers(
-        router: MockEndpointRouter,
-        collection: MockServerCollection,
-    ) {
-        router.registerCrudHandlers(
+    override fun endpoints(collection: MockServerCollection): List<MockEndpoint> =
+        crudEndpoints(
             collection = collection,
             baseUrl = "https://api.example.com/v2/items",
         )
-    }
 }
 ```
 
-The `registerHandlers` method gives you full control over what endpoints the mock server responds to. Use the router's `onGet`, `onPost`, `onPut`, `onDelete` methods directly, or use `registerCrudHandlers` as a convenience for standard REST endpoints.
+The `endpoints` method declares all HTTP endpoints the mock server supports. Use `crudEndpoints()` for standard REST endpoints, or construct `MockEndpoint` instances directly for custom handlers. The returned endpoints are registered on the router and indexed by the builder, enabling programmatic access to individual endpoints.
 
 For custom response shapes (when your API doesn't use `{"data": ...}`):
 
@@ -72,11 +68,8 @@ class MockItemServer : MockServiceServer() {
     override val name = "items"
     override val seedFile = "seeds/items.json"
 
-    override fun registerHandlers(
-        router: MockEndpointRouter,
-        collection: MockServerCollection,
-    ) {
-        router.registerCrudHandlers(
+    override fun endpoints(collection: MockServerCollection): List<MockEndpoint> =
+        crudEndpoints(
             collection = collection,
             baseUrl = "https://api.example.com/v2/items",
             responseWrapper = { record ->
@@ -88,7 +81,6 @@ class MockItemServer : MockServiceServer() {
                 }
             },
         )
-    }
 }
 ```
 
@@ -148,15 +140,11 @@ class MockItemServer : MockServiceServer() {
         ),
     )
 
-    override fun registerHandlers(
-        router: MockEndpointRouter,
-        collection: MockServerCollection,
-    ) {
-        router.registerCrudHandlers(
+    override fun endpoints(collection: MockServerCollection): List<MockEndpoint> =
+        crudEndpoints(
             collection = collection,
             baseUrl = "https://api.example.com/v2/items",
         )
-    }
 }
 ```
 

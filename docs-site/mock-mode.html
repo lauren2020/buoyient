@@ -288,20 +288,40 @@
             <span>src/debug/.../MockNoteServer.kt</span>
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           </div>
-<pre><code><span class="kw">class</span> <span class="typ">MockNoteServer</span> : <span class="typ">MockServiceServer</span>() {
+<pre><code><span class="kw">val</span> BASE = <span class="str">"https://api.example.com/v1/notes"</span>
+
+<span class="kw">class</span> <span class="typ">MockNoteServer</span> : <span class="typ">MockServiceServer</span>() {
     <span class="kw">override val</span> name = <span class="str">"notes"</span>
     <span class="kw">override val</span> seedFile = <span class="str">"seeds/notes.json"</span>
 
-    <span class="kw">override fun</span> <span class="fn">registerHandlers</span>(
-        router: <span class="typ">MockEndpointRouter</span>,
-        collection: <span class="typ">MockServerCollection</span>,
-    ) {
-        router.<span class="fn">registerCrudHandlers</span>(
-            collection = collection,
-            baseUrl = <span class="str">"https://api.example.com/v1/notes"</span>,
-        )
-    }
-}</code></pre>
+    <span class="kw">override fun</span> <span class="fn">endpoints</span>(c: <span class="typ">MockServerCollection</span>) = <span class="fn">listOf</span>(
+        <span class="typ">MockEndpoint</span>(<span class="typ">POST</span>, BASE, <span class="str">"create"</span>) { req -&gt;
+            <span class="typ">MockResponse</span>(<span class="num">201</span>, <span class="fn">wrap</span>(c.<span class="fn">create</span>(req.body)))
+        },
+        <span class="typ">MockEndpoint</span>(<span class="typ">PUT</span>, <span class="str">"$BASE/*"</span>, <span class="str">"update"</span>) { req -&gt;
+            <span class="kw">val</span> id = req.url.<span class="fn">substringAfterLast</span>(<span class="str">"/"</span>)
+            <span class="fn">wrap</span>(c.<span class="fn">update</span>(id, req.body)) ?: <span class="fn">notFound</span>()
+        },
+        <span class="typ">MockEndpoint</span>(<span class="typ">GET</span>, <span class="str">"$BASE/*"</span>, <span class="str">"get"</span>) { req -&gt;
+            <span class="kw">val</span> id = req.url.<span class="fn">substringAfterLast</span>(<span class="str">"/"</span>)
+            <span class="fn">wrap</span>(c.<span class="fn">get</span>(id)) ?: <span class="fn">notFound</span>()
+        },
+        <span class="typ">MockEndpoint</span>(<span class="typ">GET</span>, BASE, <span class="str">"list"</span>) { _ -&gt;
+            <span class="typ">MockResponse</span>(<span class="num">200</span>, <span class="fn">wrapList</span>(c.<span class="fn">getAll</span>()))
+        },
+        <span class="typ">MockEndpoint</span>(<span class="typ">DELETE</span>, <span class="str">"$BASE/*"</span>, <span class="str">"void"</span>) { req -&gt;
+            <span class="kw">val</span> id = req.url.<span class="fn">substringAfterLast</span>(<span class="str">"/"</span>)
+            <span class="fn">wrap</span>(c.<span class="fn">void</span>(id)) ?: <span class="fn">notFound</span>()
+        },
+    )
+}
+
+<span class="cmt">// Tiny helpers — adapt to match your API's response shape</span>
+<span class="kw">fun</span> <span class="fn">wrap</span>(r: <span class="typ">MockServerRecord</span>?) =
+    r?.<span class="fn">let</span> { <span class="typ">MockResponse</span>(<span class="num">200</span>, <span class="fn">buildJsonObject</span> { <span class="fn">put</span>(<span class="str">"data"</span>, it.<span class="fn">toJsonObject</span>()) }) }
+<span class="kw">fun</span> <span class="fn">wrapList</span>(rs: <span class="typ">List</span>&lt;<span class="typ">MockServerRecord</span>&gt;) =
+    <span class="fn">buildJsonObject</span> { <span class="fn">put</span>(<span class="str">"data"</span>, <span class="typ">JsonArray</span>(rs.<span class="fn">map</span> { it.<span class="fn">toJsonObject</span>() })) }
+<span class="kw">fun</span> <span class="fn">notFound</span>() = <span class="typ">MockResponse</span>(<span class="num">404</span>, <span class="typ">JsonObject</span>(<span class="fn">emptyMap</span>()))</code></pre>
         </div>
         <div class="code-block glow-teal" style="margin-top: 16px;">
           <div class="code-header">
@@ -321,7 +341,7 @@
 }</code></pre>
         </div>
         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 12px;">
-          Each <code>MockServiceServer</code> owns its seed data and handler registration. See the <a href="#inline-seeds" style="color: var(--current-teal);">inline seeds</a> section below for defining seeds in code.
+          Each <code>MockServiceServer</code> owns its seed data and endpoint declarations. See the <a href="#inline-seeds" style="color: var(--current-teal);">inline seeds</a> section below for defining seeds in code.
         </p>
       </div>
     </div>
@@ -352,7 +372,7 @@
     <div style="display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;">
       <div class="badge badge-teal">Creates MockEndpointRouter</div>
       <div class="badge badge-yellow">Creates MockServerStore</div>
-      <div class="badge badge-orange">Calls registerHandlers()</div>
+      <div class="badge badge-orange">Declares endpoints()</div>
       <div class="badge badge-blue">Seeds initial data</div>
       <div class="badge badge-teal">Sets Buoyient.httpClient</div>
       <div class="badge badge-yellow">Enables PrintSyncLogger</div>
@@ -445,15 +465,13 @@
         ),
     )
 
-    <span class="kw">override fun</span> <span class="fn">registerHandlers</span>(
-        router: <span class="typ">MockEndpointRouter</span>,
+    <span class="kw">override fun</span> <span class="fn">endpoints</span>(
         collection: <span class="typ">MockServerCollection</span>,
-    ) {
-        router.<span class="fn">registerCrudHandlers</span>(
+    ): <span class="typ">List</span>&lt;<span class="typ">MockEndpoint</span>&gt; =
+        <span class="fn">crudEndpoints</span>(
             collection = collection,
             baseUrl = <span class="str">"https://api.example.com/v1/notes"</span>,
         )
-    }
 }</code></pre>
   </div>
 
@@ -476,11 +494,10 @@
     <span class="kw">override val</span> name = <span class="str">"invoices"</span>
     <span class="kw">override val</span> seedFile = <span class="str">"seeds/invoices.json"</span>
 
-    <span class="kw">override fun</span> <span class="fn">registerHandlers</span>(
-        router: <span class="typ">MockEndpointRouter</span>,
+    <span class="kw">override fun</span> <span class="fn">endpoints</span>(
         collection: <span class="typ">MockServerCollection</span>,
-    ) {
-        router.<span class="fn">registerCrudHandlers</span>(
+    ): <span class="typ">List</span>&lt;<span class="typ">MockEndpoint</span>&gt; =
+        <span class="fn">crudEndpoints</span>(
             collection = collection,
             baseUrl = <span class="str">"https://api.example.com/v2/invoices"</span>,
             responseWrapper = { record ->
@@ -499,7 +516,6 @@
                 }
             },
         )
-    }
 }</code></pre>
   </div>
 

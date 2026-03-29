@@ -68,6 +68,8 @@ public class MockModeBuilder {
         val router = MockEndpointRouter()
         val connectivityChecker = TestConnectivityChecker(online = true)
 
+        val endpointIndex = mutableMapOf<String, List<MockEndpoint>>()
+
         for (server in servers) {
             val collection = store.collection(server.name)
 
@@ -101,8 +103,12 @@ public class MockModeBuilder {
                 }
             }
 
-            // Let the service register its handlers
-            server.registerHandlers(router, collection)
+            // Declare endpoints and register them on the router
+            val endpoints = server.endpoints(collection)
+            endpointIndex[server.name] = endpoints
+            for (endpoint in endpoints) {
+                router.on(endpoint.method, endpoint.urlPattern, endpoint.handler)
+            }
         }
 
         // Install globally
@@ -115,6 +121,7 @@ public class MockModeBuilder {
             router = router,
             store = store,
             connectivityChecker = connectivityChecker,
+            endpointIndex = endpointIndex,
         )
     }
 }
@@ -133,4 +140,14 @@ public data class MockModeHandle(
 
     /** Connectivity checker for simulating offline mode. Set [TestConnectivityChecker.online] to `false`. */
     public val connectivityChecker: TestConnectivityChecker,
+
+    /**
+     * Index of all declared endpoints, keyed by service name.
+     *
+     * Each entry maps a service's [MockServiceServer.name] to the list of
+     * [MockEndpoint]s returned by [MockServiceServer.endpoints]. Use this to
+     * enumerate endpoints for a global test controller (e.g. toggling specific
+     * endpoints to return errors or timeouts).
+     */
+    public val endpointIndex: Map<String, List<MockEndpoint>>,
 )

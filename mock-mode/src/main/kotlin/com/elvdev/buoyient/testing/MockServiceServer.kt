@@ -6,7 +6,7 @@ import kotlinx.serialization.json.JsonObject
  * Abstract base class for defining a mock server for a single service.
  *
  * Subclass this to create a self-contained mock server that encapsulates seed data
- * and HTTP handler registration for one [com.elvdev.buoyient.SyncableObjectService].
+ * and endpoint declarations for one [com.elvdev.buoyient.SyncableObjectService].
  * Register instances with [MockModeBuilder.service] to wire them into mock mode.
  *
  * ## Example
@@ -16,15 +16,11 @@ import kotlinx.serialization.json.JsonObject
  *     override val name = "notes"
  *     override val seedFile = "seeds/notes.json"
  *
- *     override fun registerHandlers(
- *         router: MockEndpointRouter,
- *         collection: MockServerCollection,
- *     ) {
- *         router.registerCrudHandlers(
+ *     override fun endpoints(collection: MockServerCollection): List<MockEndpoint> =
+ *         crudEndpoints(
  *             collection = collection,
  *             baseUrl = "https://api.example.com/v1/notes",
  *         )
- *     }
  * }
  * ```
  *
@@ -54,19 +50,20 @@ public abstract class MockServiceServer {
     public open val seedFile: String? get() = null
 
     /**
-     * Register all mock HTTP handlers for this service.
+     * Declares all mock HTTP endpoints for this service.
      *
      * Called during [MockModeBuilder.install] after seed data has been populated
-     * into [collection]. Use the router's `onGet`, `onPost`, `onPut`, `onDelete`
-     * methods or the [registerCrudHandlers] extension to wire up endpoints.
+     * into [collection]. Use [crudEndpoints] for standard REST endpoints, or
+     * construct [MockEndpoint] instances directly for custom handlers.
      *
-     * @param router the mock HTTP router to register handlers on.
+     * The returned endpoints are registered on the [MockEndpointRouter] and indexed
+     * by the builder, enabling programmatic access to individual endpoints (e.g. for
+     * toggling error responses via a global test controller).
+     *
      * @param collection the pre-seeded server-side collection for this service.
+     * @return the list of endpoints this service supports.
      */
-    public abstract fun registerHandlers(
-        router: MockEndpointRouter,
-        collection: MockServerCollection,
-    )
+    public abstract fun endpoints(collection: MockServerCollection): List<MockEndpoint>
 
     /**
      * A seed entry for pre-populating a mock server collection.
