@@ -2,6 +2,7 @@ package com.elvdev.buoyient.testing
 
 import com.elvdev.buoyient.globalconfigs.Buoyient
 import com.elvdev.buoyient.utils.BuoyientLog
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -42,6 +43,7 @@ public class MockModeBuilder {
         val name: String,
         val baseUrl: String,
         val seeds: List<SeedEntry>,
+        val seedFile: String?,
         val responseWrapper: ((MockServerRecord) -> JsonObject)?,
         val listResponseWrapper: ((List<MockServerRecord>) -> JsonObject)?,
     )
@@ -83,7 +85,7 @@ public class MockModeBuilder {
         responseWrapper: ((MockServerRecord) -> JsonObject)? = null,
         listResponseWrapper: ((List<MockServerRecord>) -> JsonObject)? = null,
     ): MockModeBuilder {
-        services.add(ServiceConfig(name, baseUrl, seeds, responseWrapper, listResponseWrapper))
+        services.add(ServiceConfig(name, baseUrl, seeds, seedFile = null, responseWrapper, listResponseWrapper))
         return this
     }
 
@@ -110,6 +112,50 @@ public class MockModeBuilder {
                 name = name,
                 baseUrl = baseUrl,
                 seeds = seeds.map { SeedEntry(data = it) },
+                seedFile = null,
+                responseWrapper = responseWrapper,
+                listResponseWrapper = listResponseWrapper,
+            )
+        )
+        return this
+    }
+
+    /**
+     * Registers a service for mock mode, loading seed data from a classpath JSON resource.
+     *
+     * The file must contain a JSON array of domain objects, e.g.:
+     * ```json
+     * [
+     *   { "title": "Welcome", "body": "Hello" },
+     *   { "name": "Minimal example", "amount": 42 }
+     * ]
+     * ```
+     *
+     * Server IDs are auto-generated for each entry (same behavior as passing `List<JsonObject>`
+     * seeds directly).
+     *
+     * This is mutually exclusive with the in-memory seed overloads — use one or the other.
+     *
+     * @param name the collection name (typically matches your service's `serviceName`).
+     * @param baseUrl the base URL for the resource endpoints.
+     * @param seedFile classpath resource path to a JSON file (e.g. `"seeds/notes.json"`).
+     * @param responseWrapper optional custom single-record response wrapper.
+     * @param listResponseWrapper optional custom list response wrapper.
+     * @return this builder, for chaining.
+     */
+    public fun service(
+        name: String,
+        baseUrl: String,
+        seedFile: String,
+        responseWrapper: ((MockServerRecord) -> JsonObject)? = null,
+        listResponseWrapper: ((List<MockServerRecord>) -> JsonObject)? = null,
+    ): MockModeBuilder {
+        services.add(
+            ServiceConfig(
+                name = name,
+                baseUrl = baseUrl,
+                seeds = emptyList(),
+                seedFile = seedFile,
                 responseWrapper = responseWrapper,
                 listResponseWrapper = listResponseWrapper,
             )
@@ -144,8 +190,23 @@ public class MockModeBuilder {
         for (config in services) {
             val collection = store.collection(config.name)
 
+            // Resolve seeds: either from in-memory list or classpath file
+            val seeds = if (config.seedFile != null) {
+                val resourceUrl = Thread.currentThread().contextClassLoader
+                    ?.getResource(config.seedFile)
+                    ?: error(
+                        "Seed file '${config.seedFile}' not found on the classpath. " +
+                            "Place it in src/main/resources/ or src/debug/resources/."
+                    )
+                val json = resourceUrl.readText()
+                val parsed = Json.decodeFromString<List<JsonObject>>(json)
+                parsed.map { SeedEntry(data = it) }
+            } else {
+                config.seeds
+            }
+
             // Seed data
-            for (seed in config.seeds) {
+            for (seed in seeds) {
                 if (seed.serverId != null) {
                     collection.seed(
                         serverId = seed.serverId,

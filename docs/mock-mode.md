@@ -72,6 +72,32 @@ class DebugApp : Application() {
 
 `MockModeBuilder.install()` calls `Buoyient.httpClient = router.buildHttpClient()` and sets `BuoyientLog.logger = PrintSyncLogger` automatically.
 
+### Loading seeds from a JSON file
+
+Instead of inline seed data, you can load seeds from a classpath JSON resource. Place a file in `src/debug/resources/` (or `src/main/resources/` for JVM):
+
+```json
+// src/debug/resources/seeds/items.json
+[
+  { "name": "Sample Item A", "amount": 1500 },
+  { "name": "Sample Item B", "amount": 2500 }
+]
+```
+
+Then reference it by path:
+
+```kotlin
+val mockMode = MockModeBuilder()
+    .service(
+        name = "items",
+        baseUrl = "https://api.example.com/v2/items",
+        seedFile = "seeds/items.json",
+    )
+    .install()
+```
+
+Server IDs are auto-generated for each entry. This is mutually exclusive with the in-memory `seeds` parameter — use one or the other per service.
+
 For custom response shapes (when your API doesn't use `{"data": ...}`), pass `responseWrapper` and `listResponseWrapper`:
 
 ```kotlin
