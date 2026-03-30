@@ -1,8 +1,12 @@
+import co.touchlab.skie.configuration.DefaultArgumentInterop
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.android.library)
     alias(libs.plugins.sqldelight)
+    alias(libs.plugins.skie)
     id("maven-publish")
     id("signing")
     alias(libs.plugins.nmcp)
@@ -25,9 +29,15 @@ kotlin {
 
     jvm()
 
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+    val xcf = XCFramework("Buoyient")
+    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "Buoyient"
+            isStatic = true
+            export(project(":core"))
+            xcf.add(this)
+        }
+    }
 
     sourceSets {
         val commonMain by getting {
@@ -89,6 +99,14 @@ kotlin {
 tasks.withType<Jar> {
     from(rootProject.file("CLAUDE.md")) { into("META-INF") }
     from(rootProject.file("CODEX.md")) { into("META-INF") }
+}
+
+skie {
+    features {
+        group {
+            DefaultArgumentInterop.Enabled(true)
+        }
+    }
 }
 
 sqldelight {

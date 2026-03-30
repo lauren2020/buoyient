@@ -2,6 +2,8 @@
 
 This guide covers how to configure a buoyient app to run against a mock server at runtime, so developers can manually test the app without a real backend. This uses `MockEndpointRouter` from the `:mock-mode` module wired into the live app's dependency graph behind a developer toggle.
 
+> **Platform note:** The `:mock-mode` and `:mock-infra` modules are Kotlin Multiplatform and support both JVM and iOS targets. The `MockModeBuilder`, `MockServiceServer`, and `MockEndpointRouter` classes work on iOS/Native. On iOS, seed files loaded via `seedFile` are resolved from `NSBundle.mainBundle` instead of the JVM classpath — add seed JSON files to your Xcode project's resources.
+
 ---
 
 ## Dependencies

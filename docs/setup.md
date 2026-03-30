@@ -1,6 +1,8 @@
-# Setting Up buoyient in Your App
+# Setting Up buoyient in Your Android App
 
 This guide walks through adding buoyient to an Android app. After completing these steps, your app will have offline-first sync infrastructure ready for you to build services on top of.
+
+> **Building for iOS?** See [`setup-ios.md`](setup-ios.md) instead for XCFramework/SPM setup, SwiftUI initialization, and SKIE Swift APIs.
 
 **Prerequisites:** An Android app targeting API 27+ with Kotlin and `kotlinx.serialization` already configured.
 

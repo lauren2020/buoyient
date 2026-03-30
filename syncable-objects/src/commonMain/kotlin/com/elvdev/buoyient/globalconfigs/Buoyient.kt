@@ -2,6 +2,8 @@ package com.elvdev.buoyient.globalconfigs
 
 import com.elvdev.buoyient.SyncableObjectService
 import com.elvdev.buoyient.db.SyncDatabase
+import com.elvdev.buoyient.serviceconfigs.ConnectivityChecker
+import com.elvdev.buoyient.serviceconfigs.createPlatformConnectivityChecker
 import com.elvdev.buoyient.sync.SyncRunner
 import io.ktor.client.HttpClient
 
@@ -67,12 +69,31 @@ public object Buoyient {
         set(value) { DatabaseOverride.database = value }
 
     /**
+     * Returns the platform-specific [ConnectivityChecker] implementation.
+     *
+     * Use this when you need to pass a connectivity checker explicitly to a service
+     * constructor from Swift, where the internal `createPlatformConnectivityChecker()`
+     * expect/actual function may not be visible.
+     */
+    public fun createConnectivityChecker(): ConnectivityChecker = createPlatformConnectivityChecker()
+
+    /**
      * Register a set of already-constructed services for background sync.
      */
     public fun registerServices(services: Set<SyncableObjectService<*, *>>) {
         registeredServices.clear()
         registeredServices.addAll(services)
         platformRegisterServices(services)
+    }
+
+    /**
+     * Register a list of already-constructed services for background sync.
+     *
+     * This overload is more ergonomic from Swift, where `Set` with star-projected
+     * generics requires awkward casts. Prefer this variant on iOS.
+     */
+    public fun registerServices(services: List<SyncableObjectService<*, *>>) {
+        registerServices(services.toSet())
     }
 
     /**

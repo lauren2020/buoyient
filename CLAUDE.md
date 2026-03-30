@@ -6,9 +6,10 @@ Kotlin Multiplatform offline-first sync library. Handles bidirectional sync betw
 
 If you are integrating buoyient into an application, **read the guides in `docs/`** before writing code:
 
-- **`docs/setup.md`** — How to add buoyient to an Android app: dependencies, automatic initialization, and service registration. Start here.
+- **`docs/setup.md`** — How to add buoyient to an **Android** app: dependencies, automatic initialization, and service registration. Start here for Android.
+- **`docs/setup-ios.md`** — How to add buoyient to an **iOS/SwiftUI** app: XCFramework via SPM, initialization, background sync, and SKIE Swift APIs. Start here for iOS.
 - **`docs/creating-a-service.md`** — Step-by-step guide to creating a `SyncableObjectService`: data model, `ServerProcessingConfig`, service class, and registration (Hilt or manual).
-- **`docs/integration-testing.md`** — How to write automated JVM tests using `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module.
+- **`docs/integration-testing.md`** — How to write automated tests using `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module.
 - **`docs/mock-mode.md`** — How to wire mock mode into the live app for manual testing without a real backend.
 
 These guides contain complete templates, required field tables, and common patterns. Use them instead of copying from the example services in this repo (which talk to a Square sandbox API — your endpoints, auth, and field names will be different).
@@ -100,13 +101,13 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 
 ## Modules
 
-| Module | Artifact | Purpose |
-|--------|----------|---------|
-| `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP) |
-| `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
-| `:mock-infra` | `com.elvdev.buoyient:syncable-objects-mock-infra` | Shared mock infrastructure — mock HTTP routing, stateful server store, test doubles |
-| `:mock-mode` | `com.elvdev.buoyient:syncable-objects-mock-mode` | Mock mode builder for running apps against fake server responses |
-| `:testing` | `com.elvdev.buoyient:syncable-objects-testing` | Test utilities — in-memory DB, test harness, sync helpers |
+| Module | Artifact | Platforms | Purpose |
+|--------|----------|-----------|---------|
+| `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Android, iOS, JVM | Core sync engine (KMP) — also exports XCFramework for iOS via SPM |
+| `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Android | Optional Hilt integration — auto-registers services |
+| `:mock-infra` | `com.elvdev.buoyient:syncable-objects-mock-infra` | iOS, JVM | Shared mock infrastructure — mock HTTP routing, stateful server store, test doubles |
+| `:mock-mode` | `com.elvdev.buoyient:syncable-objects-mock-mode` | iOS, JVM | Mock mode builder for running apps against fake server responses |
+| `:testing` | `com.elvdev.buoyient:syncable-objects-testing` | iOS, JVM | Test utilities — in-memory DB, test harness, sync helpers |
 
 ## Important conventions
 
@@ -122,3 +123,13 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 - `SyncableObjectService` accepts an optional `queueStrategy` parameter (defaults to `Queue`). Use `Squash` when the API uses PUT/replace semantics and intermediate offline states don't matter; use `Queue` when request order matters or each write has side effects. See `docs/creating-a-service.md` § "Pending request queue strategy" for full guidance.
 - Registration for background sync: use Hilt `@IntoSet` multibinding with `:hilt`, or `Buoyient.registerServices()` / `Buoyient.registerServiceProvider()` without Hilt.
 - Use `Buoyient.syncNow()` to trigger an immediate sync-up pass from the UI (e.g. pull-to-refresh). It runs on a background coroutine and accepts an optional `completion: (Boolean) -> Unit` callback. For per-service sync-down, call `service.syncDownFromServer()` directly.
+
+## iOS-specific conventions
+
+- **XCFramework distribution:** Build via `./gradlew :syncable-objects:assembleBuoyientReleaseXCFramework`. Output at `syncable-objects/build/XCFrameworks/release/Buoyient.xcframework`. Distributed via SPM (`Package.swift` at repo root).
+- **SKIE integration:** The framework uses [SKIE](https://skie.touchlab.co/) to generate Swift-native APIs. `suspend` functions become `async`, `sealed class` becomes Swift `enum`, `Flow` becomes `AsyncSequence`. No manual bridging needed.
+- **iOS initialization:** No auto-init like Android's `androidx.startup`. Call `IosSyncScheduleNotifier.Companion.shared.registerHandler()` and `Buoyient.shared.registerServices(...)` in the SwiftUI `App.init()` or UIKit `AppDelegate.didFinishLaunching`.
+- **Background sync:** iOS uses BGTaskScheduler (best-effort, throttled ~1x/hour). Always call `Buoyient.shared.syncNow()` on foreground transitions (`scenePhase == .active`) for reliable sync.
+- **Info.plist:** Add `BGTaskSchedulerPermittedIdentifiers` with value `com.elvdev.buoyient.sync`. Enable Background Modes capability with Background fetch and Background processing.
+- **Testing and mock modules** (`:testing`, `:mock-infra`, `:mock-mode`) are KMP modules with iOS targets. `TestServiceEnvironment` and `MockEndpointRouter` work on iOS via Kotlin/Native. `TestDatabaseFactory.createInMemory()` uses `NativeSqliteDriver` on iOS.
+- **The `Buoyient` object** is renamed to `Buoyient_` in Swift due to a name collision with the framework name. Access it via `Buoyient_shared` or consider using `@ObjCName` to resolve this in a future version.

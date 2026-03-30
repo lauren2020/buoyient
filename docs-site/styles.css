@@ -315,7 +315,7 @@ pre .num { font-size: inherit; margin: 0; }
 
 /* ── Step Indicator ── */
 .step-bar {
-  position: sticky; top: 60px; z-index: 90;
+  position: sticky; top: 104px; z-index: 90;
   background: rgba(15, 17, 23, 0.95);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
@@ -605,6 +605,54 @@ pre .num { font-size: inherit; margin: 0; }
 .gap-12 { gap: 12px; }
 .gap-24 { gap: 24px; }
 
+/* ── Platform Selector ── */
+.platform-selector {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 40px;
+  background: rgba(15, 17, 23, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky; top: 60px; z-index: 95;
+}
+.platform-label {
+  font-size: 0.8rem; font-weight: 500; color: var(--text-dim);
+  margin-right: 4px;
+}
+.platform-btn {
+  font-family: var(--font-body); font-size: 0.82rem; font-weight: 500;
+  padding: 6px 16px; cursor: pointer;
+  background: transparent; border: 1px solid var(--border-color);
+  border-radius: 20px;
+  color: var(--text-dim); transition: all 0.2s;
+}
+.platform-btn:hover { color: var(--text-secondary); border-color: var(--text-dim); }
+.platform-btn.active {
+  background: var(--buoy-orange); border-color: var(--buoy-orange);
+  color: var(--deep-navy); font-weight: 600;
+}
+
+/* Platform-conditional visibility */
+[data-platform] { display: none; }
+body.platform-android [data-platform~="android"] { display: block; }
+body.platform-ios [data-platform~="ios"] { display: block; }
+body.platform-jvm [data-platform~="jvm"] { display: block; }
+/* inline variants for elements inside paragraphs / lists */
+span[data-platform], code[data-platform] { display: none; }
+body.platform-android span[data-platform~="android"],
+body.platform-android code[data-platform~="android"] { display: inline; }
+body.platform-ios span[data-platform~="ios"],
+body.platform-ios code[data-platform~="ios"] { display: inline; }
+body.platform-jvm span[data-platform~="jvm"],
+body.platform-jvm code[data-platform~="jvm"] { display: inline; }
+/* list-item variants */
+li[data-platform] { display: none; }
+body.platform-android li[data-platform~="android"] { display: list-item; }
+body.platform-ios li[data-platform~="ios"] { display: list-item; }
+body.platform-jvm li[data-platform~="jvm"] { display: list-item; }
+/* tab-btn hiding for Hilt on non-Android */
+body.platform-ios .hilt-only,
+body.platform-jvm .hilt-only { display: none; }
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .card-grid-3 { grid-template-columns: repeat(2, 1fr); }
@@ -627,5 +675,7 @@ pre .num { font-size: inherit; margin: 0; }
   .card-grid, .card-grid-3, .card-grid-2 { grid-template-columns: 1fr; }
   .step-bar { padding: 12px 16px; gap: 0; }
   .step-line { width: 24px; }
+  .platform-selector { padding: 10px 16px; gap: 6px; }
+  .platform-btn { font-size: 0.75rem; padding: 5px 12px; }
   .site-footer { padding: 32px 20px 24px; }
 }

@@ -1,5 +1,6 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
     id("maven-publish")
     id("signing")
     alias(libs.plugins.nmcp)
@@ -10,40 +11,41 @@ version = property("VERSION_NAME") as String
 
 kotlin {
     explicitApi()
-}
 
-dependencies {
-    // compileOnly so the JVM variant doesn't leak into Android consumers' classpaths.
-    // Consumers already depend on syncable-objects-android (or another platform variant)
-    // which provides these classes at runtime.
-    compileOnly(project(":syncable-objects")) {
-        attributes {
-            attribute(
-                org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.attribute,
-                org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.jvm,
-            )
+    jvm()
+
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                api(project(":syncable-objects"))
+                api(libs.ktor.client.mock)
+                api(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.atomicfu)
+                implementation(libs.kotlinx.datetime)
+            }
+        }
+
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+        val iosMain by creating {
+            dependsOn(commonMain)
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
+        }
+
+        val jvmTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.kotlinx.coroutines.test)
+            }
         }
     }
-    // api so consumers get HttpClient on their classpath (needed for Buoyient.httpClient setter
-    // and MockEndpointRouter.buildHttpClient())
-    api(libs.ktor.client.mock)
-    api(libs.kotlinx.serialization.json)
-
-    testImplementation(project(":syncable-objects")) {
-        attributes {
-            attribute(
-                org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.attribute,
-                org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.jvm,
-            )
-        }
-    }
-    testImplementation(kotlin("test"))
-    testImplementation(libs.kotlinx.coroutines.test)
-}
-
-java {
-    withSourcesJar()
-    withJavadocJar()
 }
 
 signing {
@@ -57,31 +59,33 @@ signing {
 }
 
 publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            pom {
-                name.set("syncable-objects-mock-infra")
-                description.set("Shared mock infrastructure for buoyient: mock HTTP routing, stateful server store, and test doubles.")
+    publications.withType<MavenPublication> {
+        val pubName = name
+        artifact(tasks.register("${pubName}JavadocJar", Jar::class) {
+            archiveClassifier.set("javadoc")
+            archiveAppendix.set(pubName)
+        })
+        pom {
+            name.set("syncable-objects-mock-infra")
+            description.set("Shared mock infrastructure for buoyient: mock HTTP routing, stateful server store, and test doubles.")
+            url.set("https://github.com/lauren2020/buoyient")
+            licenses {
+                license {
+                    name.set("The Apache License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                }
+            }
+            developers {
+                developer {
+                    id.set("lauren2020")
+                    name.set("Lauren Shultz")
+                    email.set("lauren@elizabethvaildev.com")
+                }
+            }
+            scm {
+                connection.set("scm:git:git://github.com/lauren2020/buoyient.git")
+                developerConnection.set("scm:git:ssh://github.com:lauren2020/buoyient.git")
                 url.set("https://github.com/lauren2020/buoyient")
-                licenses {
-                    license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("lauren2020")
-                        name.set("Lauren Shultz")
-                        email.set("lauren@elizabethvaildev.com")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:git://github.com/lauren2020/buoyient.git")
-                    developerConnection.set("scm:git:ssh://github.com:lauren2020/buoyient.git")
-                    url.set("https://github.com/lauren2020/buoyient")
-                }
             }
         }
     }

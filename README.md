@@ -9,7 +9,7 @@ Offline-first Kotlin Multiplatform SDK that keeps a local data store in sync wit
 
 ## For Humans: start here
 This README is optimized for AI agents. For humans, we created something more human optimized: an interactive html walkthrough (ironically, it's agent generated).
-For an interactive walkthrough covering why buoyient, how it works, and setup guidance, see: [Why buoyient?](https://lauren2020.github.io/buoyient/why-buoyient.html)
+For an interactive walkthrough covering why buoyient, how it works, and setup guidance, see: [explore buoyient >>>](https://lauren2020.github.io/buoyient/why-buoyient.html)
 
 ---
 
@@ -19,9 +19,10 @@ For an interactive walkthrough covering why buoyient, how it works, and setup gu
 
 | Guide | When to use |
 |-------|-------------|
-| [`docs/setup.md`](docs/setup.md) | Adding buoyient to an Android app: dependencies, initialization, service registration. **Start here.** |
+| [`docs/setup.md`](docs/setup.md) | Adding buoyient to an **Android** app: dependencies, initialization, service registration. **Start here for Android.** |
+| [`docs/setup-ios.md`](docs/setup-ios.md) | Adding buoyient to an **iOS/SwiftUI** app: SPM/XCFramework, initialization, background sync. **Start here for iOS.** |
 | [`docs/creating-a-service.md`](docs/creating-a-service.md) | Creating a `SyncableObjectService`: data model, `ServerProcessingConfig`, service class, registration. |
-| [`docs/integration-testing.md`](docs/integration-testing.md) | Automated JVM tests with `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module. |
+| [`docs/integration-testing.md`](docs/integration-testing.md) | Automated tests with `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module. |
 | [`docs/mock-mode.md`](docs/mock-mode.md) | Runtime mock mode for manual testing without a real backend. |
 
 The `templates/` directory contains copy-ready starter files for the model, request tag, server config, service, and integration test.
@@ -47,9 +48,11 @@ Full walkthrough with templates: [`docs/creating-a-service.md`](docs/creating-a-
 
 | Module | Artifact | Purpose |
 |--------|----------|---------|
-| `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP) |
-| `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding |
-| `:testing` | `com.elvdev.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
+| `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP: Android, iOS, JVM) |
+| `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding (Android only) |
+| `:mock-infra` | `com.elvdev.buoyient:syncable-objects-mock-infra` | Shared mock infrastructure — mock HTTP routing, stateful server store, test doubles (KMP) |
+| `:mock-mode` | `com.elvdev.buoyient:syncable-objects-mock-mode` | Mock mode builder for running apps against fake server responses (KMP) |
+| `:testing` | `com.elvdev.buoyient:syncable-objects-testing` | Test utilities — in-memory DB, test harness, sync helpers (KMP) |
 
 ---
 
@@ -218,12 +221,24 @@ Full testing guide: [`docs/integration-testing.md`](docs/integration-testing.md)
 
 ## Platform support
 
-| Platform | Status |
-|----------|--------|
-| Android  | Supported (API 27+) |
-| iOS      | Beta / Experimental |
+| Platform | Status | Stack |
+|----------|--------|-------|
+| Android  | Supported (API 27+) | Ktor OkHttp, SQLDelight Android driver, WorkManager, ConnectivityManager, `androidx.startup` |
+| iOS      | Supported (iOS 15+) | Ktor Darwin, SQLDelight Native driver, BGTaskScheduler, NWPathMonitor, SKIE for Swift APIs |
+| JVM      | Supported (tests & server-side) | Ktor CIO, SQLDelight JDBC driver |
 
-Android stack: Ktor OkHttp, SQLDelight Android driver, WorkManager for background sync, ConnectivityManager, auto-init via `androidx.startup`.
+### iOS distribution
+
+buoyient is distributed to iOS projects as an XCFramework via Swift Package Manager:
+
+```bash
+# Build the framework
+./gradlew :syncable-objects:assembleBuoyientReleaseXCFramework
+```
+
+The framework includes [SKIE](https://skie.touchlab.co/) integration, which automatically provides Swift-native APIs: `suspend` -> `async/await`, `sealed class` -> Swift `enum`, `Flow` -> `AsyncSequence`.
+
+See [`docs/setup-ios.md`](docs/setup-ios.md) for the complete iOS setup guide.
 
 ---
 
@@ -235,10 +250,19 @@ Android stack: Ktor OkHttp, SQLDelight Android driver, WorkManager for backgroun
 ./gradlew :testing:build
 ```
 
+Build iOS XCFramework:
+
+```bash
+./gradlew :syncable-objects:assembleBuoyientReleaseXCFramework
+```
+
 Run tests:
 
 ```bash
-./gradlew :testing:test
+./gradlew :syncable-objects:jvmTest
+./gradlew :mock-infra:jvmTest
+./gradlew :mock-mode:jvmTest
+./gradlew :testing:jvmTest
 ```
 
 Publish to local Maven:

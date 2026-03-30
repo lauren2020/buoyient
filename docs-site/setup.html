@@ -6,7 +6,7 @@
 <title>Setup Guide — buoyient</title>
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="platform-android">
 
 <!-- ── Header ── -->
 <header class="site-header">
@@ -39,6 +39,13 @@
   <p class="subtitle">Five steps to offline-first sync</p>
 </div>
 
+<!-- ── Platform Selector ── -->
+<div class="platform-selector" id="platformSelector">
+  <span class="platform-label">Platform:</span>
+  <button class="platform-btn active" onclick="switchPlatform('android')">Android</button>
+  <button class="platform-btn" onclick="switchPlatform('ios')">iOS</button>
+</div>
+
 <!-- ── Sticky Step Bar ── -->
 <div class="step-bar" id="stepBar">
   <div class="step-dot-group">
@@ -57,54 +64,121 @@
 <!-- ══════════ STEP 1: Dependencies ══════════ -->
 <section class="section" id="step1">
   <h2><span class="num">01</span> Add dependencies</h2>
-  <p class="section-desc">Add buoyient to your module-level <code>build.gradle.kts</code>. Pick the modules you need.</p>
+  <p class="section-desc" data-platform="android">Add buoyient to your module-level <code>build.gradle.kts</code>. Pick the modules you need.</p>
+  <p class="section-desc" data-platform="ios">Add the buoyient XCFramework to your Xcode project via Swift Package Manager.</p>
 
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab(this, 'dep')">Core Only</button>
-    <button class="tab-btn" onclick="switchTab(this, 'dep')">With Hilt</button>
-    <button class="tab-btn" onclick="switchTab(this, 'dep')">Everything</button>
-  </div>
+  <!-- Gradle tabs (Android only) -->
+  <div data-platform="android">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this, 'dep')">Core Only</button>
+      <button class="tab-btn hilt-only" onclick="switchTab(this, 'dep')">With Hilt</button>
+      <button class="tab-btn" onclick="switchTab(this, 'dep')">Everything</button>
+    </div>
 
-  <div class="tab-content active" data-group="dep" data-tab="Core Only">
-    <div class="code-block">
-      <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
-      <pre><code><span class="fn">dependencies</span> {
+    <div class="tab-content active" data-group="dep" data-tab="Core Only">
+      <div class="code-block">
+        <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="fn">dependencies</span> {
     <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects:&lt;version&gt;"</span>)
 }</code></pre>
+      </div>
     </div>
-  </div>
 
-  <div class="tab-content" data-group="dep" data-tab="With Hilt">
-    <div class="code-block">
-      <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
-      <pre><code><span class="fn">dependencies</span> {
+    <div class="tab-content" data-group="dep" data-tab="With Hilt">
+      <div class="code-block">
+        <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="fn">dependencies</span> {
     <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects:&lt;version&gt;"</span>)
     <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects-hilt:&lt;version&gt;"</span>)
 }</code></pre>
+      </div>
     </div>
-  </div>
 
-  <div class="tab-content" data-group="dep" data-tab="Everything">
-    <div class="code-block">
-      <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
-      <pre><code><span class="fn">dependencies</span> {
+    <div class="tab-content" data-group="dep" data-tab="Everything">
+      <div class="code-block">
+        <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="fn">dependencies</span> {
     <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects:&lt;version&gt;"</span>)
     <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects-hilt:&lt;version&gt;"</span>)
     <span class="fn">testImplementation</span>(<span class="str">"com.elvdev.buoyient:testing:&lt;version&gt;"</span>)
-    <span class="fn">debugImplementation</span>(<span class="str">"com.elvdev.buoyient:testing:&lt;version&gt;"</span>) <span class="cmt">// for mock mode</span>
+    <span class="fn">debugImplementation</span>(<span class="str">"com.elvdev.buoyient:mock-mode:&lt;version&gt;"</span>) <span class="cmt">// for mock mode</span>
 }</code></pre>
+      </div>
     </div>
+
+    <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);">
+      That's it for dependencies. buoyient auto-initializes via <code>androidx.startup</code> &mdash; no <code>Application.onCreate()</code> code needed for initialization.
+    </p>
   </div>
 
-  <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);">
-    That's it for dependencies. buoyient auto-initializes via <code>androidx.startup</code> &mdash; no <code>Application.onCreate()</code> code needed for initialization.
-  </p>
+  <!-- iOS SPM instructions -->
+  <div data-platform="ios">
+    <div class="card" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal);">Step 1: Build the XCFramework</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+        From the buoyient repo root, build the framework:
+      </p>
+      <div class="code-block mt-8">
+        <div class="code-header"><span>Terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>./gradlew :syncable-objects:assembleBuoyientReleaseXCFramework</code></pre>
+      </div>
+    </div>
+
+    <div class="card mt-16" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue);">Step 2: Add to Xcode</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+        <strong>Via SPM:</strong> In Xcode, go to <strong>File &rarr; Add Package Dependencies</strong> and point to the buoyient repo root (which contains <code>Package.swift</code>). Select the <code>Buoyient</code> library product.
+      </p>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+        <strong>Manual:</strong> Drag <code>Buoyient.xcframework</code> from <code>syncable-objects/build/XCFrameworks/release/</code> into your Xcode project. Set embedding to <strong>Do Not Embed</strong> (static framework).
+      </p>
+    </div>
+
+    <div class="card mt-16" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow);">Swift-native APIs via SKIE</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+        The framework includes <a href="https://skie.touchlab.co/" style="color: var(--beacon-yellow);">SKIE</a>, which automatically generates Swift-friendly wrappers:
+      </p>
+      <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-top: 8px; padding-left: 20px;">
+        <li><code>suspend</code> functions &rarr; Swift <code>async/await</code></li>
+        <li><code>sealed class</code> / <code>sealed interface</code> &rarr; Swift <code>enum</code></li>
+        <li><code>Flow</code> / <code>StateFlow</code> &rarr; Swift <code>AsyncSequence</code></li>
+      </ul>
+    </div>
+
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px;">
+      buoyient requires manual initialization on iOS &mdash; see <strong>Step 5</strong> for SwiftUI <code>App.init()</code> setup and <code>Info.plist</code> configuration.
+    </p>
+  </div>
 </section>
 
 <!-- ══════════ STEP 2: Data Model ══════════ -->
 <section class="section" id="step2">
   <h2><span class="num">02</span> Define your data model</h2>
-  <p class="section-desc">Describe your domain object below and watch the code generate in real time. Or skip ahead &mdash; you can always copy the template.</p>
+  <p class="section-desc" data-platform="android">Describe your domain object below and watch the code generate in real time. Or skip ahead &mdash; you can always copy the template.</p>
+  <p class="section-desc" data-platform="ios">Describe your domain object below. The model, config, and service are written in Kotlin in a small shared module &mdash; SKIE then exposes them as native Swift APIs automatically.</p>
+
+  <div data-platform="ios" class="mb-24">
+    <div class="card" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue);">Why Kotlin for Steps 2&ndash;4?</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+        buoyient's service classes use Kotlin-specific features (<code>KSerializer</code>, <code>@Serializable</code>, coroutines) that can't be expressed in Swift. Even for iOS-only apps, you create a small Kotlin shared module for the service definitions. Your iOS app then calls them from Swift with <code>async/await</code> &mdash; see the <strong>Swift usage example in Step 4</strong>.
+      </p>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+        A typical structure looks like:
+      </p>
+      <pre style="font-size: 0.8rem; color: var(--text-dim); margin-top: 8px; line-height: 1.6;"><code>MyProject/
+├── shared/              <span style="color: var(--ocean-blue);">← Kotlin module (model + service)</span>
+│   └── src/commonMain/kotlin/
+│       ├── Todo.kt
+│       ├── TodoRequestTag.kt
+│       └── TodoService.kt
+└── iosApp/              <span style="color: var(--current-teal);">← Swift app (calls the service)</span>
+    └── Sources/
+        ├── TodoViewModel.swift
+        └── ContentView.swift</code></pre>
+    </div>
+  </div>
 
   <div class="split-panel">
     <div>
@@ -145,7 +219,8 @@
 <!-- ══════════ STEP 3: Request Tag ══════════ -->
 <section class="section" id="step3">
   <h2><span class="num">03</span> Create a request tag</h2>
-  <p class="section-desc">Each operation type gets a tag. This lets buoyient route responses and lets you customize handling per operation.</p>
+  <p class="section-desc" data-platform="android">Each operation type gets a tag. This lets buoyient route responses and lets you customize handling per operation.</p>
+  <p class="section-desc" data-platform="ios">Each operation type gets a tag. This Kotlin enum goes in your shared module alongside the model.</p>
 
   <div style="max-width: 600px;">
     <div class="code-block">
@@ -158,7 +233,8 @@
 <!-- ══════════ STEP 4: Service ══════════ -->
 <section class="section" id="step4">
   <h2><span class="num">04</span> Implement your service</h2>
-  <p class="section-desc">Extend <code>SyncableObjectService</code> and expose domain-specific methods using the protected <code>create()</code>, <code>update()</code>, <code>void()</code>, and <code>get()</code> methods.</p>
+  <p class="section-desc" data-platform="android">Extend <code>SyncableObjectService</code> and expose domain-specific methods using the protected <code>create()</code>, <code>update()</code>, <code>void()</code>, and <code>get()</code> methods.</p>
+  <p class="section-desc" data-platform="ios">Define the Kotlin service in your shared module, then see the <strong>Swift usage</strong> below for how your iOS app calls it.</p>
 
   <div style="max-width: 700px;">
     <div class="code-block">
@@ -166,7 +242,7 @@
       <pre><code id="servicePreview"></code></pre>
     </div>
 
-    <div class="card mt-24" style="border-color: var(--beacon-yellow);">
+    <div class="card mt-24" style="border-color: var(--beacon-yellow);" data-platform="android">
       <h4 style="color: var(--beacon-yellow);">Key things to notice</h4>
       <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-top: 8px; padding-left: 20px;">
         <li><code>CreateRequestBuilder</code> is a lambda that builds the HTTP request &mdash; it receives the data, an idempotency key, and connectivity info</li>
@@ -175,15 +251,35 @@
         <li>Use <code>HttpRequest.serverIdOrPlaceholder(serverId)</code> in update/void URLs for offline safety</li>
       </ul>
     </div>
+
+    <!-- iOS: show Swift calling code -->
+    <div data-platform="ios">
+      <h3 class="mt-24" style="color: var(--current-teal);">Your Swift code <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-secondary);">&mdash; how your iOS app uses the Kotlin service above</span></h3>
+      <div class="code-block mt-16 glow-teal">
+        <div class="code-header"><span id="swiftFileName">TodoViewModel.swift</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code id="swiftUsagePreview"></code></pre>
+      </div>
+      <div class="card mt-16" style="border-color: var(--beacon-yellow);">
+        <h4 style="color: var(--beacon-yellow);">How SKIE bridges Kotlin &rarr; Swift</h4>
+        <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-top: 8px; padding-left: 20px;">
+          <li>Kotlin <code>suspend fun</code> &rarr; Swift <code>async</code> &mdash; call with <code>try await</code></li>
+          <li>Kotlin <code>sealed class</code> &rarr; Swift <code>enum</code> &mdash; match with <code>switch</code></li>
+          <li>Kotlin <code>Flow&lt;T&gt;</code> &rarr; Swift <code>AsyncSequence</code> &mdash; consume with <code>for try await</code></li>
+          <li>The Kotlin service is defined once and shared across Android and iOS</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </section>
 
 <!-- ══════════ STEP 5: Registration ══════════ -->
 <section class="section" id="step5">
   <h2><span class="num">05</span> Register for background sync</h2>
-  <p class="section-desc">Tell buoyient about your service so it can sync in the background via WorkManager.</p>
+  <p class="section-desc" data-platform="android">Tell buoyient about your service so it can sync in the background via WorkManager.</p>
+  <p class="section-desc" data-platform="ios">Register your service and configure iOS background task scheduling via <code>BGTaskScheduler</code>.</p>
 
-  <div style="max-width: 600px;">
+  <!-- Android registration -->
+  <div style="max-width: 600px;" data-platform="android">
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab(this, 'reg')">With Hilt</button>
       <button class="tab-btn" onclick="switchTab(this, 'reg')">Without Hilt</button>
@@ -211,6 +307,50 @@
       </div>
     </div>
   </div>
+
+  <!-- iOS registration -->
+  <div style="max-width: 700px;" data-platform="ios">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this, 'regios')">SwiftUI App</button>
+      <button class="tab-btn" onclick="switchTab(this, 'regios')">AppDelegate</button>
+      <button class="tab-btn" onclick="switchTab(this, 'regios')">Info.plist</button>
+    </div>
+
+    <div class="tab-content active" data-group="regios" data-tab="SwiftUI App">
+      <div class="code-block">
+        <div class="code-header"><span>MyApp.swift</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code id="regIosSwiftUIPreview"></code></pre>
+      </div>
+    </div>
+
+    <div class="tab-content" data-group="regios" data-tab="AppDelegate">
+      <div class="code-block">
+        <div class="code-header"><span>AppDelegate.swift</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code id="regIosDelegatePreview"></code></pre>
+      </div>
+    </div>
+
+    <div class="tab-content" data-group="regios" data-tab="Info.plist">
+      <div class="code-block">
+        <div class="code-header"><span>Info.plist</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="kw">&lt;key&gt;</span>BGTaskSchedulerPermittedIdentifiers<span class="kw">&lt;/key&gt;</span>
+<span class="kw">&lt;array&gt;</span>
+    <span class="kw">&lt;string&gt;</span><span class="str">com.elvdev.buoyient.sync</span><span class="kw">&lt;/string&gt;</span>
+<span class="kw">&lt;/array&gt;</span></code></pre>
+      </div>
+    </div>
+
+    <div class="card mt-24" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow);">iOS background sync</h4>
+      <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-top: 8px; padding-left: 20px;">
+        <li><code>IosSyncScheduleNotifier.Companion.shared.registerHandler()</code> must be called before the app finishes launching</li>
+        <li>The <code>Info.plist</code> entry is required for <code>BGTaskScheduler</code> to accept task submissions</li>
+        <li>iOS throttles background tasks (~1x/hour) &mdash; call <code>Buoyient.shared.syncNow()</code> on foreground transitions (<code>scenePhase == .active</code>) for reliable sync</li>
+        <li>Enable <strong>Background Modes</strong> capability with <em>Background fetch</em> and <em>Background processing</em></li>
+      </ul>
+    </div>
+  </div>
+
 </section>
 
 <!-- ══════════ Verification Checklist ══════════ -->
@@ -224,9 +364,13 @@
         <div class="check-box"></div>
         <span>Project builds without errors</span>
       </li>
-      <li onclick="toggleCheck(this)">
+      <li onclick="toggleCheck(this)" data-platform="android">
         <div class="check-box"></div>
         <span>App launches &mdash; check logcat for <code>BuoyientInitializer</code></span>
+      </li>
+      <li onclick="toggleCheck(this)" data-platform="ios">
+        <div class="check-box"></div>
+        <span>App launches &mdash; check Xcode console for buoyient initialization logs</span>
       </li>
       <li onclick="toggleCheck(this)">
         <div class="check-box"></div>
@@ -236,9 +380,13 @@
         <div class="check-box"></div>
         <span>Kill and relaunch the app &mdash; data persists</span>
       </li>
-      <li onclick="toggleCheck(this)">
+      <li onclick="toggleCheck(this)" data-platform="android">
         <div class="check-box"></div>
         <span>Observe background sync in logcat after ~60 seconds</span>
+      </li>
+      <li onclick="toggleCheck(this)" data-platform="ios">
+        <div class="check-box"></div>
+        <span>Simulate a background task in Xcode &mdash; observe sync in console</span>
       </li>
       <li onclick="toggleCheck(this)">
         <div class="check-box"></div>
@@ -280,7 +428,7 @@
       <p>TestServiceEnvironment, mock HTTP handlers, offline path testing, stateful mock server, and conflict simulation.</p>
       <span class="text-blue mt-8" style="display: block; font-size: 0.85rem;">Read guide &rarr;</span>
     </a>
-    <a href="../docs/mock-mode.md" class="card fade-in" style="text-decoration: none;">
+    <a href="mock-mode.html" class="card fade-in" style="text-decoration: none;">
       <h4>Mock Mode</h4>
       <p>Run your full app against fake data with a developer toggle. No real backend needed for manual testing.</p>
       <span class="text-blue mt-8" style="display: block; font-size: 0.85rem;">Read guide &rarr;</span>
@@ -309,6 +457,39 @@
 
 <!-- ── Scripts ── -->
 <script>
+// --- Platform Switcher ---
+function switchPlatform(platform) {
+  document.body.className = 'platform-' + platform;
+  document.querySelectorAll('.platform-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().replace(/\s*\/\s*/g, '').indexOf(platform) >= 0);
+  });
+  // Reset checklist checked state when switching platforms
+  document.querySelectorAll('#checklist li').forEach(li => li.classList.remove('checked'));
+  document.getElementById('celebration').classList.remove('show');
+  // Reset any active tab that became hidden (e.g. Hilt on iOS)
+  document.querySelectorAll('.tabs').forEach(tabs => {
+    const visibleBtns = Array.from(tabs.querySelectorAll('.tab-btn')).filter(b => b.offsetParent !== null);
+    const activeVisible = visibleBtns.find(b => b.classList.contains('active'));
+    if (!activeVisible && visibleBtns.length > 0) {
+      tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      visibleBtns[0].classList.add('active');
+      switchTab(visibleBtns[0], visibleBtns[0].closest('.tabs').nextElementSibling?.dataset?.group ||
+        visibleBtns[0].getAttribute('onclick')?.match(/switchTab\(this,\s*'(\w+)'\)/)?.[1] || '');
+    }
+  });
+  try { localStorage.setItem('buoyient-platform', platform); } catch(e) {}
+}
+
+// Restore saved platform on load
+(function() {
+  try {
+    const saved = localStorage.getItem('buoyient-platform');
+    if (saved && ['android', 'ios'].includes(saved)) {
+      switchPlatform(saved);
+    }
+  } catch(e) {}
+})();
+
 // --- Scroll fade-in ---
 const fadeObserver = new IntersectionObserver((entries) => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
@@ -406,6 +587,7 @@ function updateModelPreview() {
   document.getElementById('modelFileName').textContent = name + '.kt';
   document.getElementById('tagFileName').textContent = name + 'RequestTag.kt';
   document.getElementById('serviceFileName').textContent = name + 'Service.kt';
+  document.getElementById('swiftFileName').textContent = name + 'ViewModel.swift';
 
   // Model code
   let fieldLines = fields.map(f => `    <span class="ann">@SerialName</span>(<span class="str">"${esc(f.serverName)}"</span>) <span class="kw">val</span> ${f.name}: <span class="typ">${f.type}</span> = ${defaultValue(f.type)},`).join('\n');
@@ -490,10 +672,101 @@ ${fieldLines}
     <span class="kw">override fun</span> <span class="fn">createDrivers</span>(context: <span class="typ">Context</span>) =
         <span class="fn">listOf</span>(<span class="typ">${esc(name)}Service</span>(${esc(name)}ServerProcessingConfig()).<span class="fn">syncDriver</span>)
 })`;
+
+  // iOS SwiftUI registration
+  document.getElementById('regIosSwiftUIPreview').innerHTML =
+`<span class="kw">import</span> SwiftUI
+<span class="kw">import</span> Buoyient
+
+<span class="ann">@main</span>
+<span class="kw">struct</span> <span class="typ">MyApp</span>: <span class="typ">App</span> {
+    <span class="ann">@Environment</span>(\\.<span class="fn">scenePhase</span>) <span class="kw">var</span> scenePhase
+
+    <span class="kw">init</span>() {
+        <span class="cmt">// Register background sync handler</span>
+        <span class="typ">IosSyncScheduleNotifier</span>.<span class="typ">Companion</span>.<span class="fn">shared</span>.<span class="fn">registerHandler</span>()
+
+        <span class="cmt">// Register your services</span>
+        <span class="kw">let</span> ${lcName}Service = <span class="typ">${esc(name)}Service</span>(
+            serverProcessingConfig: <span class="typ">${esc(name)}ServerProcessingConfig</span>()
+        )
+        <span class="typ">Buoyient</span>.<span class="fn">shared</span>.<span class="fn">registerServices</span>(services: [${lcName}Service])
+    }
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="typ">Scene</span> {
+        <span class="typ">WindowGroup</span> {
+            <span class="typ">ContentView</span>()
+                .<span class="fn">onChange</span>(of: scenePhase) { newPhase <span class="kw">in</span>
+                    <span class="kw">if</span> newPhase == .active {
+                        <span class="typ">Buoyient</span>.<span class="fn">shared</span>.<span class="fn">syncNow</span>(completion: <span class="kw">nil</span>)
+                    }
+                }
+        }
+    }
+}`;
+
+  // iOS AppDelegate registration
+  document.getElementById('regIosDelegatePreview').innerHTML =
+`<span class="kw">import</span> UIKit
+<span class="kw">import</span> Buoyient
+
+<span class="kw">class</span> <span class="typ">AppDelegate</span>: <span class="typ">UIResponder</span>, <span class="typ">UIApplicationDelegate</span> {
+    <span class="kw">func</span> <span class="fn">application</span>(
+        _ application: <span class="typ">UIApplication</span>,
+        didFinishLaunchingWithOptions launchOptions: [<span class="typ">UIApplication</span>.<span class="typ">LaunchOptionsKey</span>: <span class="typ">Any</span>]?
+    ) -> <span class="typ">Bool</span> {
+        <span class="cmt">// Register background sync handler</span>
+        <span class="typ">IosSyncScheduleNotifier</span>.<span class="typ">Companion</span>.<span class="fn">shared</span>.<span class="fn">registerHandler</span>()
+
+        <span class="cmt">// Register your services</span>
+        <span class="kw">let</span> ${lcName}Service = <span class="typ">${esc(name)}Service</span>(
+            serverProcessingConfig: <span class="typ">${esc(name)}ServerProcessingConfig</span>()
+        )
+        <span class="typ">Buoyient</span>.<span class="fn">shared</span>.<span class="fn">registerServices</span>(services: [${lcName}Service])
+
+        <span class="kw">return true</span>
+    }
+}`;
+
+  // iOS Swift usage example
+  document.getElementById('swiftUsagePreview').innerHTML =
+`<span class="kw">import</span> SwiftUI
+<span class="kw">import</span> Buoyient
+
+<span class="kw">class</span> <span class="typ">${esc(name)}ViewModel</span>: <span class="typ">ObservableObject</span> {
+    <span class="ann">@Published</span> <span class="kw">var</span> items: [<span class="typ">${esc(name)}</span>] = []
+
+    <span class="kw">private let</span> service = <span class="typ">${esc(name)}Service</span>(
+        serverProcessingConfig: <span class="typ">${esc(name)}ServerProcessingConfig</span>()
+    )
+
+    <span class="cmt">// Create — uses async/await (SKIE converts suspend automatically)</span>
+    <span class="kw">func</span> <span class="fn">create</span>(${fields.length > 0 ? fields.map(f => f.name + ': ' + swiftType(f.type)).join(', ') : ''}) <span class="kw">async</span> {
+        <span class="kw">let</span> result = <span class="kw">try</span>? <span class="kw">await</span> service.<span class="fn">create${esc(name)}</span>(${fields.length > 0 ? fields.map(f => f.name + ': ' + f.name).join(', ') : ''})
+        <span class="cmt">// result is a SyncableObjectServiceResponse enum</span>
+    }
+
+    <span class="cmt">// Observe — Flow becomes AsyncSequence via SKIE</span>
+    <span class="kw">func</span> <span class="fn">observe</span>() <span class="kw">async</span> {
+        <span class="kw">for try await</span> list <span class="kw">in</span> service.<span class="fn">getAllFromLocalStoreAsFlow</span>() {
+            <span class="kw">await</span> <span class="typ">MainActor</span>.<span class="fn">run</span> { items = list }
+        }
+    }
+}`;
+
 }
 
 function esc(s) {
   return s.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function swiftType(kotlinType) {
+  const t = kotlinType.trim();
+  if (t === 'Boolean') return 'Bool';
+  if (t === 'Int' || t === 'Long') return 'Int';
+  if (t === 'Float') return 'Float';
+  if (t === 'Double') return 'Double';
+  return t; // String and custom types pass through
 }
 
 function addField() {
@@ -523,10 +796,10 @@ function toggleCheck(li) {
 }
 
 function checkCompletion() {
-  const items = document.querySelectorAll('#checklist li');
-  const checked = document.querySelectorAll('#checklist li.checked');
+  const items = Array.from(document.querySelectorAll('#checklist li')).filter(li => li.offsetParent !== null);
+  const checked = items.filter(li => li.classList.contains('checked'));
   const celebration = document.getElementById('celebration');
-  if (checked.length === items.length) {
+  if (checked.length === items.length && items.length > 0) {
     celebration.classList.add('show');
   } else {
     celebration.classList.remove('show');
