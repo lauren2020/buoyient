@@ -31,6 +31,7 @@ This guide walks through adding buoyient to a Swift/SwiftUI iOS app. After compl
 1. Build the XCFramework as above.
 2. Drag `Buoyient.xcframework` into your Xcode project.
 3. In your target's **General > Frameworks, Libraries, and Embedded Content**, ensure `Buoyient.xcframework` is listed with **Do Not Embed** (it's a static framework).
+4. Because this is a static framework, SQLite is not linked automatically. In your target's **Build Phases > Link Binary With Libraries**, add `libsqlite3.tbd`.
 
 ---
 
@@ -57,8 +58,8 @@ struct MyApp: App {
 
         // Register services for background sync
         Buoyient.shared.registerServices(services: [
-            todoService.syncDriver,
-            noteService.syncDriver,
+            todoService,
+            noteService,
         ])
     }
 
@@ -89,8 +90,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         Buoyient.shared.registerServices(services: [
-            todoService.syncDriver,
-            noteService.syncDriver,
+            todoService,
+            noteService,
         ])
 
         return true
@@ -115,15 +116,15 @@ Also enable the **Background Modes** capability in your target settings and chec
 
 ## Step 3: Register Services
 
-Register your services at app launch as shown in Step 2. The `registerServices()` call accepts the `syncDriver` property from each service instance.
+Register your services at app launch as shown in Step 2. Pass the service instances directly to `registerServices()`.
 
 ```swift
 let todoService = TodoService()
 let noteService = NoteService()
 
 Buoyient.shared.registerServices(services: [
-    todoService.syncDriver,
-    noteService.syncDriver,
+    todoService,
+    noteService,
 ])
 ```
 
@@ -270,6 +271,23 @@ iOS background sync is "best effort" — BGTaskScheduler is throttled by the OS 
 
 buoyient uses `NWPathMonitor` (Network.framework) on iOS for connectivity detection. This is handled automatically — no additional configuration needed.
 
+If you need to pass a `ConnectivityChecker` explicitly (e.g., to a service constructor from Swift), use the factory on the `Buoyient` object:
+
+```swift
+let checker = Buoyient.shared.createConnectivityChecker()
+```
+
+### `Buoyient` Object Naming in Swift
+
+The Kotlin `object Buoyient` may collide with the framework module name depending on how you consume the library:
+
+| Consumption method | Swift access |
+|--------------------|-------------|
+| **Direct SPM** (framework name is `Buoyient`) | `Buoyient_.shared` — the trailing underscore avoids the module name collision |
+| **Transitive** (your KMP module re-exports buoyient, e.g., `CirclePosShared`) | `Buoyient.shared` — no collision because the module name differs |
+
+All code examples in this guide use `Buoyient.shared` for readability. If you consume the XCFramework directly via SPM, replace with `Buoyient_.shared`.
+
 ---
 
 ## Troubleshooting
@@ -277,6 +295,10 @@ buoyient uses `NWPathMonitor` (Network.framework) on iOS for connectivity detect
 ### Framework not found
 
 Ensure the XCFramework is properly linked in your target's **Frameworks, Libraries, and Embedded Content** section. For static frameworks, use **Do Not Embed**.
+
+### Undefined symbols for SQLite
+
+When consuming the XCFramework as a static library, you must link SQLite manually. In your target's **Build Phases > Link Binary With Libraries**, add `libsqlite3.tbd`.
 
 ### BGTaskScheduler not firing
 

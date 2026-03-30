@@ -44,7 +44,6 @@
   <span class="platform-label">Platform:</span>
   <button class="platform-btn active" onclick="switchPlatform('android')">Android</button>
   <button class="platform-btn" onclick="switchPlatform('ios')">iOS</button>
-  <button class="platform-btn" onclick="switchPlatform('jvm')">JVM / Server</button>
 </div>
 
 <!-- ── Sticky Step Bar ── -->
@@ -67,9 +66,8 @@
   <h2><span class="num">01</span> Add dependencies</h2>
   <p class="section-desc" data-platform="android">Add buoyient to your module-level <code>build.gradle.kts</code>. Pick the modules you need.</p>
   <p class="section-desc" data-platform="ios">Add the buoyient XCFramework to your Xcode project via Swift Package Manager.</p>
-  <p class="section-desc" data-platform="jvm">Add buoyient to your module-level <code>build.gradle.kts</code>. Pick the modules you need.</p>
 
-  <!-- Gradle tabs (Android & JVM only) -->
+  <!-- Gradle tabs (Android only) -->
   <div data-platform="android">
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab(this, 'dep')">Core Only</button>
@@ -110,20 +108,6 @@
 
     <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);">
       That's it for dependencies. buoyient auto-initializes via <code>androidx.startup</code> &mdash; no <code>Application.onCreate()</code> code needed for initialization.
-    </p>
-  </div>
-
-  <!-- JVM Gradle (same tabs but without Hilt) -->
-  <div data-platform="jvm">
-    <div class="code-block">
-      <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
-      <pre><code><span class="fn">dependencies</span> {
-    <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects:&lt;version&gt;"</span>)
-    <span class="fn">testImplementation</span>(<span class="str">"com.elvdev.buoyient:testing:&lt;version&gt;"</span>)
-}</code></pre>
-    </div>
-    <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);">
-      No auto-initialization on JVM. Call <code>Buoyient.registerServices()</code> at your app's entry point &mdash; see <strong>Step 5</strong>.
     </p>
   </div>
 
@@ -172,7 +156,6 @@
 <section class="section" id="step2">
   <h2><span class="num">02</span> Define your data model</h2>
   <p class="section-desc" data-platform="android">Describe your domain object below and watch the code generate in real time. Or skip ahead &mdash; you can always copy the template.</p>
-  <p class="section-desc" data-platform="jvm">Describe your domain object below and watch the code generate in real time. Or skip ahead &mdash; you can always copy the template.</p>
   <p class="section-desc" data-platform="ios">Describe your domain object below. The model, config, and service are written in Kotlin in a small shared module &mdash; SKIE then exposes them as native Swift APIs automatically.</p>
 
   <div data-platform="ios" class="mb-24">
@@ -237,7 +220,6 @@
 <section class="section" id="step3">
   <h2><span class="num">03</span> Create a request tag</h2>
   <p class="section-desc" data-platform="android">Each operation type gets a tag. This lets buoyient route responses and lets you customize handling per operation.</p>
-  <p class="section-desc" data-platform="jvm">Each operation type gets a tag. This lets buoyient route responses and lets you customize handling per operation.</p>
   <p class="section-desc" data-platform="ios">Each operation type gets a tag. This Kotlin enum goes in your shared module alongside the model.</p>
 
   <div style="max-width: 600px;">
@@ -252,7 +234,6 @@
 <section class="section" id="step4">
   <h2><span class="num">04</span> Implement your service</h2>
   <p class="section-desc" data-platform="android">Extend <code>SyncableObjectService</code> and expose domain-specific methods using the protected <code>create()</code>, <code>update()</code>, <code>void()</code>, and <code>get()</code> methods.</p>
-  <p class="section-desc" data-platform="jvm">Extend <code>SyncableObjectService</code> and expose domain-specific methods using the protected <code>create()</code>, <code>update()</code>, <code>void()</code>, and <code>get()</code> methods.</p>
   <p class="section-desc" data-platform="ios">Define the Kotlin service in your shared module, then see the <strong>Swift usage</strong> below for how your iOS app calls it.</p>
 
   <div style="max-width: 700px;">
@@ -262,15 +243,6 @@
     </div>
 
     <div class="card mt-24" style="border-color: var(--beacon-yellow);" data-platform="android">
-      <h4 style="color: var(--beacon-yellow);">Key things to notice</h4>
-      <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-top: 8px; padding-left: 20px;">
-        <li><code>CreateRequestBuilder</code> is a lambda that builds the HTTP request &mdash; it receives the data, an idempotency key, and connectivity info</li>
-        <li><code>ResponseUnpacker</code> extracts your object from the server response JSON</li>
-        <li>The <code>serviceName</code> must be unique &mdash; it's the SQLite partition key</li>
-        <li>Use <code>HttpRequest.serverIdOrPlaceholder(serverId)</code> in update/void URLs for offline safety</li>
-      </ul>
-    </div>
-    <div class="card mt-24" style="border-color: var(--beacon-yellow);" data-platform="jvm">
       <h4 style="color: var(--beacon-yellow);">Key things to notice</h4>
       <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-top: 8px; padding-left: 20px;">
         <li><code>CreateRequestBuilder</code> is a lambda that builds the HTTP request &mdash; it receives the data, an idempotency key, and connectivity info</li>
@@ -305,7 +277,6 @@
   <h2><span class="num">05</span> Register for background sync</h2>
   <p class="section-desc" data-platform="android">Tell buoyient about your service so it can sync in the background via WorkManager.</p>
   <p class="section-desc" data-platform="ios">Register your service and configure iOS background task scheduling via <code>BGTaskScheduler</code>.</p>
-  <p class="section-desc" data-platform="jvm">Register your service at startup. Background scheduling is not available on JVM &mdash; trigger sync manually.</p>
 
   <!-- Android registration -->
   <div style="max-width: 600px;" data-platform="android">
@@ -380,20 +351,6 @@
     </div>
   </div>
 
-  <!-- JVM registration -->
-  <div style="max-width: 600px;" data-platform="jvm">
-    <div class="code-block">
-      <div class="code-header"><span>Main.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
-      <pre><code id="regJvmPreview"></code></pre>
-    </div>
-
-    <div class="card mt-24" style="border-color: var(--ocean-blue);">
-      <h4 style="color: var(--ocean-blue);">No background scheduling on JVM</h4>
-      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
-        The JVM target does not include automatic background sync. Trigger sync manually with <code>Buoyient.syncNow()</code> or call <code>service.syncDownFromServer()</code> directly. Pending offline requests are persisted in SQLite and will sync on the next manual pass.
-      </p>
-    </div>
-  </div>
 </section>
 
 <!-- ══════════ Verification Checklist ══════════ -->
@@ -415,10 +372,6 @@
         <div class="check-box"></div>
         <span>App launches &mdash; check Xcode console for buoyient initialization logs</span>
       </li>
-      <li onclick="toggleCheck(this)" data-platform="jvm">
-        <div class="check-box"></div>
-        <span>App starts &mdash; check stdout for buoyient initialization logs</span>
-      </li>
       <li onclick="toggleCheck(this)">
         <div class="check-box"></div>
         <span>Create an item &mdash; verify it appears in the local store</span>
@@ -434,10 +387,6 @@
       <li onclick="toggleCheck(this)" data-platform="ios">
         <div class="check-box"></div>
         <span>Simulate a background task in Xcode &mdash; observe sync in console</span>
-      </li>
-      <li onclick="toggleCheck(this)" data-platform="jvm">
-        <div class="check-box"></div>
-        <span>Call <code>Buoyient.syncNow()</code> &mdash; observe sync output in stdout</span>
       </li>
       <li onclick="toggleCheck(this)">
         <div class="check-box"></div>
@@ -535,7 +484,7 @@ function switchPlatform(platform) {
 (function() {
   try {
     const saved = localStorage.getItem('buoyient-platform');
-    if (saved && ['android', 'ios', 'jvm'].includes(saved)) {
+    if (saved && ['android', 'ios'].includes(saved)) {
       switchPlatform(saved);
     }
   } catch(e) {}
@@ -741,7 +690,7 @@ ${fieldLines}
         <span class="kw">let</span> ${lcName}Service = <span class="typ">${esc(name)}Service</span>(
             serverProcessingConfig: <span class="typ">${esc(name)}ServerProcessingConfig</span>()
         )
-        <span class="typ">Buoyient</span>.<span class="fn">shared</span>.<span class="fn">registerServices</span>(services: [${lcName}Service.<span class="fn">syncDriver</span>])
+        <span class="typ">Buoyient</span>.<span class="fn">shared</span>.<span class="fn">registerServices</span>(services: [${lcName}Service])
     }
 
     <span class="kw">var</span> body: <span class="kw">some</span> <span class="typ">Scene</span> {
@@ -773,7 +722,7 @@ ${fieldLines}
         <span class="kw">let</span> ${lcName}Service = <span class="typ">${esc(name)}Service</span>(
             serverProcessingConfig: <span class="typ">${esc(name)}ServerProcessingConfig</span>()
         )
-        <span class="typ">Buoyient</span>.<span class="fn">shared</span>.<span class="fn">registerServices</span>(services: [${lcName}Service.<span class="fn">syncDriver</span>])
+        <span class="typ">Buoyient</span>.<span class="fn">shared</span>.<span class="fn">registerServices</span>(services: [${lcName}Service])
 
         <span class="kw">return true</span>
     }
@@ -805,18 +754,6 @@ ${fieldLines}
     }
 }`;
 
-  // JVM registration
-  document.getElementById('regJvmPreview').innerHTML =
-`<span class="kw">fun</span> <span class="fn">main</span>() {
-    <span class="kw">val</span> ${lcName}Service = <span class="typ">${esc(name)}Service</span>(
-        <span class="typ">${esc(name)}ServerProcessingConfig</span>()
-    )
-    <span class="typ">Buoyient</span>.<span class="fn">registerServices</span>(<span class="fn">setOf</span>(${lcName}Service))
-
-    <span class="cmt">// No automatic background sync on JVM.</span>
-    <span class="cmt">// Trigger manually when needed:</span>
-    <span class="typ">Buoyient</span>.<span class="fn">syncNow</span>()
-}`;
 }
 
 function esc(s) {

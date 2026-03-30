@@ -100,6 +100,12 @@ tasks.withType<Jar> {
     from(rootProject.file("CODEX.md")) { into("META-INF") }
 }
 
+skie {
+    features {
+        defaultArgumentInterop.enabled = true
+    }
+}
+
 sqldelight {
     databases {
         create("SyncDatabase") {
