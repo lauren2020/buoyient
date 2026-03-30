@@ -374,6 +374,7 @@
       <div class="badge badge-yellow">Creates MockServerStore</div>
       <div class="badge badge-orange">Declares endpoints()</div>
       <div class="badge badge-blue">Seeds initial data</div>
+      <div class="badge badge-orange">Wraps handlers with EndpointController</div>
       <div class="badge badge-teal">Sets Buoyient.httpClient</div>
       <div class="badge badge-yellow">Enables PrintSyncLogger</div>
     </div>
@@ -385,16 +386,21 @@
   <h2>The <span style="color: var(--buoy-orange);">MockModeHandle</span></h2>
   <p class="section-desc"><code>install()</code> returns a handle with everything you need for advanced testing scenarios.</p>
 
-  <div class="card-grid fade-in" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="card-grid fade-in" style="grid-template-columns: repeat(4, 1fr);">
     <div class="card">
       <div class="card-icon"><span class="badge badge-teal">router</span></div>
       <h4>MockEndpointRouter</h4>
-      <p>Add custom handlers, override specific endpoints, or inspect <code>requestLog</code> to see what the app sent.</p>
+      <p>Add custom handlers or inspect <code>requestLog</code> to see what the app sent.</p>
     </div>
     <div class="card">
       <div class="card-icon"><span class="badge badge-yellow">store</span></div>
       <h4>MockServerStore</h4>
       <p>Access collections to seed data, mutate records (simulate another device), or inspect server-side state.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon"><span class="badge badge-orange">endpointController</span></div>
+      <h4>MockEndpointController</h4>
+      <p>Toggle any endpoint to return server errors or simulate timeouts &mdash; per endpoint, per service, or globally.</p>
     </div>
     <div class="card">
       <div class="card-icon"><span class="badge badge-blue">connectivityChecker</span></div>
@@ -418,12 +424,12 @@
     <div class="scenario-card">
       <div class="scenario-icon">&#128165;</div>
       <h4>Server Errors</h4>
-      <p>Return <code>MockResponse(500, ...)</code> from any handler to test error UI, retry logic, and user messaging.</p>
+      <p>Toggle any endpoint with <code>FailureOverride.ServerError(503)</code> via the endpoint controller. No handler code changes needed.</p>
     </div>
     <div class="scenario-card">
       <div class="scenario-icon">&#9201;</div>
       <h4>Timeouts</h4>
-      <p>Throw <code>MockConnectionException</code> in a handler to simulate network timeouts and connection failures.</p>
+      <p>Use <code>FailureOverride.Timeout()</code> for pre-server failures, or <code>Timeout(serverReceivedRequest&nbsp;=&nbsp;true)</code> for response-lost-in-transit.</p>
     </div>
     <div class="scenario-card">
       <div class="scenario-icon">&#9876;</div>
@@ -521,6 +527,70 @@
 
   <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px;">
     <code>toJsonObject()</code> accepts optional <code>serverIdKey</code>, <code>clientIdKey</code>, <code>versionKey</code>, and <code>voidedKey</code> parameters to match your API's field names.
+  </p>
+</section>
+
+<!-- ── Endpoint Controller ── -->
+<section class="section">
+  <h2>Endpoint <span style="color: var(--buoy-orange);">failure controller</span></h2>
+  <p class="section-desc">Toggle any endpoint to fail &mdash; by label, by service, or globally. Changes take effect on the very next request.</p>
+
+  <div class="code-block fade-in glow-teal">
+    <div class="code-header">
+      <span>Using MockEndpointController</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+<pre><code><span class="kw">val</span> handle = <span class="typ">MockModeBuilder</span>()
+    .<span class="fn">service</span>(<span class="typ">MockNoteServer</span>())
+    .<span class="fn">service</span>(<span class="typ">MockTaskServer</span>())
+    .<span class="fn">install</span>()
+
+<span class="cmt">// Make one endpoint return a 503</span>
+handle.endpointController.<span class="fn">setOverride</span>(
+    <span class="str">"notes"</span>, <span class="str">"create"</span>,
+    <span class="typ">FailureOverride</span>.<span class="typ">ServerError</span>(<span class="num">503</span>),
+)
+
+<span class="cmt">// Simulate a timeout where the request never reaches the server</span>
+handle.endpointController.<span class="fn">setOverride</span>(
+    <span class="str">"notes"</span>, <span class="str">"update"</span>,
+    <span class="typ">FailureOverride</span>.<span class="typ">Timeout</span>(),  <span class="cmt">// serverReceivedRequest = false</span>
+)
+
+<span class="cmt">// Simulate a timeout where the server DID process the request
+// (mutation takes effect, but the response is lost in transit)</span>
+handle.endpointController.<span class="fn">setOverride</span>(
+    <span class="str">"notes"</span>, <span class="str">"create"</span>,
+    <span class="typ">FailureOverride</span>.<span class="typ">Timeout</span>(serverReceivedRequest = <span class="kw">true</span>),
+)
+
+<span class="cmt">// Fail every endpoint for an entire service</span>
+handle.endpointController.<span class="fn">setServiceOverride</span>(
+    <span class="str">"tasks"</span>,
+    <span class="typ">FailureOverride</span>.<span class="typ">ServerError</span>(),
+    handle.endpointIndex[<span class="str">"tasks"</span>]!!,
+)
+
+<span class="cmt">// Fail everything globally (per-endpoint overrides still take precedence)</span>
+handle.endpointController.<span class="fn">setGlobalOverride</span>(<span class="typ">FailureOverride</span>.<span class="typ">Timeout</span>())
+
+<span class="cmt">// Back to normal</span>
+handle.endpointController.<span class="fn">clearAll</span>()</code></pre>
+  </div>
+
+  <div class="card-grid fade-in" style="grid-template-columns: 1fr 1fr; margin-top: 32px;">
+    <div class="card">
+      <h4 style="color: var(--buoy-orange);">FailureOverride.ServerError</h4>
+      <p>The handler runs (server state mutates), but the response is replaced with an HTTP error. Accepts an optional <code>statusCode</code> (default&nbsp;500).</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--buoy-orange);">FailureOverride.Timeout</h4>
+      <p>With <code>serverReceivedRequest&nbsp;=&nbsp;false</code> (default): handler is skipped, connection error thrown. With <code>true</code>: handler runs, then timeout thrown &mdash; simulating a lost response.</p>
+    </div>
+  </div>
+
+  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px;">
+    Per-endpoint overrides always take precedence over the global override. All methods are thread-safe.
   </p>
 </section>
 

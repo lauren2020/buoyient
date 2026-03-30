@@ -61,9 +61,11 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `MockEndpointRouter` | `:mock-infra` module | Mock HTTP server for tests and mock mode |
 | `MockServerStore` | `:mock-infra` module | Stateful mock server with collections |
 | `MockEndpoint` | `:mock-infra` module | Declares a mock HTTP endpoint with method, URL pattern, label, and handler |
+| `MockEndpointController` | `:mock-infra` module | Runtime-configurable controller for toggling endpoint failure overrides (server errors, connection errors, timeouts) |
+| `FailureOverride` | `:mock-infra` module | Sealed interface for failure modes: `ServerError(statusCode)`, `Timeout(serverReceivedRequest)` |
 | `MockServiceServer` | `:mock-mode` module | Abstract base class for self-contained mock servers — subclass to define seed data and declare endpoints per service |
 | `MockModeBuilder` | `:mock-mode` module | Quick-start builder for mock mode setup — accepts `MockServiceServer` instances and installs global overrides |
-| `MockModeHandle` | `:mock-mode` module | Handle returned by `MockModeBuilder.install()` with references to router, store, connectivity checker, and endpoint index |
+| `MockModeHandle` | `:mock-mode` module | Handle returned by `MockModeBuilder.install()` with references to router, store, connectivity checker, endpoint index, and endpoint controller |
 
 ## Modules
 

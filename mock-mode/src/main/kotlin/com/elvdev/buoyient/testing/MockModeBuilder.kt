@@ -68,6 +68,7 @@ public class MockModeBuilder {
         val router = MockEndpointRouter()
         val connectivityChecker = TestConnectivityChecker(online = true)
 
+        val endpointController = MockEndpointController()
         val endpointIndex = mutableMapOf<String, List<MockEndpoint>>()
 
         for (server in servers) {
@@ -107,7 +108,7 @@ public class MockModeBuilder {
             val endpoints = server.endpoints(collection)
             endpointIndex[server.name] = endpoints
             for (endpoint in endpoints) {
-                router.on(endpoint.method, endpoint.urlPattern, endpoint.handler)
+                router.on(endpoint.method, endpoint.urlPattern, endpointController.wrap(server.name, endpoint))
             }
         }
 
@@ -122,6 +123,7 @@ public class MockModeBuilder {
             store = store,
             connectivityChecker = connectivityChecker,
             endpointIndex = endpointIndex,
+            endpointController = endpointController,
         )
     }
 }
@@ -146,8 +148,18 @@ public data class MockModeHandle(
      *
      * Each entry maps a service's [MockServiceServer.name] to the list of
      * [MockEndpoint]s returned by [MockServiceServer.endpoints]. Use this to
-     * enumerate endpoints for a global test controller (e.g. toggling specific
-     * endpoints to return errors or timeouts).
+     * enumerate endpoints for the [endpointController].
      */
     public val endpointIndex: Map<String, List<MockEndpoint>>,
+
+    /**
+     * Controller for toggling endpoint failure overrides at runtime.
+     *
+     * Use [MockEndpointController.setOverride] to make specific endpoints return
+     * errors or simulate timeouts. All handlers are pre-wrapped through this
+     * controller, so toggles take effect on the very next request.
+     *
+     * @see FailureOverride
+     */
+    public val endpointController: MockEndpointController,
 )
