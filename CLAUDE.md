@@ -13,6 +13,37 @@ If you are integrating buoyient into an application, **read the guides in `docs/
 
 These guides contain complete templates, required field tables, and common patterns. Use them instead of copying from the example services in this repo (which talk to a Square sandbox API — your endpoints, auth, and field names will be different).
 
+## Golden Path
+
+When adding a new `SyncableObjectService`, follow this sequence and keep your work close to the canonical assets in this repo:
+
+1. Copy the starter files in `templates/`:
+   - `templates/YourModel.kt.template`
+   - `templates/YourModelRequestTag.kt.template`
+   - `templates/YourModelServerProcessingConfig.kt.template`
+   - `templates/YourModelService.kt.template`
+   - `templates/YourModelServiceTest.kt.template`
+2. Replace placeholders with your domain names, endpoints, headers, request tags, and response paths.
+3. Use `examples/todo/` as the minimal end-to-end reference for how the pieces fit together.
+4. Register the service using the patterns in `docs/creating-a-service.md`:
+   - Hilt `@IntoSet` multibinding when using `:hilt`
+   - `Buoyient.registerServices(...)` or `Buoyient.registerServiceProvider(...)` otherwise
+5. Write or adapt the integration test so it proves:
+   - online create returns server data
+   - offline create stores locally
+   - queued work syncs once connectivity returns
+
+The expected file creation order is:
+
+1. Create the model implementing `SyncableObject<O>`.
+2. Define the request tag enum implementing `ServiceRequestTag`.
+3. Implement the server config (`ServerProcessingConfig<O>`).
+4. Build the service (`SyncableObjectService<O, T>`).
+5. Register the service.
+6. Add an integration test with `TestServiceEnvironment`.
+
+If you are unsure about naming or wiring, prefer copying from `templates/` and `examples/todo/` instead of inventing a new structure.
+
 ## Package organization
 
 The `:syncable-objects` module organizes its public API into packages by role:
