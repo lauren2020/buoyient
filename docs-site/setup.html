@@ -6,7 +6,7 @@
 <title>Setup Guide — buoyient</title>
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="platform-android">
 
 <!-- ── Header ── -->
 <header class="site-header">
@@ -39,6 +39,14 @@
   <p class="subtitle">Five steps to offline-first sync</p>
 </div>
 
+<!-- ── Platform Selector ── -->
+<div class="platform-selector" id="platformSelector">
+  <span class="platform-label">Platform:</span>
+  <button class="platform-btn active" onclick="switchPlatform('android')">Android</button>
+  <button class="platform-btn" onclick="switchPlatform('ios')">iOS</button>
+  <button class="platform-btn" onclick="switchPlatform('jvm')">JVM / Server</button>
+</div>
+
 <!-- ── Sticky Step Bar ── -->
 <div class="step-bar" id="stepBar">
   <div class="step-dot-group">
@@ -61,7 +69,7 @@
 
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab(this, 'dep')">Core Only</button>
-    <button class="tab-btn" onclick="switchTab(this, 'dep')">With Hilt</button>
+    <button class="tab-btn hilt-only" onclick="switchTab(this, 'dep')">With Hilt</button>
     <button class="tab-btn" onclick="switchTab(this, 'dep')">Everything</button>
   </div>
 
@@ -91,13 +99,19 @@
     <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects:&lt;version&gt;"</span>)
     <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects-hilt:&lt;version&gt;"</span>)
     <span class="fn">testImplementation</span>(<span class="str">"com.elvdev.buoyient:testing:&lt;version&gt;"</span>)
-    <span class="fn">debugImplementation</span>(<span class="str">"com.elvdev.buoyient:testing:&lt;version&gt;"</span>) <span class="cmt">// for mock mode</span>
+    <span class="fn">debugImplementation</span>(<span class="str">"com.elvdev.buoyient:mock-mode:&lt;version&gt;"</span>) <span class="cmt">// for mock mode</span>
 }</code></pre>
     </div>
   </div>
 
-  <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);">
+  <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);" data-platform="android">
     That's it for dependencies. buoyient auto-initializes via <code>androidx.startup</code> &mdash; no <code>Application.onCreate()</code> code needed for initialization.
+  </p>
+  <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);" data-platform="ios">
+    buoyient requires manual initialization on iOS &mdash; see <strong>Step 5</strong> for AppDelegate setup and <code>Info.plist</code> configuration.
+  </p>
+  <p class="mt-24" style="font-size: 0.85rem; color: var(--text-secondary);" data-platform="jvm">
+    No auto-initialization on JVM. Call <code>Buoyient.registerServices()</code> at your app's entry point &mdash; see <strong>Step 5</strong>.
   </p>
 </section>
 
@@ -181,9 +195,12 @@
 <!-- ══════════ STEP 5: Registration ══════════ -->
 <section class="section" id="step5">
   <h2><span class="num">05</span> Register for background sync</h2>
-  <p class="section-desc">Tell buoyient about your service so it can sync in the background via WorkManager.</p>
+  <p class="section-desc" data-platform="android">Tell buoyient about your service so it can sync in the background via WorkManager.</p>
+  <p class="section-desc" data-platform="ios">Register your service and configure iOS background task scheduling via <code>BGTaskScheduler</code>.</p>
+  <p class="section-desc" data-platform="jvm">Register your service at startup. Background scheduling is not available on JVM &mdash; trigger sync manually.</p>
 
-  <div style="max-width: 600px;">
+  <!-- Android registration -->
+  <div style="max-width: 600px;" data-platform="android">
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab(this, 'reg')">With Hilt</button>
       <button class="tab-btn" onclick="switchTab(this, 'reg')">Without Hilt</button>
@@ -211,6 +228,55 @@
       </div>
     </div>
   </div>
+
+  <!-- iOS registration -->
+  <div style="max-width: 700px;" data-platform="ios">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this, 'regios')">AppDelegate</button>
+      <button class="tab-btn" onclick="switchTab(this, 'regios')">Info.plist</button>
+    </div>
+
+    <div class="tab-content active" data-group="regios" data-tab="AppDelegate">
+      <div class="code-block">
+        <div class="code-header"><span>AppDelegate.swift</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code id="regIosDelegatePreview"></code></pre>
+      </div>
+    </div>
+
+    <div class="tab-content" data-group="regios" data-tab="Info.plist">
+      <div class="code-block">
+        <div class="code-header"><span>Info.plist</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="kw">&lt;key&gt;</span>BGTaskSchedulerPermittedIdentifiers<span class="kw">&lt;/key&gt;</span>
+<span class="kw">&lt;array&gt;</span>
+    <span class="kw">&lt;string&gt;</span><span class="str">com.elvdev.buoyient.sync</span><span class="kw">&lt;/string&gt;</span>
+<span class="kw">&lt;/array&gt;</span></code></pre>
+      </div>
+    </div>
+
+    <div class="card mt-24" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow);">iOS background sync</h4>
+      <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8; margin-top: 8px; padding-left: 20px;">
+        <li><code>IosSyncScheduleNotifier.registerHandler()</code> must be called before the app finishes launching</li>
+        <li>The <code>Info.plist</code> entry is required for <code>BGTaskScheduler</code> to accept task submissions</li>
+        <li>iOS controls when background tasks actually run &mdash; use Xcode to simulate triggers during development</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- JVM registration -->
+  <div style="max-width: 600px;" data-platform="jvm">
+    <div class="code-block">
+      <div class="code-header"><span>Main.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><code id="regJvmPreview"></code></pre>
+    </div>
+
+    <div class="card mt-24" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue);">No background scheduling on JVM</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+        The JVM target does not include automatic background sync. Trigger sync manually with <code>Buoyient.syncNow()</code> or call <code>service.syncDownFromServer()</code> directly. Pending offline requests are persisted in SQLite and will sync on the next manual pass.
+      </p>
+    </div>
+  </div>
 </section>
 
 <!-- ══════════ Verification Checklist ══════════ -->
@@ -224,9 +290,17 @@
         <div class="check-box"></div>
         <span>Project builds without errors</span>
       </li>
-      <li onclick="toggleCheck(this)">
+      <li onclick="toggleCheck(this)" data-platform="android">
         <div class="check-box"></div>
         <span>App launches &mdash; check logcat for <code>BuoyientInitializer</code></span>
+      </li>
+      <li onclick="toggleCheck(this)" data-platform="ios">
+        <div class="check-box"></div>
+        <span>App launches &mdash; check Xcode console for buoyient initialization logs</span>
+      </li>
+      <li onclick="toggleCheck(this)" data-platform="jvm">
+        <div class="check-box"></div>
+        <span>App starts &mdash; check stdout for buoyient initialization logs</span>
       </li>
       <li onclick="toggleCheck(this)">
         <div class="check-box"></div>
@@ -236,9 +310,17 @@
         <div class="check-box"></div>
         <span>Kill and relaunch the app &mdash; data persists</span>
       </li>
-      <li onclick="toggleCheck(this)">
+      <li onclick="toggleCheck(this)" data-platform="android">
         <div class="check-box"></div>
         <span>Observe background sync in logcat after ~60 seconds</span>
+      </li>
+      <li onclick="toggleCheck(this)" data-platform="ios">
+        <div class="check-box"></div>
+        <span>Simulate a background task in Xcode &mdash; observe sync in console</span>
+      </li>
+      <li onclick="toggleCheck(this)" data-platform="jvm">
+        <div class="check-box"></div>
+        <span>Call <code>Buoyient.syncNow()</code> &mdash; observe sync output in stdout</span>
       </li>
       <li onclick="toggleCheck(this)">
         <div class="check-box"></div>
@@ -309,6 +391,39 @@
 
 <!-- ── Scripts ── -->
 <script>
+// --- Platform Switcher ---
+function switchPlatform(platform) {
+  document.body.className = 'platform-' + platform;
+  document.querySelectorAll('.platform-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().replace(/\s*\/\s*/g, '').indexOf(platform) >= 0);
+  });
+  // Reset checklist checked state when switching platforms
+  document.querySelectorAll('#checklist li').forEach(li => li.classList.remove('checked'));
+  document.getElementById('celebration').classList.remove('show');
+  // Reset any active tab that became hidden (e.g. Hilt on iOS)
+  document.querySelectorAll('.tabs').forEach(tabs => {
+    const visibleBtns = Array.from(tabs.querySelectorAll('.tab-btn')).filter(b => b.offsetParent !== null);
+    const activeVisible = visibleBtns.find(b => b.classList.contains('active'));
+    if (!activeVisible && visibleBtns.length > 0) {
+      tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      visibleBtns[0].classList.add('active');
+      switchTab(visibleBtns[0], visibleBtns[0].closest('.tabs').nextElementSibling?.dataset?.group ||
+        visibleBtns[0].getAttribute('onclick')?.match(/switchTab\(this,\s*'(\w+)'\)/)?.[1] || '');
+    }
+  });
+  try { localStorage.setItem('buoyient-platform', platform); } catch(e) {}
+}
+
+// Restore saved platform on load
+(function() {
+  try {
+    const saved = localStorage.getItem('buoyient-platform');
+    if (saved && ['android', 'ios', 'jvm'].includes(saved)) {
+      switchPlatform(saved);
+    }
+  } catch(e) {}
+})();
+
 // --- Scroll fade-in ---
 const fadeObserver = new IntersectionObserver((entries) => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
@@ -490,6 +605,41 @@ ${fieldLines}
     <span class="kw">override fun</span> <span class="fn">createDrivers</span>(context: <span class="typ">Context</span>) =
         <span class="fn">listOf</span>(<span class="typ">${esc(name)}Service</span>(${esc(name)}ServerProcessingConfig()).<span class="fn">syncDriver</span>)
 })`;
+
+  // iOS registration
+  document.getElementById('regIosDelegatePreview').innerHTML =
+`<span class="kw">import</span> shared <span class="cmt">// your KMP shared module</span>
+
+<span class="kw">class</span> <span class="typ">AppDelegate</span>: <span class="typ">UIResponder</span>, <span class="typ">UIApplicationDelegate</span> {
+    <span class="kw">func</span> <span class="fn">application</span>(
+        _ application: <span class="typ">UIApplication</span>,
+        didFinishLaunchingWithOptions launchOptions: [<span class="typ">UIApplication</span>.<span class="typ">LaunchOptionsKey</span>: <span class="typ">Any</span>]?
+    ) -> <span class="typ">Bool</span> {
+        <span class="cmt">// Register background sync handler</span>
+        <span class="typ">IosSyncScheduleNotifier</span>.<span class="fn">shared</span>.<span class="fn">registerHandler</span>()
+
+        <span class="cmt">// Register your services</span>
+        <span class="kw">let</span> ${lcName}Service = <span class="typ">${esc(name)}Service</span>(
+            serverProcessingConfig: <span class="typ">${esc(name)}ServerProcessingConfig</span>()
+        )
+        <span class="typ">Buoyient</span>.<span class="fn">shared</span>.<span class="fn">registerServices</span>(services: [${lcName}Service])
+
+        <span class="kw">return true</span>
+    }
+}`;
+
+  // JVM registration
+  document.getElementById('regJvmPreview').innerHTML =
+`<span class="kw">fun</span> <span class="fn">main</span>() {
+    <span class="kw">val</span> ${lcName}Service = <span class="typ">${esc(name)}Service</span>(
+        <span class="typ">${esc(name)}ServerProcessingConfig</span>()
+    )
+    <span class="typ">Buoyient</span>.<span class="fn">registerServices</span>(<span class="fn">setOf</span>(${lcName}Service))
+
+    <span class="cmt">// No automatic background sync on JVM.</span>
+    <span class="cmt">// Trigger manually when needed:</span>
+    <span class="typ">Buoyient</span>.<span class="fn">syncNow</span>()
+}`;
 }
 
 function esc(s) {
@@ -523,10 +673,10 @@ function toggleCheck(li) {
 }
 
 function checkCompletion() {
-  const items = document.querySelectorAll('#checklist li');
-  const checked = document.querySelectorAll('#checklist li.checked');
+  const items = Array.from(document.querySelectorAll('#checklist li')).filter(li => li.offsetParent !== null);
+  const checked = items.filter(li => li.classList.contains('checked'));
   const celebration = document.getElementById('celebration');
-  if (checked.length === items.length) {
+  if (checked.length === items.length && items.length > 0) {
     celebration.classList.add('show');
   } else {
     celebration.classList.remove('show');
