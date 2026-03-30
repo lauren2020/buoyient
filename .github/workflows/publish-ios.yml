@@ -93,9 +93,14 @@ jobs:
           git add Package.swift
           git diff --cached --quiet && echo "No changes to Package.swift" && exit 0
           git commit -m "Update Package.swift for ${TAG} release"
-          git push origin "$BRANCH"
-          gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "Update Package.swift for ${TAG} release" \
-            --body "Automated PR to update Package.swift with the XCFramework URL and checksum for the ${TAG} release."
+          git push --force-with-lease origin "$BRANCH"
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #$EXISTING_PR already exists for branch $BRANCH"
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Update Package.swift for ${TAG} release" \
+              --body "Automated PR to update Package.swift with the XCFramework URL and checksum for the ${TAG} release."
+          fi
