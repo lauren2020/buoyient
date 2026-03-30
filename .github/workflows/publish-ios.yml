@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   publish-ios:
@@ -79,13 +80,22 @@ jobs:
           open('Package.swift', 'w').write(text)
           "
 
-      - name: Commit and push updated Package.swift
+      - name: Commit and open PR for updated Package.swift
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="automated/update-package-swift-${TAG}"
           git fetch origin main
-          git checkout -B main origin/main
+          git checkout -B "$BRANCH" origin/main
           git add Package.swift
           git diff --cached --quiet && echo "No changes to Package.swift" && exit 0
-          git commit -m "Update Package.swift for ${{ steps.version.outputs.tag }} release"
-          git push origin main
+          git commit -m "Update Package.swift for ${TAG} release"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Update Package.swift for ${TAG} release" \
+            --body "Automated PR to update Package.swift with the XCFramework URL and checksum for the ${TAG} release."
