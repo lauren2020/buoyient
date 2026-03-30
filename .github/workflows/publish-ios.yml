@@ -83,7 +83,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout main
+          git fetch origin main
+          git checkout -B main origin/main
           git add Package.swift
           git diff --cached --quiet && echo "No changes to Package.swift" && exit 0
           git commit -m "Update Package.swift for ${{ steps.version.outputs.tag }} release"
