@@ -7,9 +7,9 @@ Read the guide at `docs/mock-mode.md` for the complete, up-to-date instructions 
 
 Key points to remember:
 - Mock mode works by setting `Buoyient.httpClient` (in `com.elvdev.buoyient.globalconfigs`) to a mock-backed HTTP client before creating any services — no changes to service classes needed.
-- Use `MockEndpointRouter` from the `:testing` module to register mock HTTP handlers.
+- Use `MockEndpointRouter` from the `:mock-mode` module to register mock HTTP handlers.
 - Use `MockServerStore` for stateful mock mode with realistic CRUD behavior.
 - `TestConnectivityChecker` should be set to `online = true` in mock mode.
 - Conflict simulation uses `SyncableObjectRebaseHandler` (not `SyncableObjectMergeHandler`).
 - Include all fields that `SyncUpConfig.fromResponseBody()` expects in mock responses — missing fields will cause it to return `SyncUpResult.Failed.RemovePendingRequest`.
-- Scope the `:testing` dependency to debug builds with `debugImplementation`.
+- Scope the `:mock-mode` dependency to debug builds with `debugImplementation`.

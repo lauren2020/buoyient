@@ -55,3 +55,31 @@ public fun MockServerRecord.toJsonObject(): JsonObject = buildJsonObject {
     put("voided", voided)
     data.forEach { (key, value) -> put(key, value) }
 }
+
+/**
+ * Like [toJsonObject] but with configurable key names for the metadata fields.
+ *
+ * Use this when your API uses different field names than the buoyient defaults
+ * (e.g. `"id"` instead of `"server_id"`):
+ *
+ * ```kotlin
+ * record.toJsonObject(serverIdKey = "id", clientIdKey = "reference_id")
+ * ```
+ *
+ * @param serverIdKey the JSON key for the server-assigned ID. Defaults to `"server_id"`.
+ * @param clientIdKey the JSON key for the client-assigned ID. Defaults to `"client_id"`.
+ * @param versionKey the JSON key for the version. Defaults to `"version"`.
+ * @param voidedKey the JSON key for the voided flag. Defaults to `"voided"`.
+ */
+public fun MockServerRecord.toJsonObject(
+    serverIdKey: String = "server_id",
+    clientIdKey: String = "client_id",
+    versionKey: String = "version",
+    voidedKey: String = "voided",
+): JsonObject = buildJsonObject {
+    put(serverIdKey, serverId)
+    clientId?.let { put(clientIdKey, it) }
+    put(versionKey, version)
+    put(voidedKey, voided)
+    data.forEach { (key, value) -> put(key, value) }
+}

@@ -42,6 +42,9 @@ import com.elvdev.buoyient.db.SyncDatabase
  *   [MockServerStore.collection] to get a [MockServerCollection] and wire it to
  *   [mockRouter] via [registerCrudHandlers] or [registerSyncDownHandler] for
  *   realistic server-side state. Defaults to a fresh store instance.
+ * @property endpointController optional controller for toggling endpoint failure
+ *   overrides. When using this, wrap handlers via [MockEndpointController.wrap]
+ *   when registering them on [mockRouter].
  */
 public class TestServiceEnvironment(
     public val mockRouter: MockEndpointRouter = MockEndpointRouter(),
@@ -51,6 +54,7 @@ public class TestServiceEnvironment(
     public val idGenerator: IdGenerator = IncrementingIdGenerator(),
     public val database: SyncDatabase = TestDatabaseFactory.createInMemory(),
     public val mockServerStore: MockServerStore = MockServerStore(),
+    public val endpointController: MockEndpointController = MockEndpointController(),
 ) {
     init {
         BuoyientLog.logger = logger

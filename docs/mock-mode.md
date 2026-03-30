@@ -1,27 +1,19 @@
 # Setting Up Local Mock Mode for Manual Testing
 
-This guide covers how to configure a buoyient app to run against a mock server at runtime, so developers can manually test the app without a real backend. This uses the same `MockEndpointRouter` from the `:testing` module but wired into the live app's dependency graph behind a developer toggle.
+This guide covers how to configure a buoyient app to run against a mock server at runtime, so developers can manually test the app without a real backend. This uses `MockEndpointRouter` from the `:mock-mode` module wired into the live app's dependency graph behind a developer toggle.
 
 ---
 
 ## Dependencies
 
-Add the testing module as a regular `implementation` dependency (not `testImplementation`) in the app module:
+Add the mock-mode module as a `debugImplementation` dependency in the app module so it's stripped from release builds:
 
 ```kotlin
 // app/build.gradle.kts
-implementation(project(":testing"))
-// or, if consuming as a published artifact:
-implementation("com.elvdev.buoyient:testing:<version>")
+debugImplementation("com.elvdev.buoyient:syncable-objects-mock-mode:<version>")
 ```
 
-**Important:** You may want to scope this to debug builds only to keep it out of production:
-
-```kotlin
-debugImplementation(project(":testing"))
-```
-
-If using `debugImplementation`, the mock mode code must live in `src/debug/` or be gated behind a `BuildConfig` check.
+The `:mock-mode` module transitively includes `:mock-infra`, which provides `MockEndpointRouter`, `MockServerStore`, `TestConnectivityChecker`, and related classes.
 
 ---
 
@@ -40,7 +32,204 @@ Mock mode:
 
 ---
 
-## Step 1: Define Your Mock Fixtures
+## Quick Start with MockModeBuilder
+
+The fastest way to set up mock mode is with `MockModeBuilder` and `MockServiceServer`. Each service defines a self-contained mock server class that encapsulates its seed data and HTTP handler registration.
+
+### Step 1: Define your MockServiceServer classes
+
+Each service gets its own class that extends `MockServiceServer`:
+
+```kotlin
+// src/debug/java/.../MockItemServer.kt
+import com.elvdev.buoyient.testing.MockServiceServer
+import com.elvdev.buoyient.testing.MockEndpoint
+import com.elvdev.buoyient.testing.MockServerCollection
+import com.elvdev.buoyient.testing.crudEndpoints
+
+class MockItemServer : MockServiceServer() {
+    override val name = "items"
+    override val seedFile = "seeds/items.json"
+
+    override fun endpoints(collection: MockServerCollection): List<MockEndpoint> =
+        crudEndpoints(
+            collection = collection,
+            baseUrl = "https://api.example.com/v2/items",
+        )
+}
+```
+
+The `endpoints` method declares all HTTP endpoints the mock server supports. Use `crudEndpoints()` for standard REST endpoints, or construct `MockEndpoint` instances directly for custom handlers. The returned endpoints are registered on the router and indexed by the builder, enabling programmatic access to individual endpoints.
+
+For custom response shapes (when your API doesn't use `{"data": ...}`):
+
+```kotlin
+class MockItemServer : MockServiceServer() {
+    override val name = "items"
+    override val seedFile = "seeds/items.json"
+
+    override fun endpoints(collection: MockServerCollection): List<MockEndpoint> =
+        crudEndpoints(
+            collection = collection,
+            baseUrl = "https://api.example.com/v2/items",
+            responseWrapper = { record ->
+                buildJsonObject { put("item", record.toJsonObject()) }
+            },
+            listResponseWrapper = { records ->
+                buildJsonObject {
+                    put("items", JsonArray(records.map { it.toJsonObject() }))
+                }
+            },
+        )
+}
+```
+
+### Step 2: Wire them into MockModeBuilder
+
+```kotlin
+// In src/debug/java/.../DebugApp.kt
+import com.elvdev.buoyient.testing.MockModeBuilder
+
+class DebugApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        val mockMode = MockModeBuilder()
+            .service(MockItemServer())
+            .service(MockOrderServer())
+            .install()
+
+        // mockMode.router — add custom handlers or inspect requestLog
+        // mockMode.store — access collections for server-side mutations
+        // mockMode.connectivityChecker — set .online = false for offline simulation
+    }
+}
+```
+
+`MockModeBuilder.install()` calls `Buoyient.httpClient = router.buildHttpClient()` and sets `BuoyientLog.logger = PrintSyncLogger` automatically.
+
+### Seed data
+
+You can provide seed data in two ways (mutually exclusive per service):
+
+**From a classpath JSON file** — place a file in `src/debug/resources/` (or `src/main/resources/` for JVM):
+
+```json
+// src/debug/resources/seeds/items.json
+[
+  { "name": "Sample Item A", "amount": 1500 },
+  { "name": "Sample Item B", "amount": 2500 }
+]
+```
+
+Then set `override val seedFile = "seeds/items.json"` on your `MockServiceServer`. Server IDs are auto-generated for each entry.
+
+**Inline seeds** — override the `seeds` property with explicit `SeedEntry` objects for more control:
+
+```kotlin
+class MockItemServer : MockServiceServer() {
+    override val name = "items"
+    override val seeds = listOf(
+        SeedEntry(
+            data = buildJsonObject {
+                put("name", "Sample Item A")
+                put("amount", 1500)
+            },
+            serverId = "mock-srv-1",
+            clientId = "mock-client-1",
+        ),
+    )
+
+    override fun endpoints(collection: MockServerCollection): List<MockEndpoint> =
+        crudEndpoints(
+            collection = collection,
+            baseUrl = "https://api.example.com/v2/items",
+        )
+}
+```
+
+---
+
+## Using `debugImplementation` with Source Sets
+
+When the mock-mode module is added as `debugImplementation`, mock mode code must live in `src/debug/` because the main source set cannot reference debug-only classes. This requires a few pieces of setup:
+
+### 1. Service locator in main source set
+
+The main source set needs an abstraction to access services without knowing whether they're backed by mock mode:
+
+```kotlin
+// src/main/java/.../ServiceLocator.kt
+object ServiceLocator {
+    lateinit var noteService: NoteService
+    lateinit var taskService: TaskService
+    var isMockMode: Boolean = false
+}
+```
+
+### 2. Debug Application class
+
+Create a debug-only `Application` subclass that initializes mock mode and populates the service locator:
+
+```kotlin
+// src/debug/java/.../DebugApp.kt
+class DebugApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        val mockMode = MockModeBuilder()
+            .service(MockNoteServer())
+            .service(MockTaskServer())
+            .install()
+
+        ServiceLocator.isMockMode = true
+        ServiceLocator.noteService = NoteService(
+            connectivityChecker = mockMode.connectivityChecker,
+        )
+        ServiceLocator.taskService = TaskService(
+            connectivityChecker = mockMode.connectivityChecker,
+        )
+    }
+}
+```
+
+### 3. Debug AndroidManifest
+
+Override the application class for debug builds:
+
+```xml
+<!-- src/debug/AndroidManifest.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application
+        android:name=".DebugApp"
+        tools:replace="android:name" />
+</manifest>
+```
+
+### File organization
+
+```
+app/src/
+├── main/java/com/example/yourapp/
+│   ├── data/services/           # Service classes (unchanged)
+│   └── ServiceLocator.kt       # Abstraction for debug/release service wiring
+├── debug/
+│   ├── java/com/example/yourapp/
+│   │   ├── DebugApp.kt              # Application subclass that initializes mock mode
+│   │   ├── MockNoteServer.kt        # MockServiceServer for notes
+│   │   └── MockTaskServer.kt        # MockServiceServer for tasks
+│   └── AndroidManifest.xml           # Overrides android:name to DebugApp
+└── release/java/com/example/yourapp/
+    └── ReleaseApp.kt                 # (Optional) Application subclass for real services
+```
+
+---
+
+## Manual Setup (Without MockModeBuilder)
+
+### Step 1: Define Your Mock Fixtures
 
 Create a class that configures the `MockEndpointRouter` with realistic fake responses for all of your service's endpoints. This is the heart of mock mode -- the handlers define what fake data the app operates on.
 
@@ -145,11 +334,11 @@ class MockServerFixtures {
 
 ---
 
-## Step 2: Create a Mock Mode Toggle
+### Step 2: Create a Mock Mode Toggle
 
 Set `Buoyient.httpClient` before creating any services. All services constructed after this point automatically route requests through the mock handlers — no per-service wiring needed.
 
-### Option A: Hilt-based toggle (recommended for Hilt apps)
+#### Option A: Hilt-based toggle (recommended for Hilt apps)
 
 ```kotlin
 package com.example.yourapp.di
@@ -198,7 +387,7 @@ Services are provided normally — no mock-specific constructor params needed:
 fun provideItemService(): SyncableObjectService<*, *> = YourModelService()
 ```
 
-### Option B: Simple factory (no Hilt)
+#### Option B: Simple factory (no Hilt)
 
 ```kotlin
 object ServiceFactory {
@@ -217,7 +406,7 @@ object ServiceFactory {
 Toggle in `Application.onCreate()` or from a developer settings screen:
 
 ```kotlin
-ServiceFactory.mockModeEnabled = true
+ServiceFactory.enableMockMode()
 ```
 
 ---
@@ -255,7 +444,7 @@ object MockModePrefs {
 
 ---
 
-## Step 4: Simulating Specific Scenarios
+## Simulating Specific Scenarios
 
 ### Simulating offline mode
 
@@ -415,24 +604,3 @@ Text("Server records: ${items.count()}")
 - **Mock handlers are evaluated at request time**, not registration time. You can update handlers dynamically during a session.
 - **`BuoyientLog.logger = PrintSyncLogger` is recommended** in mock mode so developers can see sync engine activity in Logcat. Set this once at startup before creating any services.
 - **`MockEndpointRouter` is thread-safe.** The request log uses `CopyOnWriteArrayList` and the route list is only written during setup.
-
----
-
-## Recommended file organization
-
-```
-app/src/
-├── main/java/com/example/yourapp/
-│   ├── data/services/           # Service classes (unchanged)
-│   └── di/                      # DI modules
-│       └── MockModeModule.kt    # Conditional mock/real provider
-├── debug/java/com/example/yourapp/
-│   └── testing/
-│       ├── MockServerFixtures.kt    # Mock endpoint definitions
-│       └── MockModePrefs.kt         # SharedPreferences toggle
-└── debug/res/
-    └── xml/
-        └── developer_settings.xml   # Optional debug settings UI
-```
-
-Placing mock fixtures under `src/debug/` ensures they are stripped from release builds automatically.

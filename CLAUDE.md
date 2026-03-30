@@ -45,7 +45,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `EncryptionProvider` | `serviceconfigs` | Interface for optional per-service encryption at rest — implement `encrypt()`/`decrypt()` and pass to service constructor |
 | `ConnectivityChecker` | `serviceconfigs` | Interface for online/offline detection — pass to service constructor |
 | `HttpRequest` | `datatypes` | HTTP request builder with placeholder resolution for offline requests |
-| `SyncableObjectServiceResponse<O>` | `datatypes` | Sealed response type for all service operations |
+| `SyncableObjectServiceResponse<O>` | `datatypes` | Sealed response type for all service operations. Extension helpers: `dataOrNull()`, `onSuccess {}`, `onFailure {}`, `isSuccess`, `isFailure` |
 | `SyncableObjectServiceRequestState<O>` | `datatypes` | Sealed state type for flow-based operations: `Loading` or `Result(response)` |
 | `GetResponse<O>` | `datatypes` | Sealed response type for `get()` operations |
 | `ResolveConflictResult<O>` | `datatypes` | Sealed result type for conflict resolution |
@@ -58,8 +58,14 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `SyncCodec<O>` | `utils` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
 | `BuoyientLog` | `utils` | Process-wide logger singleton — set `BuoyientLog.logger` to swap the backing `BuoyientLogger` |
 | `TestServiceEnvironment` | `:testing` module | All-in-one test harness |
-| `MockEndpointRouter` | `:testing` module | Mock HTTP server for tests and mock mode |
-| `MockServerStore` | `:testing` module | Stateful mock server with collections |
+| `MockEndpointRouter` | `:mock-infra` module | Mock HTTP server for tests and mock mode |
+| `MockServerStore` | `:mock-infra` module | Stateful mock server with collections |
+| `MockEndpoint` | `:mock-infra` module | Declares a mock HTTP endpoint with method, URL pattern, label, and handler |
+| `MockEndpointController` | `:mock-infra` module | Runtime-configurable controller for toggling endpoint failure overrides (server errors, connection errors, timeouts) |
+| `FailureOverride` | `:mock-infra` module | Sealed interface for failure modes: `ServerError(statusCode)`, `Timeout(serverReceivedRequest)` |
+| `MockServiceServer` | `:mock-mode` module | Abstract base class for self-contained mock servers — subclass to define seed data and declare endpoints per service |
+| `MockModeBuilder` | `:mock-mode` module | Quick-start builder for mock mode setup — accepts `MockServiceServer` instances and installs global overrides |
+| `MockModeHandle` | `:mock-mode` module | Handle returned by `MockModeBuilder.install()` with references to router, store, connectivity checker, endpoint index, and endpoint controller |
 
 ## Modules
 
@@ -67,7 +73,9 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 |--------|----------|---------|
 | `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP) |
 | `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services |
-| `:testing` | `com.elvdev.buoyient:testing` | Test utilities — mock server, in-memory DB, test doubles |
+| `:mock-infra` | `com.elvdev.buoyient:syncable-objects-mock-infra` | Shared mock infrastructure — mock HTTP routing, stateful server store, test doubles |
+| `:mock-mode` | `com.elvdev.buoyient:syncable-objects-mock-mode` | Mock mode builder for running apps against fake server responses |
+| `:testing` | `com.elvdev.buoyient:syncable-objects-testing` | Test utilities — in-memory DB, test harness, sync helpers |
 
 ## Important conventions
 
