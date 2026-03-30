@@ -11,6 +11,8 @@ hilt = "2.51"
 workmanager = "2.10.0"
 startup = "1.2.0"
 nmcp = "1.4.4"
+skie = "0.8.4"
+atomicfu = "0.23.2"
 
 compileSdk = "34"
 minSdk = "27"
@@ -37,6 +39,8 @@ sqldelight-dialect = { module = "app.cash.sqldelight:sqlite-3-30-dialect", versi
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 
+kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
+
 androidx-work = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
 androidx-startup = { module = "androidx.startup:startup-runtime", version.ref = "startup" }
 
@@ -52,3 +56,4 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 nmcp = { id = "com.gradleup.nmcp", version.ref = "nmcp" }
 nmcp-aggregation = { id = "com.gradleup.nmcp.aggregation", version.ref = "nmcp" }
+skie = { id = "co.touchlab.skie", version.ref = "skie" }

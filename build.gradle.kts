@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.sqldelight) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.skie) apply false
     alias(libs.plugins.nmcp) apply false
     alias(libs.plugins.nmcp.aggregation)
 }
