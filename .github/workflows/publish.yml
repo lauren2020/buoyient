@@ -28,7 +28,7 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle-
 
       - name: Run tests
-        run: ./gradlew :syncable-objects:jvmTest :testing:test
+        run: ./gradlew :syncable-objects:jvmTest :testing:jvmTest
 
       - name: Publish to Maven Central
         run: ./gradlew publishAggregationToCentralPortal
