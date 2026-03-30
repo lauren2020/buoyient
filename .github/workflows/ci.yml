@@ -31,8 +31,8 @@ jobs:
       - name: Run :syncable-objects JVM tests
         run: ./gradlew :syncable-objects:jvmTest
 
-      - name: Run :testing tests
-        run: ./gradlew :testing:test
+      - name: Run :testing JVM tests
+        run: ./gradlew :testing:jvmTest
 
       - name: Build all modules
         run: ./gradlew build

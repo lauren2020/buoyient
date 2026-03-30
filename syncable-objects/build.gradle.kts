@@ -1,3 +1,4 @@
+import co.touchlab.skie.configuration.DefaultArgumentInterop
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
@@ -102,7 +103,9 @@ tasks.withType<Jar> {
 
 skie {
     features {
-        defaultArgumentInterop.enabled = true
+        group {
+            DefaultArgumentInterop.Enabled(true)
+        }
     }
 }
 
