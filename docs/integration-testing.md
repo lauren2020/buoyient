@@ -1,6 +1,8 @@
 # Writing Integration Tests for buoyient Services
 
-This guide covers how to write automated JVM integration tests for `SyncableObjectService` implementations using the `:testing` module. The module provides pre-built test doubles and a mock HTTP server so you don't need to manually wire Ktor `MockEngine`, `ServerManager`, `LocalStoreManager`, or anonymous stub implementations.
+This guide covers how to write automated integration tests for `SyncableObjectService` implementations using the `:testing` module. The module provides pre-built test doubles and a mock HTTP server so you don't need to manually wire Ktor `MockEngine`, `ServerManager`, `LocalStoreManager`, or anonymous stub implementations.
+
+> **Platform note:** The `:testing` and `:mock-infra` modules are Kotlin Multiplatform and support both JVM and iOS targets. Tests are written in Kotlin and run on JVM (via `jvmTest`). The same `TestServiceEnvironment`, `MockEndpointRouter`, and `MockServerStore` classes are available on iOS/Native for Kotlin-based test suites.
 
 ---
 

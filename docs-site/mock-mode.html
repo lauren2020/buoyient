@@ -175,6 +175,16 @@
   <p class="subtitle">Mock mode lets you run the full app against fake endpoints &mdash; no real backend needed</p>
 </div>
 
+<!-- ── Platform Note ── -->
+<div style="max-width: 700px; margin: 0 auto 24px; padding: 0 24px;">
+  <div class="card" style="border-color: var(--current-teal);">
+    <h4 style="color: var(--current-teal);">Works on all platforms</h4>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+      The mock infrastructure (<code>MockModeBuilder</code>, <code>MockEndpointRouter</code>, <code>MockServerStore</code>) is Kotlin Multiplatform and works on <strong>Android</strong>, <strong>iOS</strong>, and <strong>JVM</strong>. The examples below use Android patterns (debug source sets, Hilt), but the core mock APIs are identical on iOS. On iOS, seed files loaded via <code>seedFile</code> are resolved from <code>NSBundle.mainBundle</code> instead of the JVM classpath &mdash; add seed JSON files to your Xcode project's resources.
+    </p>
+  </div>
+</div>
+
 <!-- ── How Mock Mode Works ── -->
 <section class="section">
   <h2>How it works</h2>
