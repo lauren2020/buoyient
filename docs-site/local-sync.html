@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Local Device Sync — buoyient</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a href="why-buoyient.html" class="logo">
+    <svg width="32" height="32" viewBox="0 0 80 80" fill="none">
+      <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+      <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
+      <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+      <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
+      <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+    </svg>
+    buoyient
+  </a>
+  <button class="nav-toggle" onclick="document.querySelector('.site-header nav').classList.toggle('open')">&#9776;</button>
+  <nav>
+    <a href="why-buoyient.html">Why buoyient?</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup Guide</a>
+    <a href="mock-mode.html">Mock Mode</a>
+    <a href="local-sync.html" class="active">Local Sync &#128679;</a>
+  </nav>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>Local device <span class="highlight">sync</span></h1>
+  <p class="subtitle">Keep nearby devices in sync &mdash; no internet required</p>
+  <div style="margin-top: 20px;">
+    <span class="badge badge-yellow" style="padding: 8px 20px; font-size: 0.9rem;">Coming Soon</span>
+    <p style="margin-top: 12px; font-size: 0.78rem; color: var(--text-dim);">This feature is in active development and will ship with buoyient 2.0</p>
+  </div>
+</div>
+
+<!-- ── The Problem ── -->
+<section class="section">
+  <h2>The problem</h2>
+  <p class="section-desc">buoyient already handles offline-first sync between each device and your server. But what happens when multiple devices are in the same room and the internet goes down?</p>
+
+  <div class="fade-in" style="max-width: 600px; margin: 0 auto;">
+    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; text-align: center;">
+      <!-- Device A -->
+      <div class="card" style="border-color: var(--ocean-blue);">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style="margin: 0 auto 8px;">
+          <rect x="8" y="4" width="24" height="32" rx="4" stroke="#4a9eff" stroke-width="2" fill="none"/>
+          <circle cx="20" cy="30" r="2" fill="#4a9eff"/>
+          <rect x="12" y="8" width="16" height="16" rx="1" fill="#4a9eff" opacity="0.15"/>
+        </svg>
+        <div style="font-weight: 600; color: var(--ocean-blue);">Device A</div>
+        <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 4px;">Creates a todo</div>
+      </div>
+
+      <!-- X mark (no connection) -->
+      <div>
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <line x1="12" y1="12" x2="36" y2="36" stroke="#ff4444" stroke-width="3" stroke-linecap="round"/>
+          <line x1="36" y1="12" x2="12" y2="36" stroke="#ff4444" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <div style="font-size: 0.72rem; color: #ff4444;">No internet</div>
+      </div>
+
+      <!-- Device B -->
+      <div class="card" style="border-color: var(--beacon-yellow);">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style="margin: 0 auto 8px;">
+          <rect x="8" y="4" width="24" height="32" rx="4" stroke="#ffe066" stroke-width="2" fill="none"/>
+          <circle cx="20" cy="30" r="2" fill="#ffe066"/>
+          <rect x="12" y="8" width="16" height="16" rx="1" fill="#ffe066" opacity="0.15"/>
+        </svg>
+        <div style="font-weight: 600; color: var(--beacon-yellow);">Device B</div>
+        <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 4px;">Doesn&rsquo;t see it</div>
+      </div>
+    </div>
+
+    <p style="text-align: center; margin-top: 24px; font-size: 0.88rem; color: var(--text-dim);">Today, each device queues changes locally and waits for the server. Nearby devices can&rsquo;t share data until the internet comes back.</p>
+  </div>
+</section>
+
+<!-- ── The Solution ── -->
+<section class="section">
+  <h2>The solution</h2>
+  <p class="section-desc">Local device network sync discovers nearby devices running the same app and synchronizes data directly over the local network &mdash; Wi-Fi, Bluetooth, or peer-to-peer.</p>
+
+  <div class="fade-in" style="max-width: 700px; margin: 0 auto;">
+    <!-- New diagram with local sync -->
+    <div class="arch-diagram">
+      <!-- Server (greyed out) -->
+      <div class="arch-layer">
+        <div class="arch-box server-layer" style="opacity: 0.3;">
+          <div class="arch-label">Your Server</div>
+          <div class="arch-sub">Unreachable &mdash; no internet</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow" style="opacity: 0.2;">
+        <svg width="24" height="32" viewBox="0 0 24 32"><path d="M12 0v28M6 22l6 6 6-6" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </div>
+
+      <!-- Local sync layer -->
+      <div class="arch-layer">
+        <div class="arch-box engine-layer" style="min-width: 500px; border-color: var(--current-teal);">
+          <div class="arch-label" style="color: var(--current-teal);">Local Device Network</div>
+          <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; margin-top: 16px;">
+            <!-- Device A -->
+            <div style="text-align: center;">
+              <svg width="36" height="36" viewBox="0 0 40 40" fill="none" style="margin: 0 auto 4px;">
+                <rect x="8" y="4" width="24" height="32" rx="4" stroke="#4a9eff" stroke-width="2" fill="none"/>
+                <circle cx="20" cy="30" r="2" fill="#4a9eff"/>
+              </svg>
+              <div style="font-size: 0.78rem; color: var(--ocean-blue);">Device A</div>
+            </div>
+
+            <!-- Bidirectional arrows -->
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <svg width="80" height="24" viewBox="0 0 80 24" fill="none">
+                <path d="M4 8h64M64 4l6 4-6 4" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M76 16H12M12 12l-6 4 6 4" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span style="font-size: 0.68rem; color: var(--current-teal);">peer sync</span>
+            </div>
+
+            <!-- Device B -->
+            <div style="text-align: center;">
+              <svg width="36" height="36" viewBox="0 0 40 40" fill="none" style="margin: 0 auto 4px;">
+                <rect x="8" y="4" width="24" height="32" rx="4" stroke="#ffe066" stroke-width="2" fill="none"/>
+                <circle cx="20" cy="30" r="2" fill="#ffe066"/>
+              </svg>
+              <div style="font-size: 0.78rem; color: var(--beacon-yellow);">Device B</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="text-align: center; margin-top: 24px; font-size: 0.88rem; color: var(--text-dim);">When internet returns, all devices reconcile with the server as usual &mdash; no data loss, no conflicts between local-synced changes.</p>
+  </div>
+</section>
+
+<!-- ── How It Will Work ── -->
+<section class="section">
+  <h2>How it will work</h2>
+  <p class="section-desc">Local device sync plugs into the existing buoyient architecture. The same pending queue, placeholder resolution, and conflict resolution you already use &mdash; now with a peer-to-peer transport layer.</p>
+
+  <div style="max-width: 600px; margin: 0 auto;">
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+
+      <div class="card" style="border-color: var(--current-teal);">
+        <h4 style="color: var(--current-teal); margin-bottom: 8px;">1. Automatic discovery</h4>
+        <p style="margin: 0; font-size: 0.88rem;">Devices running your app automatically discover each other on the local network. No manual pairing, no QR codes, no configuration.</p>
+      </div>
+
+      <div class="card" style="border-color: var(--ocean-blue);">
+        <h4 style="color: var(--ocean-blue); margin-bottom: 8px;">2. Selective sync</h4>
+        <p style="margin: 0; font-size: 0.88rem;">Only the services you opt in will sync locally. Sensitive data can remain device-only until the server is reachable. Per-service encryption is respected.</p>
+      </div>
+
+      <div class="card" style="border-color: var(--beacon-yellow);">
+        <h4 style="color: var(--beacon-yellow); margin-bottom: 8px;">3. Conflict-free merging</h4>
+        <p style="margin: 0; font-size: 0.88rem;">The same 3-way merge and <code>RebaseHandler</code> you already use for server conflicts handles local device conflicts too. One conflict resolution strategy across all sync paths.</p>
+      </div>
+
+      <div class="card" style="border-color: var(--buoy-orange);">
+        <h4 style="color: var(--buoy-orange); margin-bottom: 8px;">4. Seamless server reconciliation</h4>
+        <p style="margin: 0; font-size: 0.88rem;">When the internet comes back, locally-synced changes are reconciled with the server. Placeholder resolution works the same way &mdash; objects created offline still get their server IDs at sync time.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Use Cases ── -->
+<section class="section">
+  <h2>Use cases</h2>
+  <p class="section-desc">Anywhere multiple devices need to stay coordinated without relying on the cloud.</p>
+
+  <div style="max-width: 700px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div class="card" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue); margin-bottom: 8px;">Field operations</h4>
+      <p style="margin: 0; font-size: 0.84rem;">Warehouse workers, field inspectors, and delivery crews sharing real-time updates in areas with poor or no connectivity.</p>
+    </div>
+    <div class="card" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal); margin-bottom: 8px;">Point of sale</h4>
+      <p style="margin: 0; font-size: 0.84rem;">Multiple registers and tablets in a store that need to share inventory and order data even during an internet outage.</p>
+    </div>
+    <div class="card" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow); margin-bottom: 8px;">Events &amp; venues</h4>
+      <p style="margin: 0; font-size: 0.84rem;">Ticketing, check-in, and staff coordination at events where cellular networks are overloaded.</p>
+    </div>
+    <div class="card" style="border-color: var(--buoy-orange);">
+      <h4 style="color: var(--buoy-orange); margin-bottom: 8px;">Healthcare</h4>
+      <p style="margin: 0; font-size: 0.84rem;">Clinics and mobile care teams sharing patient records between devices in low-connectivity environments.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Transport Options ── -->
+<section class="section">
+  <h2>Transport options</h2>
+  <p class="section-desc">Local sync will support multiple transport layers depending on your platform and use case.</p>
+
+  <div style="max-width: 500px; margin: 0 auto;">
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(74, 158, 255, 0.2);">
+        <div class="badge badge-blue" style="min-width: 90px; text-align: center;">Wi-Fi</div>
+        <span style="font-size: 0.84rem;">Devices on the same local network &mdash; fastest throughput</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(0, 220, 198, 0.2);">
+        <div class="badge badge-teal" style="min-width: 90px; text-align: center;">Wi-Fi Direct</div>
+        <span style="font-size: 0.84rem;">Peer-to-peer without a router &mdash; no existing network needed</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255, 224, 102, 0.2);">
+        <div class="badge badge-yellow" style="min-width: 90px; text-align: center;">Bluetooth</div>
+        <span style="font-size: 0.84rem;">Low-power, short-range sync for nearby devices</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stay Updated ── -->
+<section class="section text-center" style="border-top: none; padding-top: 0;">
+  <h2 class="mb-24">Interested?</h2>
+  <p class="section-desc">Local device sync is under active development. Star the repo to stay updated.</p>
+  <div class="flex-center gap-16 flex-wrap">
+    <a href="https://github.com/user/buoyient" class="btn btn-primary">Star on GitHub &rarr;</a>
+    <a href="setup.html" class="btn btn-secondary">Get started with buoyient &rarr;</a>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<div class="wave-separator">
+  <svg viewBox="0 0 1200 40" preserveAspectRatio="none">
+    <path d="M0 20 Q150 5 300 20 T600 18 T900 22 T1200 16 V40 H0 Z" fill="#1a1d27" opacity="0.5"/>
+    <path d="M0 28 Q200 14 400 26 T800 24 T1200 22 V40 H0 Z" fill="#1a1d27"/>
+  </svg>
+</div>
+<footer class="site-footer">
+  <p class="tagline">keep your client up even when the network is down</p>
+  <div class="footer-links">
+    <a href="https://github.com/user/buoyient">GitHub</a>
+    <a href="why-buoyient.html">Why</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup</a>
+    <a href="mock-mode.html">Mock Mode</a>
+    <a href="local-sync.html">Local Sync &#128679;</a>
+  </div>
+  <p class="copy">buoyient &mdash; offline-first sync for Kotlin Multiplatform</p>
+</footer>
+
+<!-- ── Scripts ── -->
+<script>
+// Scroll fade-in
+const fadeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => fadeObserver.observe(el));
+</script>
+
+</body>
+</html>
