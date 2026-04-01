@@ -198,7 +198,7 @@ No new constraint values needed. The existing `OnlineOnly` constraint is reused 
 
 ### Discovery & Connection
 
-- **Strategy:** `Strategy.P2P_CLUSTER` — supports multiple devices, any-to-any connectivity.
+- **Strategy:** `Strategy.P2P_STAR` — one-to-many topology matching the beacon/observer model. The beacon is the hub; observers connect only to the beacon, never to each other.
 - **Service ID:** A consumer-configurable string identifying the app/use case (e.g., `"com.myapp.buoyient.localsync"`).
 - **Advertising:** The beacon advertises. Observers discover and connect.
 - **Payload type:** `Payload.Type.BYTES` for request/response messages (serialized via `kotlinx.serialization`).
