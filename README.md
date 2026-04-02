@@ -15,7 +15,7 @@ For an interactive walkthrough covering why buoyient, how it works, and setup gu
 
 ## For AI agents: start here
 
-**Read the guides in `docs/` before writing code.** They contain complete templates, required field tables, and common patterns. Use them instead of copying from the example services in this repo (which talk to a Square sandbox API — your endpoints, auth, and field names will be different).
+**Read the guides in `docs/` before writing code.** They contain complete templates, required field tables, and common patterns. Use them instead of copying from the example services in this repo (your endpoints, auth, and field names will be different).
 
 | Guide | When to use |
 |-------|-------------|
