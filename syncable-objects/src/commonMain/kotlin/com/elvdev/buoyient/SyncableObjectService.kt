@@ -73,7 +73,14 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
     protected val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(
         SyncCodec(serializer)
     ),
-    public val pagingConfig: PagingConfig<O>? = null,
+    /**
+     * Configures keyset cursor pagination via [loadPage]. Defaults to a clientId-based
+     * extractor and DESC sort, so pagination works out of the box for any service —
+     * pages are returned in reverse-clientId order. Override with a custom
+     * [PagingConfig] when you want to page by a different field (e.g. a server-assigned
+     * `created_at` timestamp).
+     */
+    public val pagingConfig: PagingConfig<O> = PagingConfig(keyExtractor = { it.clientId }),
     /**
      * JSON paths into `data_blob` that the library will back with SQLite expression
      * indexes for fast `loadPage(filter = ...)` queries.
@@ -1003,9 +1010,6 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         syncStatus: String? = null,
         filter: Filter? = null,
     ): PageResult<O> {
-        val config = checkNotNull(pagingConfig) {
-            "loadPage() requires a pagingConfig. Pass one to the SyncableObjectService constructor."
-        }
         val entries = if (filter == null) {
             localStoreManager.getPage(
                 afterCursor = afterCursor,
@@ -1025,7 +1029,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
             null
         } else {
             val last = items.last()
-            PageCursor(key = config.keyExtractor(last), clientId = last.clientId)
+            PageCursor(key = pagingConfig.keyExtractor(last), clientId = last.clientId)
         }
         return PageResult(items = items, nextCursor = nextCursor)
     }

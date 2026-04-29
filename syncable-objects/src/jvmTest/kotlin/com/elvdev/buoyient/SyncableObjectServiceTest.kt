@@ -84,7 +84,7 @@ class SyncableObjectServiceTest {
         connectivityChecker: ConnectivityChecker,
         queueStrategy: PendingRequestQueueStrategy =
             PendingRequestQueueStrategy.Queue,
-        pagingConfig: PagingConfig<TestItem>? = null,
+        pagingConfig: PagingConfig<TestItem> = PagingConfig(keyExtractor = { it.clientId }),
         indexedJsonPaths: List<String> = emptyList(),
     ) : SyncableObjectService<TestItem, TestRequestTag>(
         serializer = TestItem.serializer(),
@@ -1618,16 +1618,18 @@ class SyncableObjectServiceTest {
     }
 
     @Test
-    fun `loadPage - throws when pagingConfig not configured`() = runBlocking {
+    fun `loadPage - default config pages by clientId`() = runBlocking {
+        // Service constructed without an explicit pagingConfig — default extractor
+        // is { it.clientId }, so pages come back ordered by clientId DESC.
         val (service, _) = createServiceAndEnv(online = false)
+        service.testCreate(testItem(clientId = "c1", name = "A"))
+        service.testCreate(testItem(clientId = "c2", name = "B"))
+        service.testCreate(testItem(clientId = "c3", name = "C"))
 
-        var threw = false
-        try {
-            service.loadPage(loadSize = 10)
-        } catch (e: IllegalStateException) {
-            threw = true
-        }
-        assertTrue(threw)
+        val result = service.loadPage(loadSize = 10)
+
+        // DESC by clientId.
+        assertEquals(listOf("c3", "c2", "c1"), result.items.map { it.clientId })
         service.close()
     }
 

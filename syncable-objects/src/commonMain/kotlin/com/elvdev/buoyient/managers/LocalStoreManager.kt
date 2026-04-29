@@ -36,7 +36,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val queueStrategy: PendingRequestQueueStrategy =
         PendingRequestQueueStrategy.Queue,
     encryptionProvider: EncryptionProvider? = null,
-    private val pagingConfig: PagingConfig<O>? = null,
+    private val pagingConfig: PagingConfig<O> = PagingConfig(keyExtractor = { it.clientId }),
     /**
      * Raw [SqlDriver] used by dynamic-SQL paths (filter queries, expression-index
      * creation). Not required for ordinary CRUD; null is fine when the consumer
@@ -51,7 +51,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
 ) {
     private val storageCodec = StorageCodec(encryptionProvider)
 
-    private fun O.toPagingKey(): String? = pagingConfig?.keyExtractor?.invoke(this)
+    private fun O.toPagingKey(): String = pagingConfig.keyExtractor(this)
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
         fieldConflict.fieldNames.map { fieldName ->
@@ -712,7 +712,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     ): List<LocalStoreEntry<O>> {
         val q = database.syncDataQueries
         val l = limit.toLong()
-        val descending = pagingConfig?.sortOrder == PagingConfig.SortOrder.DESC
+        val descending = pagingConfig.sortOrder == PagingConfig.SortOrder.DESC
         return when {
             // First page: no cursor predicate, ordering + LIMIT alone yield the head.
             afterCursor == null && syncStatus != null && descending ->
@@ -794,7 +794,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
         ensureIndexedPaths()
 
-        val descending = pagingConfig?.sortOrder == PagingConfig.SortOrder.DESC
+        val descending = pagingConfig.sortOrder == PagingConfig.SortOrder.DESC
         val whereClauses = mutableListOf("service_name = ?", "voided = 0")
         val params = mutableListOf<Any?>(serviceName)
 
