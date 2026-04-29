@@ -7,6 +7,7 @@ import com.elvdev.buoyient.managers.ServerManager
 import com.elvdev.buoyient.managers.createPlatformBackgroundRequestScheduler
 import com.elvdev.buoyient.serviceconfigs.ConnectivityChecker
 import com.elvdev.buoyient.serviceconfigs.EncryptionProvider
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import com.elvdev.buoyient.serviceconfigs.PendingRequestQueueStrategy
 import com.elvdev.buoyient.serviceconfigs.ServerProcessingConfig
 import com.elvdev.buoyient.serviceconfigs.SyncableObjectRebaseHandler
@@ -16,6 +17,8 @@ import com.elvdev.buoyient.sync.createPlatformSyncScheduleNotifier
 import com.elvdev.buoyient.datatypes.CreateRequestBuilder
 import com.elvdev.buoyient.datatypes.GetResponse
 import com.elvdev.buoyient.datatypes.HttpRequest
+import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.datatypes.PageResult
 import com.elvdev.buoyient.datatypes.ResolveConflictResult
 import com.elvdev.buoyient.datatypes.ResponseUnpacker
 import com.elvdev.buoyient.datatypes.SyncableObjectServiceRequestState
@@ -69,7 +72,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
     protected val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(
         SyncCodec(serializer)
     ),
-    public val pagingKeyExtractor: ((O) -> String)? = null,
+    public val pagingConfig: PagingConfig<O>? = null,
 ) : Service<O> {
 
     private val codec: SyncCodec<O> = SyncCodec(serializer)
@@ -90,7 +93,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
         encryptionProvider = encryptionProvider,
         queueStrategy = queueStrategy,
-        pagingKeyExtractor = pagingKeyExtractor,
+        pagingConfig = pagingConfig,
     )
 
     private val backgroundRequestScheduler: BackgroundRequestScheduler =
@@ -957,32 +960,40 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
 
     /**
      * Returns a page of [O] items from the local store using keyset cursor pagination,
-     * ordered ascending by the service's [pagingKeyExtractor] value.
+     * ordered per the service's [pagingConfig].
      *
      * Pass [afterCursor] = `null` to fetch the first page. For each subsequent page, pass
-     * the paging key of the last item returned by the previous page. This is the data-fetching
-     * primitive that [androidx.paging.PagingSource] implementations delegate to.
+     * [PageResult.nextCursor] from the previous page. When [PageResult.nextCursor] is `null`,
+     * there are no more pages. This is the data-fetching primitive that
+     * [androidx.paging.PagingSource] implementations delegate to.
      *
-     * Requires [pagingKeyExtractor] to be configured on this service; throws
+     * Requires [pagingConfig] to be configured on this service; throws
      * [IllegalStateException] otherwise.
      *
-     * @param afterCursor exclusive lower bound for `paging_key`; `null` starts from the beginning.
+     * @param afterCursor exclusive lower bound; `null` starts from the beginning.
      * @param loadSize number of rows to return.
      * @param syncStatus if non-null, only rows with this sync status are returned.
      */
     public fun loadPage(
-        afterCursor: String?,
+        afterCursor: PageCursor? = null,
         loadSize: Int,
         syncStatus: String? = null,
-    ): List<O> {
-        check(pagingKeyExtractor != null) {
-            "loadPage() requires a pagingKeyExtractor. Pass one to the SyncableObjectService constructor."
+    ): PageResult<O> {
+        val config = checkNotNull(pagingConfig) {
+            "loadPage() requires a pagingConfig. Pass one to the SyncableObjectService constructor."
         }
-        return localStoreManager.getPage(
+        val items = localStoreManager.getPage(
             afterCursor = afterCursor,
             limit = loadSize,
             syncStatus = syncStatus,
         ).map { it.data }
+        val nextCursor = if (items.size < loadSize) {
+            null
+        } else {
+            val last = items.last()
+            PageCursor(key = config.keyExtractor(last), clientId = last.clientId)
+        }
+        return PageResult(items = items, nextCursor = nextCursor)
     }
 
     /**

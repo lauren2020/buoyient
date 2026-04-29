@@ -5,57 +5,53 @@ import androidx.paging.PagingState
 import com.elvdev.buoyient.ServiceRequestTag
 import com.elvdev.buoyient.SyncableObject
 import com.elvdev.buoyient.SyncableObjectService
+import com.elvdev.buoyient.datatypes.PageCursor
 
 /**
  * A [PagingSource] backed by a [SyncableObjectService]'s local store, using keyset cursor
- * pagination ordered by the service's `pagingKeyExtractor` value.
+ * pagination ordered per the service's
+ * [com.elvdev.buoyient.serviceconfigs.PagingConfig].
  *
- * The [Key] type is [String] (the `paging_key` cursor value); `null` means "start from the
- * beginning". Pagination is **forward-only**: [prevKey] is always `null`.
+ * The [Key] type is [PageCursor]; `null` means "start from the beginning". Pagination is
+ * **forward-only**: [LoadResult.Page.prevKey] is always `null`.
  *
- * **Setup:** Configure [SyncableObjectService.pagingKeyExtractor] in the service constructor
- * and pass the same extractor here so the paging source can derive the next cursor from the
- * last loaded item.
+ * **Setup:** Configure
+ * [com.elvdev.buoyient.SyncableObjectService.pagingConfig] in the service constructor;
+ * this paging source reads pages and cursor info from
+ * [com.elvdev.buoyient.SyncableObjectService.loadPage] directly, so no extractor needs
+ * to be passed twice.
  *
  * **Usage:**
  * ```kotlin
  * val pager = Pager(PagingConfig(pageSize = 20)) {
- *     BuoyientPagingSource(
- *         service = myService,
- *         pagingKeyExtractor = MyModel.PAGING_KEY,
- *     )
+ *     BuoyientPagingSource(myService)
  * }
  * ```
  *
  * @param service the [SyncableObjectService] to load pages from.
- * @param pagingKeyExtractor extracts the ordering key from a domain object — must be the same
- *   function passed to [SyncableObjectService.pagingKeyExtractor].
  * @param syncStatus if non-null, only rows with this sync status are included.
  */
 public class BuoyientPagingSource<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val service: SyncableObjectService<O, T>,
-    private val pagingKeyExtractor: (O) -> String,
     private val syncStatus: String? = null,
-) : PagingSource<String, O>() {
+) : PagingSource<PageCursor, O>() {
 
-    override suspend fun load(params: LoadParams<String>): LoadResult<String, O> {
+    override suspend fun load(params: LoadParams<PageCursor>): LoadResult<PageCursor, O> {
         return try {
-            val cursor = params.key
-            val items = service.loadPage(
-                afterCursor = cursor,
+            val result = service.loadPage(
+                afterCursor = params.key,
                 loadSize = params.loadSize,
                 syncStatus = syncStatus,
             )
             LoadResult.Page(
-                data = items,
+                data = result.items,
                 prevKey = null,
-                nextKey = if (items.size < params.loadSize) null
-                          else pagingKeyExtractor(items.last()),
+                nextKey = result.nextCursor,
             )
         } catch (e: Exception) {
             LoadResult.Error(e)
         }
     }
 
-    override fun getRefreshKey(state: PagingState<String, O>): String? = null
+    override fun getRefreshKey(state: PagingState<PageCursor, O>): PageCursor? = null
 }

@@ -5,6 +5,8 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.elvdev.buoyient.globalconfigs.DatabaseOverride
 import com.elvdev.buoyient.serviceconfigs.EncryptionProvider
 import com.elvdev.buoyient.datatypes.HttpRequest
+import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import com.elvdev.buoyient.serviceconfigs.PendingRequestQueueStrategy
 import com.elvdev.buoyient.datatypes.ResolveConflictResult
 import com.elvdev.buoyient.ServiceRequestTag
@@ -30,11 +32,11 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val queueStrategy: PendingRequestQueueStrategy =
         PendingRequestQueueStrategy.Queue,
     encryptionProvider: EncryptionProvider? = null,
-    private val pagingKeyExtractor: ((O) -> String)? = null,
+    private val pagingConfig: PagingConfig<O>? = null,
 ) {
     private val storageCodec = StorageCodec(encryptionProvider)
 
-    private fun O.toPagingKey(): String? = pagingKeyExtractor?.invoke(this)
+    private fun O.toPagingKey(): String? = pagingConfig?.keyExtractor?.invoke(this)
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
         fieldConflict.fieldNames.map { fieldName ->
@@ -662,19 +664,68 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
+    /**
+     * Fetches one page of entries from `sync_data` using keyset cursor pagination.
+     *
+     * Dispatches across 8 generated SQLDelight queries because three independent
+     * dimensions each pick a different SQL statement:
+     *
+     * 1. **First page vs. next page** — first-page queries have no cursor predicate;
+     *    next-page queries add a `(paging_key, client_id) > cursor` (or `<` for DESC)
+     *    keyset filter. We split into two query families instead of using one query
+     *    with a nullable cursor parameter because SQLDelight's parameter-type inference
+     *    treats `:cursor IS NULL OR ...` as a non-nullable `String`, which makes a
+     *    single unified query uncompilable. Splitting also keeps each statement's
+     *    query plan tight (no `OR (cursor IS NULL)` short-circuit).
+     *
+     * 2. **Sort order** (`ASC` vs `DESC`) — embedded in the query because SQLDelight
+     *    can't parameterize `ORDER BY` direction. The cursor comparison flips with the
+     *    sort direction (`>` for ASC, `<` for DESC) to keep the resume-after semantics.
+     *
+     * 3. **Optional `sync_status` filter** — adds an extra `WHERE sync_status = ?`
+     *    clause; folded into the query rather than applied in Kotlin so SQLite can use
+     *    the existing `(service_name, sync_status, voided)` index.
+     *
+     * Each branch maps its rows inline because the eight SQLDelight-generated row
+     * classes are nominally distinct types — a single `.map { ... }` after the `when`
+     * wouldn't type-check.
+     */
     internal fun getPage(
-        afterCursor: String?,
+        afterCursor: PageCursor?,
         limit: Int,
         syncStatus: String? = null,
     ): List<LocalStoreEntry<O>> {
         val q = database.syncDataQueries
         val l = limit.toLong()
-        return if (syncStatus != null) {
-            q.getPageBySyncStatus(serviceName, syncStatus, afterCursor, l).executeAsList()
-                .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
-        } else {
-            q.getPage(serviceName, afterCursor, l).executeAsList()
-                .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+        val descending = pagingConfig?.sortOrder == PagingConfig.SortOrder.DESC
+        return when {
+            // First page: no cursor predicate, ordering + LIMIT alone yield the head.
+            afterCursor == null && syncStatus != null && descending ->
+                q.getFirstPageBySyncStatusDesc(serviceName, syncStatus, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            afterCursor == null && syncStatus != null ->
+                q.getFirstPageBySyncStatusAsc(serviceName, syncStatus, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            afterCursor == null && descending ->
+                q.getFirstPageDesc(serviceName, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            afterCursor == null ->
+                q.getFirstPageAsc(serviceName, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            // Next page: composite (paging_key, client_id) cursor — the client_id
+            // tiebreak prevents skipping rows that share a paging_key with the cursor row.
+            syncStatus != null && descending ->
+                q.getNextPageBySyncStatusDesc(serviceName, syncStatus, afterCursor.key, afterCursor.clientId, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            syncStatus != null ->
+                q.getNextPageBySyncStatusAsc(serviceName, syncStatus, afterCursor.key, afterCursor.clientId, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            descending ->
+                q.getNextPageDesc(serviceName, afterCursor.key, afterCursor.clientId, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            else ->
+                q.getNextPageAsc(serviceName, afterCursor.key, afterCursor.clientId, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
         }
     }
 

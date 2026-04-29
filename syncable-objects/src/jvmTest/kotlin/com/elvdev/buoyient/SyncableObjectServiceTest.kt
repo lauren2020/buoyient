@@ -1,6 +1,7 @@
 package com.elvdev.buoyient
 
 import com.elvdev.buoyient.serviceconfigs.ConnectivityChecker
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import com.elvdev.buoyient.serviceconfigs.PendingRequestQueueStrategy
 import com.elvdev.buoyient.serviceconfigs.ServerProcessingConfig
 import com.elvdev.buoyient.serviceconfigs.SyncFetchConfig
@@ -82,14 +83,14 @@ class SyncableObjectServiceTest {
         connectivityChecker: ConnectivityChecker,
         queueStrategy: PendingRequestQueueStrategy =
             PendingRequestQueueStrategy.Queue,
-        pagingKeyExtractor: ((TestItem) -> String)? = null,
+        pagingConfig: PagingConfig<TestItem>? = null,
     ) : SyncableObjectService<TestItem, TestRequestTag>(
         serializer = TestItem.serializer(),
         serverProcessingConfig = serverProcessingConfig,
         serviceName = "test-items",
         connectivityChecker = connectivityChecker,
         queueStrategy = queueStrategy,
-        pagingKeyExtractor = pagingKeyExtractor,
+        pagingConfig = pagingConfig,
     ) {
         init { stopPeriodicSyncDown() }
 
@@ -1479,6 +1480,7 @@ class SyncableObjectServiceTest {
 
     private fun createPagingServiceAndEnv(
         online: Boolean = true,
+        sortOrder: PagingConfig.SortOrder = PagingConfig.SortOrder.DESC,
     ): Pair<TestItemService, TestServiceEnvironment> {
         val env = TestServiceEnvironment()
         env.connectivityChecker.online = online
@@ -1488,74 +1490,137 @@ class SyncableObjectServiceTest {
         val service = TestItemService(
             serverProcessingConfig = testServerConfig(),
             connectivityChecker = env.connectivityChecker,
-            pagingKeyExtractor = { it.name },
+            pagingConfig = PagingConfig(
+                keyExtractor = { it.name },
+                sortOrder = sortOrder,
+            ),
         )
         return service to env
     }
 
     @Test
-    fun `loadPage - first page returns items ordered by paging key`() = runBlocking {
+    fun `loadPage - DESC default returns items newest-first by paging key`() = runBlocking {
         val (service, _) = createPagingServiceAndEnv(online = false)
         service.testCreate(testItem(clientId = "c1", name = "Apple"))
         service.testCreate(testItem(clientId = "c2", name = "Mango"))
         service.testCreate(testItem(clientId = "c3", name = "Banana"))
 
-        val page = service.loadPage(afterCursor = null, loadSize = 10)
+        val result = service.loadPage(loadSize = 10)
 
-        assertEquals(3, page.size)
-        assertEquals(listOf("Apple", "Banana", "Mango"), page.map { it.name })
+        assertEquals(3, result.items.size)
+        assertEquals(listOf("Mango", "Banana", "Apple"), result.items.map { it.name })
+        // Fewer items than loadSize → no more pages.
+        assertEquals(null, result.nextCursor)
         service.close()
     }
 
     @Test
-    fun `loadPage - subsequent page starts after cursor`() = runBlocking {
-        val (service, _) = createPagingServiceAndEnv(online = false)
+    fun `loadPage - ASC returns items oldest-first by paging key`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Mango"))
+        service.testCreate(testItem(clientId = "c3", name = "Banana"))
+
+        val result = service.loadPage(loadSize = 10)
+
+        assertEquals(listOf("Apple", "Banana", "Mango"), result.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - subsequent page resumes from nextCursor`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
         service.testCreate(testItem(clientId = "c1", name = "Apple"))
         service.testCreate(testItem(clientId = "c2", name = "Banana"))
         service.testCreate(testItem(clientId = "c3", name = "Cherry"))
         service.testCreate(testItem(clientId = "c4", name = "Date"))
 
-        val firstPage = service.loadPage(afterCursor = null, loadSize = 2)
-        assertEquals(listOf("Apple", "Banana"), firstPage.map { it.name })
+        val firstPage = service.loadPage(loadSize = 2)
+        assertEquals(listOf("Apple", "Banana"), firstPage.items.map { it.name })
+        assertNotNull(firstPage.nextCursor)
+        assertEquals("Banana", firstPage.nextCursor!!.key)
+        assertEquals("c2", firstPage.nextCursor!!.clientId)
 
-        val nextCursor = firstPage.last().name
-        val secondPage = service.loadPage(afterCursor = nextCursor, loadSize = 2)
-        assertEquals(listOf("Cherry", "Date"), secondPage.map { it.name })
+        val secondPage = service.loadPage(afterCursor = firstPage.nextCursor, loadSize = 2)
+        assertEquals(listOf("Cherry", "Date"), secondPage.items.map { it.name })
+
+        // Past the end — empty page, no more cursor.
+        val thirdPage = service.loadPage(afterCursor = secondPage.nextCursor, loadSize = 2)
+        assertTrue(thirdPage.items.isEmpty())
+        assertEquals(null, thirdPage.nextCursor)
         service.close()
     }
 
     @Test
-    fun `loadPage - returns empty list when no more items`() = runBlocking {
-        val (service, _) = createPagingServiceAndEnv(online = false)
-        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+    fun `loadPage - tiebreaker on client_id when paging keys collide (ASC)`() = runBlocking {
+        // Three items share the same paging key — the composite cursor should
+        // tiebreak on client_id so no rows are skipped.
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Same"))
+        service.testCreate(testItem(clientId = "c2", name = "Same"))
+        service.testCreate(testItem(clientId = "c3", name = "Same"))
 
-        val page = service.loadPage(afterCursor = "Zebra", loadSize = 10)
+        val firstPage = service.loadPage(loadSize = 2)
+        assertEquals(listOf("c1", "c2"), firstPage.items.map { it.clientId })
+        assertNotNull(firstPage.nextCursor)
+        assertEquals("Same", firstPage.nextCursor!!.key)
+        assertEquals("c2", firstPage.nextCursor!!.clientId)
 
-        assertTrue(page.isEmpty())
+        val secondPage = service.loadPage(afterCursor = firstPage.nextCursor, loadSize = 2)
+        assertEquals(listOf("c3"), secondPage.items.map { it.clientId })
         service.close()
     }
 
     @Test
-    fun `loadPage - respects loadSize`() = runBlocking {
+    fun `loadPage - tiebreaker on client_id when paging keys collide (DESC)`() = runBlocking {
         val (service, _) = createPagingServiceAndEnv(online = false)
+        service.testCreate(testItem(clientId = "c1", name = "Same"))
+        service.testCreate(testItem(clientId = "c2", name = "Same"))
+        service.testCreate(testItem(clientId = "c3", name = "Same"))
+
+        val firstPage = service.loadPage(loadSize = 2)
+        // DESC tiebreaks on client_id descending too: c3, c2.
+        assertEquals(listOf("c3", "c2"), firstPage.items.map { it.clientId })
+
+        val secondPage = service.loadPage(afterCursor = firstPage.nextCursor, loadSize = 2)
+        assertEquals(listOf("c1"), secondPage.items.map { it.clientId })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - respects loadSize and reports nextCursor when full`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
         service.testCreate(testItem(clientId = "c1", name = "Alpha"))
         service.testCreate(testItem(clientId = "c2", name = "Beta"))
         service.testCreate(testItem(clientId = "c3", name = "Gamma"))
 
-        val page = service.loadPage(afterCursor = null, loadSize = 2)
+        val page = service.loadPage(loadSize = 2)
 
-        assertEquals(2, page.size)
-        assertEquals(listOf("Alpha", "Beta"), page.map { it.name })
+        assertEquals(2, page.items.size)
+        assertEquals(listOf("Alpha", "Beta"), page.items.map { it.name })
+        assertNotNull(page.nextCursor)
         service.close()
     }
 
     @Test
-    fun `loadPage - throws when pagingKeyExtractor not configured`() = runBlocking {
+    fun `loadPage - throws when pagingConfig not configured`() = runBlocking {
         val (service, _) = createServiceAndEnv(online = false)
 
         var threw = false
         try {
-            service.loadPage(afterCursor = null, loadSize = 10)
+            service.loadPage(loadSize = 10)
         } catch (e: IllegalStateException) {
             threw = true
         }

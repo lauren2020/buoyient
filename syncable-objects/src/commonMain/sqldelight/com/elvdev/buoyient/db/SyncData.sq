@@ -197,24 +197,75 @@ FROM sync_data
 WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
 LIMIT :limit;
 
--- Keyset-cursor page fetch: returns up to :limit non-voided rows with paging_key > :cursor,
--- ordered by paging_key ascending. Pass cursor = NULL for the first page.
-getPage:
+-- First page (ascending) — no cursor.
+getFirstPageAsc:
 SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
 FROM sync_data
-WHERE service_name = :service_name
-  AND voided = 0
-  AND (:cursor IS NULL OR paging_key > :cursor)
-ORDER BY paging_key ASC
+WHERE service_name = :service_name AND voided = 0
+ORDER BY paging_key ASC, client_id ASC
 LIMIT :limit;
 
--- Like getPage but also filters by sync_status.
-getPageBySyncStatus:
+-- Subsequent page (ascending) — composite cursor (paging_key, client_id) tiebreaks
+-- on client_id so rows with identical paging keys are not skipped.
+getNextPageAsc:
 SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
 FROM sync_data
-WHERE service_name = :service_name
-  AND sync_status = :sync_status
-  AND voided = 0
-  AND (:cursor IS NULL OR paging_key > :cursor)
-ORDER BY paging_key ASC
+WHERE service_name = :service_name AND voided = 0
+  AND (paging_key > :cursor_key
+       OR (paging_key = :cursor_key AND client_id > :cursor_client_id))
+ORDER BY paging_key ASC, client_id ASC
+LIMIT :limit;
+
+-- First page (descending) — no cursor.
+getFirstPageDesc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND voided = 0
+ORDER BY paging_key DESC, client_id DESC
+LIMIT :limit;
+
+-- Subsequent page (descending) — composite cursor.
+getNextPageDesc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND voided = 0
+  AND (paging_key < :cursor_key
+       OR (paging_key = :cursor_key AND client_id < :cursor_client_id))
+ORDER BY paging_key DESC, client_id DESC
+LIMIT :limit;
+
+-- First page (ascending) filtered by sync_status.
+getFirstPageBySyncStatusAsc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+ORDER BY paging_key ASC, client_id ASC
+LIMIT :limit;
+
+-- Subsequent page (ascending) filtered by sync_status.
+getNextPageBySyncStatusAsc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+  AND (paging_key > :cursor_key
+       OR (paging_key = :cursor_key AND client_id > :cursor_client_id))
+ORDER BY paging_key ASC, client_id ASC
+LIMIT :limit;
+
+-- First page (descending) filtered by sync_status.
+getFirstPageBySyncStatusDesc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+ORDER BY paging_key DESC, client_id DESC
+LIMIT :limit;
+
+-- Subsequent page (descending) filtered by sync_status.
+getNextPageBySyncStatusDesc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+  AND (paging_key < :cursor_key
+       OR (paging_key = :cursor_key AND client_id < :cursor_client_id))
+ORDER BY paging_key DESC, client_id DESC
 LIMIT :limit;
