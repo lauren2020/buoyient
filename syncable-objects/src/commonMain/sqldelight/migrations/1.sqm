@@ -1,0 +1,4 @@
+ALTER TABLE sync_data ADD COLUMN paging_key TEXT;
+
+CREATE INDEX idx_sync_data_paging_key
+    ON sync_data(service_name, paging_key);

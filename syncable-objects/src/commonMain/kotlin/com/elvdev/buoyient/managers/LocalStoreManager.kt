@@ -30,8 +30,11 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val queueStrategy: PendingRequestQueueStrategy =
         PendingRequestQueueStrategy.Queue,
     encryptionProvider: EncryptionProvider? = null,
+    private val pagingKeyExtractor: ((O) -> String)? = null,
 ) {
     private val storageCodec = StorageCodec(encryptionProvider)
+
+    private fun O.toPagingKey(): String? = pagingKeyExtractor?.invoke(this)
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
         fieldConflict.fieldNames.map { fieldName ->
@@ -271,6 +274,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     version = data.version,
                     data_blob = storageCodec.encodeForStorage(jsonData.toString()),
                     sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
+                    paging_key = data.toPagingKey(),
                 )
 
                 pendingRequestQueueManager.queueCreateRequest(
@@ -322,6 +326,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 data_blob = encryptedServerDataJson,
                 sync_status = SyncableObject.SyncStatus.SYNCED,
                 last_synced_server_data = encryptedServerDataJson,
+                paging_key = serverData.toPagingKey(),
             )
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to insert data from [create] response (server_id: ${serverData.serverId}): ", e)
@@ -345,6 +350,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     version = data.version,
                     data_blob = storageCodec.encodeForStorage(codec.encode(data).toString()),
                     sync_status = SyncableObject.SyncStatus.PENDING_UPDATE,
+                    paging_key = data.toPagingKey(),
                     service_name = serviceName,
                     client_id = data.clientId,
                 )
@@ -387,6 +393,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 sync_status = SyncableObject.SyncStatus.SYNCED,
                 data_blob = encryptedServerDataJson,
                 last_synced_server_data = encryptedServerDataJson,
+                paging_key = serverData.toPagingKey(),
                 service_name = serviceName,
                 client_id = originalClientId,
             )
@@ -411,6 +418,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             data_blob = encryptedServerDataJson,
             sync_status = SyncableObject.SyncStatus.SYNCED,
             last_synced_server_data = encryptedServerDataJson,
+            paging_key = serverObj.toPagingKey(),
         )
     }
 
@@ -463,6 +471,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 sync_status = SyncableObject.SyncStatus.SYNCED,
                 data_blob = encryptedServerDataJson,
                 last_synced_server_data = encryptedServerDataJson,
+                paging_key = serverData.toPagingKey(),
                 service_name = serviceName,
                 client_id = originalClientId,
             )
@@ -478,6 +487,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             database.syncDataQueries.voidLocalOnly(
                 sync_status = SyncableObject.SyncStatus.LOCAL_ONLY,
                 data_blob = storageCodec.encodeForStorage(jsonData.toString()),
+                paging_key = data.toPagingKey(),
                 service_name = serviceName,
                 client_id = data.clientId,
             )
@@ -511,6 +521,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         sync_status = updatedSyncStatus,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLatestData)),
                         last_synced_server_data = resolvedDataJson,
+                        paging_key = rebasedLatestData.toPagingKey(),
                         service_name = serviceName,
                         client_id = row.clientId,
                     )
@@ -534,6 +545,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     data_blob = resolvedDataJson,
                     last_synced_server_data = resolvedDataJson,
                     version = latestServerData.version,
+                    paging_key = latestServerData.toPagingKey(),
                     service_name = serviceName,
                     client_id = row.clientId,
                 )
@@ -650,6 +662,22 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
+    internal fun getPage(
+        afterCursor: String?,
+        limit: Int,
+        syncStatus: String? = null,
+    ): List<LocalStoreEntry<O>> {
+        val q = database.syncDataQueries
+        val l = limit.toLong()
+        return if (syncStatus != null) {
+            q.getPageBySyncStatus(serviceName, syncStatus, afterCursor, l).executeAsList()
+                .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+        } else {
+            q.getPage(serviceName, afterCursor, l).executeAsList()
+                .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+        }
+    }
+
     private fun mapRowToEntry(
         dataBlob: String,
         syncStatusValue: String,
@@ -704,6 +732,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     sync_status = SyncableObject.SyncStatus.SYNCED,
                     data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLocalData)),
                     last_synced_server_data = storageCodec.encodeForStorage(codec.encodeToString(updatedServerData)),
+                    paging_key = rebasedLocalData.toPagingKey(),
                     service_name = serviceName,
                     client_id = clientId,
                 )
@@ -912,6 +941,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                             sync_status = updatedSyncStatus,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                             server_id = latestData.serverId ?: newServerBaseline.serverId,
+                            paging_key = latestData.toPagingKey(),
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -969,6 +999,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         sync_status = SyncableObject.SyncStatus.SYNCED,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(entry.data)),
                         server_id = serverId ?: entry.data.serverId,
+                        paging_key = entry.data.toPagingKey(),
                         service_name = serviceName,
                         client_id = clientId,
                     )
@@ -989,6 +1020,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         sync_status = updatedSyncStatus,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                         server_id = serverId ?: latestData.serverId,
+                        paging_key = latestData.toPagingKey(),
                         service_name = serviceName,
                         client_id = clientId,
                     )
@@ -1015,6 +1047,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                             sync_status = SyncableObject.SyncStatus.SYNCED,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(entry.data)),
                             server_id = serverId ?: entry.data.serverId,
+                            paging_key = entry.data.toPagingKey(),
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -1032,6 +1065,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                             sync_status = updatedSyncStatus,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                             server_id = serverId ?: latestData.serverId,
+                            paging_key = latestData.toPagingKey(),
                             service_name = serviceName,
                             client_id = clientId,
                         )

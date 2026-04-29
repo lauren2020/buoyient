@@ -14,6 +14,8 @@ nmcp = "1.4.4"
 skie = "0.8.4"
 atomicfu = "0.23.2"
 
+paging = "3.3.6"
+
 compileSdk = "34"
 minSdk = "27"
 
@@ -43,6 +45,7 @@ kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "a
 
 androidx-work = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
 androidx-startup = { module = "androidx.startup:startup-runtime", version.ref = "startup" }
+androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

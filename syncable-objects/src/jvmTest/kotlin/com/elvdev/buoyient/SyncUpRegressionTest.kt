@@ -145,6 +145,7 @@ class SyncUpRegressionTest {
             version = "1",
             data_blob = """{"client_id":"c1","version":"1","name":"Item","value":0}""",
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
+            paging_key = null,
         )
 
         // Simulate the sync-up success path: upsertEntry is called with
@@ -158,6 +159,7 @@ class SyncUpRegressionTest {
             data_blob = """{"client_id":"c1","server_id":"server_1","version":"1","name":"Item","value":0}""",
             sync_status = SyncableObject.SyncStatus.SYNCED,
             last_synced_server_data = """{"client_id":"c1","server_id":"server_1","version":"1","name":"Item","value":0}""",
+            paging_key = null,
         )
 
         // Verify sync_status was updated.

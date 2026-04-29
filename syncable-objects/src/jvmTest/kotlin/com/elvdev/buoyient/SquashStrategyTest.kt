@@ -122,6 +122,7 @@ class SquashStrategyTest {
             version = "1",
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
+            paging_key = null,
         )
 
         // Queue a CREATE
@@ -210,6 +211,7 @@ class SquashStrategyTest {
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.SYNCED,
             last_synced_server_data = json.encodeToString(TestItem.serializer(), item),
+            paging_key = null,
         )
 
         // Queue first UPDATE
@@ -284,6 +286,7 @@ class SquashStrategyTest {
             version = "1",
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
+            paging_key = null,
         )
 
         // Queue a CREATE with serverAttemptMade = true (e.g., timed out)
@@ -355,6 +358,7 @@ class SquashStrategyTest {
             version = "1",
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
+            paging_key = null,
         )
 
         // Queue CREATE
