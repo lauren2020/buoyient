@@ -8,6 +8,7 @@ import com.elvdev.buoyient.serviceconfigs.SyncFetchConfig
 import com.elvdev.buoyient.serviceconfigs.SyncUpConfig
 import com.elvdev.buoyient.serviceconfigs.SyncUpResult
 import com.elvdev.buoyient.datatypes.CreateRequestBuilder
+import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.GetResponse
 import com.elvdev.buoyient.datatypes.HttpRequest
 import com.elvdev.buoyient.datatypes.ResponseUnpacker
@@ -84,6 +85,7 @@ class SyncableObjectServiceTest {
         queueStrategy: PendingRequestQueueStrategy =
             PendingRequestQueueStrategy.Queue,
         pagingConfig: PagingConfig<TestItem>? = null,
+        indexedJsonPaths: List<String> = emptyList(),
     ) : SyncableObjectService<TestItem, TestRequestTag>(
         serializer = TestItem.serializer(),
         serverProcessingConfig = serverProcessingConfig,
@@ -91,6 +93,7 @@ class SyncableObjectServiceTest {
         connectivityChecker = connectivityChecker,
         queueStrategy = queueStrategy,
         pagingConfig = pagingConfig,
+        indexedJsonPaths = indexedJsonPaths,
     ) {
         init { stopPeriodicSyncDown() }
 
@@ -1622,6 +1625,267 @@ class SyncableObjectServiceTest {
         try {
             service.loadPage(loadSize = 10)
         } catch (e: IllegalStateException) {
+            threw = true
+        }
+        assertTrue(threw)
+        service.close()
+    }
+
+    // endregion
+
+    // region loadPage with Filter
+
+    private fun createFilterServiceAndEnv(
+        sortOrder: PagingConfig.SortOrder = PagingConfig.SortOrder.ASC,
+        indexedJsonPaths: List<String> = emptyList(),
+    ): Pair<TestItemService, TestServiceEnvironment> {
+        val env = TestServiceEnvironment()
+        env.connectivityChecker.online = false  // keep all writes local
+        env.mockRouter.onGet("https://api.test.com/items") { _ ->
+            MockResponse(200, buildJsonObject { put("data", buildJsonObject { }) })
+        }
+        val service = TestItemService(
+            serverProcessingConfig = testServerConfig(),
+            connectivityChecker = env.connectivityChecker,
+            pagingConfig = PagingConfig(
+                keyExtractor = { it.name },
+                sortOrder = sortOrder,
+            ),
+            indexedJsonPaths = indexedJsonPaths,
+        )
+        return service to env
+    }
+
+    @Test
+    fun `loadPage with Eq filter returns only matching rows`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "Alpha", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Beta", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Gamma", value = 1))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.eq("$.value", 1),
+        )
+
+        assertEquals(listOf("Alpha", "Gamma"), result.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with Gt filter does numeric comparison`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 2))
+        service.testCreate(testItem(clientId = "c2", name = "B", value = 10))
+        service.testCreate(testItem(clientId = "c3", name = "C", value = 5))
+
+        // If json_extract returned TEXT, "10" < "2" lexicographically and we'd
+        // miss the value-10 row. Verifying numeric semantics here.
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.gt("$.value", 4),
+        )
+
+        assertEquals(setOf("B", "C"), result.items.map { it.name }.toSet())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with And filter requires all clauses`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "Active1", value = 5))
+        service.testCreate(testItem(clientId = "c2", name = "Active2", value = 1))
+        service.testCreate(testItem(clientId = "c3", name = "Other", value = 5))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.and(
+                Filter.like("$.name", "Active%"),
+                Filter.gte("$.value", 3),
+            ),
+        )
+
+        assertEquals(listOf("Active1"), result.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with Or filter matches any clause`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "Apple", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Banana", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry", value = 3))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.or(
+                Filter.eq("$.name", "Apple"),
+                Filter.eq("$.name", "Cherry"),
+            ),
+        )
+
+        assertEquals(setOf("Apple", "Cherry"), result.items.map { it.name }.toSet())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with Not filter inverts predicate`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "B", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "C", value = 3))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.not(Filter.eq("$.value", 2)),
+        )
+
+        assertEquals(setOf("A", "C"), result.items.map { it.name }.toSet())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with In filter matches any value in list`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "B", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "C", value = 3))
+        service.testCreate(testItem(clientId = "c4", name = "D", value = 4))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.isIn("$.value", listOf(1, 3)),
+        )
+
+        assertEquals(setOf("A", "C"), result.items.map { it.name }.toSet())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with In filter empty list returns no rows`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.isIn("$.value", emptyList()),
+        )
+
+        assertTrue(result.items.isEmpty())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage filter composes with cursor pagination`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "Apple", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Banana", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry", value = 1))
+        service.testCreate(testItem(clientId = "c4", name = "Date", value = 1))
+        service.testCreate(testItem(clientId = "c5", name = "Elderberry", value = 1))
+
+        val firstPage = service.loadPage(
+            loadSize = 2,
+            filter = Filter.eq("$.value", 1),
+        )
+        assertEquals(listOf("Apple", "Cherry"), firstPage.items.map { it.name })
+        assertNotNull(firstPage.nextCursor)
+
+        val secondPage = service.loadPage(
+            afterCursor = firstPage.nextCursor,
+            loadSize = 2,
+            filter = Filter.eq("$.value", 1),
+        )
+        // Banana (value=2) is skipped by the filter; Date and Elderberry remain.
+        assertEquals(listOf("Date", "Elderberry"), secondPage.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage filter composes with syncStatus`() = runBlocking {
+        val (service, env) = createFilterServiceAndEnv()
+        // Seed a mix: c1 PENDING_CREATE (value=1), c2 SYNCED (value=1), c3 PENDING_CREATE (value=2).
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+        env.database.syncDataQueries.insertFromServerResponse(
+            service_name = "test-items",
+            client_id = "c2",
+            server_id = "server-c2",
+            version = "1",
+            last_synced_timestamp = "2024-01-01",
+            data_blob = json.encodeToString(
+                TestItem.serializer(),
+                testItem(clientId = "c2", serverId = "server-c2", name = "B", value = 1),
+            ),
+            sync_status = SyncableObject.SyncStatus.SYNCED,
+            last_synced_server_data = "{}",
+            paging_key = "B",
+        )
+        service.testCreate(testItem(clientId = "c3", name = "C", value = 2))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            syncStatus = SyncableObject.SyncStatus.PENDING_CREATE,
+            filter = Filter.eq("$.value", 1),
+        )
+
+        // Only c1 satisfies both PENDING_CREATE AND value=1.
+        assertEquals(listOf("A"), result.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage filter no matches returns empty page with null cursor`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.eq("$.value", 999),
+        )
+
+        assertTrue(result.items.isEmpty())
+        assertEquals(null, result.nextCursor)
+        service.close()
+    }
+
+    @Test
+    fun `indexedJsonPaths creates SQLite expression indexes`() = runBlocking {
+        val (service, env) = createFilterServiceAndEnv(
+            indexedJsonPaths = listOf("$.value", "$.name"),
+        )
+        // Trigger lazy index creation by running any filter query.
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+        service.loadPage(loadSize = 1, filter = Filter.eq("$.value", 1))
+
+        val indexNames = env.databaseHandle.driver.executeQuery(
+            identifier = null,
+            sql = "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_test_items_%'",
+            mapper = { cursor ->
+                val names = mutableListOf<String>()
+                while (cursor.next().value) {
+                    names += cursor.getString(0)!!
+                }
+                app.cash.sqldelight.db.QueryResult.Value(names.toList())
+            },
+            parameters = 0,
+        ).value
+
+        assertTrue(indexNames.any { it.contains("value") }, "expected value index, got: $indexNames")
+        assertTrue(indexNames.any { it.contains("name") }, "expected name index, got: $indexNames")
+        service.close()
+    }
+
+    @Test
+    fun `indexedJsonPaths rejects malformed paths`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv(
+            indexedJsonPaths = listOf("not-a-valid-path"),
+        )
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+
+        var threw = false
+        try {
+            service.loadPage(loadSize = 1, filter = Filter.eq("$.value", 1))
+        } catch (e: IllegalArgumentException) {
             threw = true
         }
         assertTrue(threw)

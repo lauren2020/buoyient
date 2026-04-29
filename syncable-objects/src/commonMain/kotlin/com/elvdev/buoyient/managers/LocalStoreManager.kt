@@ -2,8 +2,12 @@ package com.elvdev.buoyient.managers
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlPreparedStatement
 import com.elvdev.buoyient.globalconfigs.DatabaseOverride
 import com.elvdev.buoyient.serviceconfigs.EncryptionProvider
+import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.HttpRequest
 import com.elvdev.buoyient.datatypes.PageCursor
 import com.elvdev.buoyient.serviceconfigs.PagingConfig
@@ -33,6 +37,17 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         PendingRequestQueueStrategy.Queue,
     encryptionProvider: EncryptionProvider? = null,
     private val pagingConfig: PagingConfig<O>? = null,
+    /**
+     * Raw [SqlDriver] used by dynamic-SQL paths (filter queries, expression-index
+     * creation). Not required for ordinary CRUD; null is fine when the consumer
+     * does not use filter-based [getPage] calls.
+     */
+    private val driver: SqlDriver? = DatabaseOverride.driver,
+    /**
+     * JSON paths to be backed by SQLite expression indexes for fast filter queries.
+     * Indexes are created lazily on first use (see [ensureIndexedPaths]).
+     */
+    private val indexedJsonPaths: List<String> = emptyList(),
 ) {
     private val storageCodec = StorageCodec(encryptionProvider)
 
@@ -729,6 +744,110 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
+    /**
+     * Lazily creates SQLite expression indexes for each path in [indexedJsonPaths]
+     * the first time a filter query runs. `CREATE INDEX IF NOT EXISTS` keeps this
+     * idempotent across LocalStoreManager re-instantiation within the same DB.
+     *
+     * Index name is derived from `(serviceName, path)` so two services indexing
+     * the same JSON path produce distinct indexes — both are scoped on
+     * `service_name` in the WHERE clause anyway, but separate indexes give the
+     * planner the cleanest options.
+     */
+    private var indexesCreated = false
+    private fun ensureIndexedPaths() {
+        if (indexesCreated) return
+        val drv = driver ?: return
+        if (indexedJsonPaths.isEmpty()) {
+            indexesCreated = true
+            return
+        }
+        for (path in indexedJsonPaths) {
+            require(JSON_PATH_REGEX.matches(path)) {
+                "Invalid JSON path '$path' — must match $.field, $.nested.field, or $.array[0]"
+            }
+            val indexName = "idx_${serviceName.toIndexSlug()}_${path.toIndexSlug()}"
+            val sql = "CREATE INDEX IF NOT EXISTS $indexName " +
+                "ON sync_data(service_name, json_extract(data_blob, '$path'))"
+            drv.execute(identifier = null, sql = sql, parameters = 0, binders = null)
+        }
+        indexesCreated = true
+    }
+
+    /**
+     * Filter-aware variant of [getPage]. Drops to dynamic SQL because the filter
+     * tree's shape varies per call; the static SQLDelight queries can only express
+     * the no-filter combinations. The cursor predicate, sort direction, optional
+     * `sync_status`, and `voided = 0` clauses are all assembled here in the same
+     * shape as the static queries so semantics stay aligned.
+     *
+     * Requires [driver] to be non-null. Throws [IllegalStateException] otherwise.
+     */
+    internal fun getPageWithFilter(
+        afterCursor: PageCursor?,
+        limit: Int,
+        syncStatus: String?,
+        filter: Filter,
+    ): List<LocalStoreEntry<O>> {
+        val drv = checkNotNull(driver) {
+            "Filter queries require a driver. Set DatabaseOverride.driver (or use Buoyient.databaseHandle)."
+        }
+        ensureIndexedPaths()
+
+        val descending = pagingConfig?.sortOrder == PagingConfig.SortOrder.DESC
+        val whereClauses = mutableListOf("service_name = ?", "voided = 0")
+        val params = mutableListOf<Any?>(serviceName)
+
+        if (syncStatus != null) {
+            whereClauses += "sync_status = ?"
+            params += syncStatus
+        }
+
+        val (filterClause, filterParams) = filter.toSql()
+        whereClauses += filterClause
+        params.addAll(filterParams)
+
+        if (afterCursor != null) {
+            val cmp = if (descending) "<" else ">"
+            whereClauses += "(paging_key $cmp ? OR (paging_key = ? AND client_id $cmp ?))"
+            params.add(afterCursor.key)
+            params.add(afterCursor.key)
+            params.add(afterCursor.clientId)
+        }
+
+        val dir = if (descending) "DESC" else "ASC"
+        val sql = buildString {
+            append("SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data\n")
+            append("FROM sync_data\n")
+            append("WHERE ").append(whereClauses.joinToString(" AND ")).append('\n')
+            append("ORDER BY paging_key ").append(dir).append(", client_id ").append(dir).append('\n')
+            append("LIMIT ?")
+        }
+        params.add(limit.toLong())
+
+        return drv.executeQuery(
+            identifier = null,
+            sql = sql,
+            mapper = { cursor ->
+                val rows = mutableListOf<LocalStoreEntry<O>>()
+                while (cursor.next().value) {
+                    rows += mapRowToEntry(
+                        dataBlob = cursor.getString(0)!!,
+                        syncStatusValue = cursor.getString(1)!!,
+                        lastSyncedTimestamp = cursor.getString(2),
+                        clientId = cursor.getString(3)!!,
+                        lastSyncedServerData = cursor.getString(4),
+                    )
+                }
+                QueryResult.Value(rows.toList())
+            },
+            parameters = params.size,
+            binders = {
+                params.forEachIndexed { index, value -> bindAny(index, value) }
+            },
+        ).value
+    }
+
     private fun mapRowToEntry(
         dataBlob: String,
         syncStatusValue: String,
@@ -1156,5 +1275,36 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     internal companion object {
         internal const val TAG: String = "SyncableObjectService:LocalStoreManager"
+
+        /**
+         * Permits `$.field`, `$.nested.field`, and array subscripts `$.list[0]`.
+         * Rejects anything that could break embedding the path in `CREATE INDEX`
+         * SQL (single quotes, backslashes, semicolons, etc.).
+         */
+        private val JSON_PATH_REGEX = Regex("""^\$(\.[A-Za-z_][A-Za-z0-9_]*(\[\d+\])?)+$""")
+    }
+}
+
+/** Slugify for use as a SQLite identifier (index name component). */
+internal fun String.toIndexSlug(): String =
+    removePrefix("$.").replace(Regex("[^A-Za-z0-9]"), "_")
+
+/**
+ * Binds an arbitrary Kotlin value to a prepared-statement parameter using a type-
+ * appropriate driver method. Numbers go through `bindLong` / `bindDouble` so
+ * SQLite compares them numerically against `json_extract` values; strings go
+ * through `bindString`. Everything else is rendered via `toString()` as a fallback.
+ */
+internal fun SqlPreparedStatement.bindAny(index: Int, value: Any?) {
+    when (value) {
+        null -> bindString(index, null)
+        is String -> bindString(index, value)
+        is Boolean -> bindBoolean(index, value)
+        is Int -> bindLong(index, value.toLong())
+        is Long -> bindLong(index, value)
+        is Float -> bindDouble(index, value.toDouble())
+        is Double -> bindDouble(index, value)
+        is ByteArray -> bindBytes(index, value)
+        else -> bindString(index, value.toString())
     }
 }

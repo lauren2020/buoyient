@@ -15,6 +15,7 @@ import com.elvdev.buoyient.serviceconfigs.createPlatformConnectivityChecker
 import com.elvdev.buoyient.sync.SyncDriver
 import com.elvdev.buoyient.sync.createPlatformSyncScheduleNotifier
 import com.elvdev.buoyient.datatypes.CreateRequestBuilder
+import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.GetResponse
 import com.elvdev.buoyient.datatypes.HttpRequest
 import com.elvdev.buoyient.datatypes.PageCursor
@@ -73,6 +74,18 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         SyncCodec(serializer)
     ),
     public val pagingConfig: PagingConfig<O>? = null,
+    /**
+     * JSON paths into `data_blob` that the library will back with SQLite expression
+     * indexes for fast `loadPage(filter = ...)` queries.
+     *
+     * Format: SQLite JSON path syntax — `$.field`, `$.nested.field`, `$.array[0]`.
+     * Indexes are created lazily on the first filter query and named after the
+     * service + path. Filtering on un-indexed paths still works, just falls back
+     * to a full table scan.
+     *
+     * Example: `indexedJsonPaths = listOf("$.status", "$.created_at")`.
+     */
+    public val indexedJsonPaths: List<String> = emptyList(),
 ) : Service<O> {
 
     private val codec: SyncCodec<O> = SyncCodec(serializer)
@@ -94,6 +107,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         encryptionProvider = encryptionProvider,
         queueStrategy = queueStrategy,
         pagingConfig = pagingConfig,
+        indexedJsonPaths = indexedJsonPaths,
     )
 
     private val backgroundRequestScheduler: BackgroundRequestScheduler =
@@ -970,23 +984,43 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
      * Requires [pagingConfig] to be configured on this service; throws
      * [IllegalStateException] otherwise.
      *
+     * **Filtering.** Pass [filter] to restrict the page to rows whose `data_blob`
+     * matches a [Filter] predicate. Filters compose with cursor pagination, sort
+     * order, and [syncStatus]. Filter queries drop to dynamic SQL via the underlying
+     * driver, so they additionally require a driver to be available — set one via
+     * [com.elvdev.buoyient.globalconfigs.Buoyient.databaseHandle] or
+     * [com.elvdev.buoyient.globalconfigs.DatabaseOverride.driver]. Declare hot
+     * filter paths via [indexedJsonPaths] to avoid full table scans.
+     *
      * @param afterCursor exclusive lower bound; `null` starts from the beginning.
      * @param loadSize number of rows to return.
      * @param syncStatus if non-null, only rows with this sync status are returned.
+     * @param filter optional predicate over `data_blob` (see [Filter]).
      */
     public fun loadPage(
         afterCursor: PageCursor? = null,
         loadSize: Int,
         syncStatus: String? = null,
+        filter: Filter? = null,
     ): PageResult<O> {
         val config = checkNotNull(pagingConfig) {
             "loadPage() requires a pagingConfig. Pass one to the SyncableObjectService constructor."
         }
-        val items = localStoreManager.getPage(
-            afterCursor = afterCursor,
-            limit = loadSize,
-            syncStatus = syncStatus,
-        ).map { it.data }
+        val entries = if (filter == null) {
+            localStoreManager.getPage(
+                afterCursor = afterCursor,
+                limit = loadSize,
+                syncStatus = syncStatus,
+            )
+        } else {
+            localStoreManager.getPageWithFilter(
+                afterCursor = afterCursor,
+                limit = loadSize,
+                syncStatus = syncStatus,
+                filter = filter,
+            )
+        }
+        val items = entries.map { it.data }
         val nextCursor = if (items.size < loadSize) {
             null
         } else {

@@ -63,10 +63,29 @@ public object Buoyient {
      * Override the [SyncDatabase] used by all services. When set, every
      * [com.elvdev.buoyient.managers.LocalStoreManager] created after this point uses this database instead
      * of the platform default.
+     *
+     * To enable filter-based queries, also set the matching [SqlDriver] via
+     * [DatabaseOverride.driver] — or use [databaseHandle] to set both at once.
      */
     public var database: SyncDatabase?
         get() = DatabaseOverride.database
         set(value) { DatabaseOverride.database = value }
+
+    /**
+     * Override the [SyncDatabase] *and* its backing [SqlDriver] together. Setting
+     * via this property is preferred over [database] when filter queries
+     * (e.g. `loadPage(filter = ...)`) will be used, since they require driver access.
+     */
+    public var databaseHandle: SyncDatabaseHandle?
+        get() {
+            val db = DatabaseOverride.database ?: return null
+            val drv = DatabaseOverride.driver ?: return null
+            return SyncDatabaseHandle(db, drv)
+        }
+        set(value) {
+            DatabaseOverride.database = value?.database
+            DatabaseOverride.driver = value?.driver
+        }
 
     /**
      * Returns the platform-specific [ConnectivityChecker] implementation.
