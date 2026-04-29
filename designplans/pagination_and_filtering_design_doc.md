@@ -195,7 +195,16 @@ CREATE INDEX idx_sync_data_paging_key ON sync_data(service_name, paging_key);
 
 The column is nullable (no `NOT NULL`), so rows that existed before this column was added remain valid. New writes always populate `paging_key` (the default extractor returns the non-null `clientId`).
 
-**Migration file:** `syncable-objects/src/commonMain/sqldelight/migrations/1.sqm` contains the ALTER + CREATE INDEX. SQLDelight's `verifyMigrations` was investigated but disabled — verification requires a pre-generated v1 schema baseline file that doesn't exist in this repo. Re-enabling is a documented follow-up: run `./gradlew generateSyncDatabaseSchema`, commit the snapshot, then turn `verifyMigrations = true` back on.
+**Migration file:** `syncable-objects/src/commonMain/sqldelight/migrations/1.sqm` contains the ALTER + CREATE INDEX.
+
+**Migration verification:** `verifyMigrations = true` is enabled in `syncable-objects/build.gradle.kts`, with `schemaOutputDirectory = src/commonMain/sqldelight/databases/`. Two schema snapshots are committed there:
+
+- `1.db` — schema baseline before `1.sqm` is applied (no `paging_key` column, no `idx_sync_data_paging_key`).
+- `2.db` — current schema (with the column and index).
+
+On every build, SQLDelight applies `1.sqm` to `1.db` and asserts the result matches the current `.sq` schema (and `2.db`). Drift between the migration and the live schema fails the build at compile time.
+
+Producing snapshots for future migrations: each new `.sqm` file should be paired with a regenerated snapshot. Run `./gradlew :syncable-objects:generateCommonMainSyncDatabaseSchema` after editing `.sq` and `.sqm` files to refresh the highest-numbered snapshot, then commit it. (Lower-numbered snapshots represent past schema versions — once committed they should not be regenerated.)
 
 **Backfill:** Not performed. Old rows have `paging_key = NULL` until rewritten (sync, update, etc.). NULL values sort to the start under ASC and the end under DESC. For a service adopting paging on a large existing dataset, a one-shot `UPDATE sync_data SET paging_key = client_id WHERE paging_key IS NULL` would clean things up — left as a follow-up since the typical adoption path involves cold data already going through sync-down.
 
@@ -235,11 +244,10 @@ Index storage: `idx_sync_data_paging_key` is mandatory. Each path in `indexedJso
 1. **`BuoyientPagingSource` doesn't accept a `Filter`.** Adding it would mean the consumer reinstantiates the `Pager` whenever the filter changes (no `invalidate()` on filter swap). Mechanically simple; deferred until there's demand.
 2. **No reverse pagination (`prevKey`).** Could be added by mirroring the cursor predicate; currently always null.
 3. **String-typed JSON paths.** A generated typed-paths wrapper (`Item.Path.status`) would prevent typos but is its own project.
-4. **`verifyMigrations` is off.** Needs the v1 schema snapshot generated and committed.
-5. **`sqlite-3-30-dialect` predates JSON1's default-on threshold.** JSON1 works on all platforms buoyient targets but isn't dialect-guaranteed. Bump to `sqlite-3-38-dialect` to make this explicit.
-6. **`paging_key` lexicographic ordering.** Documented in `PagingConfig` KDoc with examples; a typed `PagingKey` sealed type would prevent integer-formatting mistakes but adds API surface. Revisit if real bugs surface.
-7. **Existing rows with `paging_key = NULL`.** Backfill in migration is straightforward but requires picking a default value that may not match a custom extractor. Currently left to natural rewrite via sync.
-8. **`UPDATE` on a row whose underlying paging-key field changes triggers an index-rewrite.** Not a correctness issue, but worth noting if a service uses a hot-changing field as its paging key.
+4. **`sqlite-3-30-dialect` predates JSON1's default-on threshold.** JSON1 works on all platforms buoyient targets but isn't dialect-guaranteed. Bump to `sqlite-3-38-dialect` to make this explicit.
+5. **`paging_key` lexicographic ordering.** Documented in `PagingConfig` KDoc with examples; a typed `PagingKey` sealed type would prevent integer-formatting mistakes but adds API surface. Revisit if real bugs surface.
+6. **Existing rows with `paging_key = NULL`.** Backfill in migration is straightforward but requires picking a default value that may not match a custom extractor. Currently left to natural rewrite via sync.
+7. **`UPDATE` on a row whose underlying paging-key field changes triggers an index-rewrite.** Not a correctness issue, but worth noting if a service uses a hot-changing field as its paging key.
 
 ---
 
@@ -252,6 +260,7 @@ Index storage: `idx_sync_data_paging_key` is mandatory. Each path in `indexedJso
 - `syncable-objects/src/commonMain/kotlin/com/elvdev/buoyient/managers/FilterSqlBuilder.kt`
 - `syncable-objects/src/commonMain/kotlin/com/elvdev/buoyient/globalconfigs/SyncDatabaseHandle.kt`
 - `syncable-objects/src/commonMain/sqldelight/migrations/1.sqm`
+- `syncable-objects/src/commonMain/sqldelight/databases/{1,2}.db` — schema snapshots backing `verifyMigrations = true`
 - `paging/build.gradle.kts` + `paging/src/main/kotlin/com/elvdev/buoyient/paging/BuoyientPagingSource.kt`
 
 **Modified:**
