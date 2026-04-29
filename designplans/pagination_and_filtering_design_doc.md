@@ -38,7 +38,8 @@ Existing API (`getAllFromLocalStore`, `getFromLocalStore`) is unchanged — pagi
 - Generated columns or shadow projection columns for filterable fields. Considered and rejected (see § Filter implementation).
 - Aggregate queries (`COUNT`, `SUM`, `GROUP BY`) against `data_blob`. Out of scope.
 - Reverse pagination (`prevKey`). The current design is forward-only.
-- Filter support inside `BuoyientPagingSource`. The wrapper passes through `syncStatus` only; consumers using filters must build the `Pager` so the paging source is reconstructed when the filter changes. Documented as a known limitation.
+<!-- Filter support inside BuoyientPagingSource is now implemented. -->
+- Built-in support for *dynamic* filter swapping inside a single `PagingSource` instance. Filters are bound at construction; consumers swap filters by reconstructing the source (the canonical Paging 3 pattern, achievable in one `flatMapLatest` over a filter `Flow` — see `BuoyientPagingSource` KDoc).
 
 ---
 
@@ -54,7 +55,7 @@ Existing API (`getAllFromLocalStore`, `getFromLocalStore`) is unchanged — pagi
 | `SyncableObjectService.pagingConfig: PagingConfig<O>` | top-level | Constructor param; non-null with sensible default |
 | `SyncableObjectService.indexedJsonPaths: List<String>` | top-level | Constructor param; declares JSON paths to back with SQLite expression indexes |
 | `SyncableObjectService.loadPage(afterCursor, loadSize, syncStatus, filter)` | top-level | Returns `PageResult<O>` |
-| `BuoyientPagingSource<O, T>(service, syncStatus)` | `:paging` module | Jetpack Paging 3 adapter |
+| `BuoyientPagingSource<O, T>(service, syncStatus, filter)` | `:paging` module | Jetpack Paging 3 adapter |
 
 ---
 
@@ -241,13 +242,13 @@ Index storage: `idx_sync_data_paging_key` is mandatory. Each path in `indexedJso
 
 ## Known limitations / future work
 
-1. **`BuoyientPagingSource` doesn't accept a `Filter`.** Adding it would mean the consumer reinstantiates the `Pager` whenever the filter changes (no `invalidate()` on filter swap). Mechanically simple; deferred until there's demand.
-2. **No reverse pagination (`prevKey`).** Could be added by mirroring the cursor predicate; currently always null.
-3. **String-typed JSON paths.** A generated typed-paths wrapper (`Item.Path.status`) would prevent typos but is its own project.
-4. **`sqlite-3-30-dialect` predates JSON1's default-on threshold.** JSON1 works on all platforms buoyient targets but isn't dialect-guaranteed. Bump to `sqlite-3-38-dialect` to make this explicit.
-5. **`paging_key` lexicographic ordering.** Documented in `PagingConfig` KDoc with examples; a typed `PagingKey` sealed type would prevent integer-formatting mistakes but adds API surface. Revisit if real bugs surface.
-6. **Existing rows with `paging_key = NULL`.** Backfill in migration is straightforward but requires picking a default value that may not match a custom extractor. Currently left to natural rewrite via sync.
-7. **`UPDATE` on a row whose underlying paging-key field changes triggers an index-rewrite.** Not a correctness issue, but worth noting if a service uses a hot-changing field as its paging key.
+1. **No reverse pagination (`prevKey`).** Could be added by mirroring the cursor predicate; currently always null.
+2. **String-typed JSON paths.** A generated typed-paths wrapper (`Item.Path.status`) would prevent typos but is its own project.
+3. **`sqlite-3-30-dialect` predates JSON1's default-on threshold.** JSON1 works on all platforms buoyient targets but isn't dialect-guaranteed. Bump to `sqlite-3-38-dialect` to make this explicit.
+4. **`paging_key` lexicographic ordering.** Documented in `PagingConfig` KDoc with examples; a typed `PagingKey` sealed type would prevent integer-formatting mistakes but adds API surface. Revisit if real bugs surface.
+5. **Existing rows with `paging_key = NULL`.** Backfill in migration is straightforward but requires picking a default value that may not match a custom extractor. Currently left to natural rewrite via sync.
+6. **`UPDATE` on a row whose underlying paging-key field changes triggers an index-rewrite.** Not a correctness issue, but worth noting if a service uses a hot-changing field as its paging key.
+7. **Dynamic filter swapping in `BuoyientPagingSource` requires reconstructing the source.** This is the canonical Paging 3 pattern (see KDoc), but consumers unfamiliar with `flatMapLatest` over a filter `Flow` may find it less obvious than a setter. A `setFilter` API that calls `invalidate()` could be added if demand surfaces.
 
 ---
 
