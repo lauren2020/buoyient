@@ -1035,6 +1035,21 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
     }
 
     /**
+     * Hot, conflated [Flow] that emits a `Unit` tick whenever this service's local store is
+     * written — sync-down inserts, sync-up merges, local create/update/void, and conflict
+     * resolution. Use this to react to data changes without re-querying on every emission;
+     * each tick only signals *that* something changed, not what.
+     *
+     * Primary use case: drive an `invalidate()` on a paged list (e.g. via the
+     * `autoRefreshOnLocalStoreChange` flag on `BuoyientPagingSource`) so newly synced rows
+     * appear automatically. Pair-able with `loadPage` to refresh only the visible window.
+     *
+     * The flow is backed by a `MutableSharedFlow` with `replay = 0` and capacity 1 with
+     * `DROP_OLDEST` semantics — bursts of writes coalesce into a single observable tick.
+     */
+    public val localStoreChanges: Flow<Unit> get() = localStoreManager.localStoreChanges
+
+    /**
      * Fires a background HTTP request to void a previous server request by its idempotency key.
      *
      * Unlike [void], this method does NOT modify the local SQLite store. It is a fire-and-forget

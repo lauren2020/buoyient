@@ -25,7 +25,11 @@ import com.elvdev.buoyient.sync.UpsertResult
 import com.elvdev.buoyient.globalconfigs.createSyncDatabase
 import com.elvdev.buoyient.db.SyncDatabase
 import com.elvdev.buoyient.utils.ioDispatcher
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
 
 internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
@@ -50,6 +54,22 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val indexedJsonPaths: List<String> = emptyList(),
 ) {
     private val storageCodec = StorageCodec(encryptionProvider)
+
+    /**
+     * Emits a `Unit` tick whenever this service's `sync_data` rows are written
+     * (sync-down inserts, sync-up merges, local create/update/void, conflict
+     * resolution). Hot, conflated — subscribers should treat each tick as a
+     * "something changed" signal and re-query if they care about the contents.
+     */
+    private val _localStoreChanges = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    internal val localStoreChanges: SharedFlow<Unit> = _localStoreChanges.asSharedFlow()
+
+    private fun notifyLocalStoreChanged() {
+        _localStoreChanges.tryEmit(Unit)
+    }
 
     private fun O.toPagingKey(): String = pagingConfig.keyExtractor(this)
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
@@ -90,8 +110,11 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * transaction support. If [block] throws, the transaction is rolled back;
      * otherwise it is committed.
      */
-    private fun <T> transaction(block: () -> T): T =
-        database.transactionWithResult { block() }
+    private fun <T> transaction(block: () -> T): T {
+        val result = database.transactionWithResult { block() }
+        notifyLocalStoreChanged()
+        return result
+    }
 
     /**
      * Internal signal used to abort the surrounding database transaction when
@@ -345,6 +368,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 last_synced_server_data = encryptedServerDataJson,
                 paging_key = serverData.toPagingKey(),
             )
+            notifyLocalStoreChanged()
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to insert data from [create] response (server_id: ${serverData.serverId}): ", e)
         }
@@ -414,6 +438,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 service_name = serviceName,
                 client_id = originalClientId,
             )
+            notifyLocalStoreChanged()
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to upsert data from [update] response (server_id: ${serverData.serverId}): $e")
         }
@@ -437,6 +462,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             last_synced_server_data = encryptedServerDataJson,
             paging_key = serverObj.toPagingKey(),
         )
+        notifyLocalStoreChanged()
     }
 
     internal fun voidData(
@@ -492,6 +518,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 service_name = serviceName,
                 client_id = originalClientId,
             )
+            notifyLocalStoreChanged()
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to upsert data from [void] response (server_id: ${serverData.serverId}): $e")
         }
@@ -887,7 +914,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         updatedServerData: O,
         mergeHandler: SyncableObjectRebaseHandler<O>,
     ): UpsertResult {
-        return database.transactionWithResult {
+        val result = database.transactionWithResult {
             return@transactionWithResult rebaseData(
                 clientId = clientId,
                 lastSyncedTimestamp = lastSyncedTimestamp,
@@ -908,6 +935,8 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 )
             }
         }
+        notifyLocalStoreChanged()
+        return result
     }
 
     /**
@@ -1124,6 +1153,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             if (result is ResolveConflictResult.Resolved) {
                 syncScheduleNotifier.scheduleSyncIfNeeded()
             }
+            notifyLocalStoreChanged()
             result
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to resolve conflict for client_id: $clientId", e)
@@ -1247,6 +1277,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             if (result is ResolveConflictResult.Resolved) {
                 syncScheduleNotifier.scheduleSyncIfNeeded()
             }
+            notifyLocalStoreChanged()
             result
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to repair orphaned conflict for client_id: $clientId", e)
