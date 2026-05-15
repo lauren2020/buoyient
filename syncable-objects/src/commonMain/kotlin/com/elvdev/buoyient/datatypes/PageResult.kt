@@ -7,8 +7,9 @@ package com.elvdev.buoyient.datatypes
  * share a paging key (e.g. identical timestamps) still produce a stable, unambiguous
  * resume point.
  *
- * Treat this as opaque — pass the [PageResult.nextCursor] from one page back into
- * [com.elvdev.buoyient.SyncableObjectService.loadPage] to fetch the next page.
+ * Treat this as opaque — pass the [PageResult.nextCursor] or [PageResult.prevCursor]
+ * from one page back into [com.elvdev.buoyient.SyncableObjectService.loadPage] (wrapped
+ * in [PageDirection.Forward] or [PageDirection.Backward]) to fetch the next page.
  */
 public data class PageCursor(
     public val key: String,
@@ -20,10 +21,15 @@ public data class PageCursor(
  *
  * @property items the rows on this page, ordered per the service's
  *   [com.elvdev.buoyient.serviceconfigs.PagingConfig.sortOrder].
- * @property nextCursor cursor to fetch the next page, or `null` when there are no
- *   more pages (i.e. the page returned fewer items than the requested `loadSize`).
+ * @property nextCursor cursor to fetch the page after this one (via
+ *   [PageDirection.Forward]), or `null` when there are no more pages in the forward
+ *   direction (i.e. this page hit the tail).
+ * @property prevCursor cursor to fetch the page before this one (via
+ *   [PageDirection.Backward]), or `null` when there are no more pages in the backward
+ *   direction (i.e. this page hit the head).
  */
 public data class PageResult<O>(
     public val items: List<O>,
     public val nextCursor: PageCursor?,
+    public val prevCursor: PageCursor?,
 )

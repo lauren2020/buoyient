@@ -11,6 +11,8 @@ import com.elvdev.buoyient.datatypes.CreateRequestBuilder
 import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.GetResponse
 import com.elvdev.buoyient.datatypes.HttpRequest
+import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.datatypes.PageDirection
 import com.elvdev.buoyient.datatypes.ResponseUnpacker
 import com.elvdev.buoyient.datatypes.SquashRequestMerger
 import com.elvdev.buoyient.datatypes.SyncableObjectServiceRequestState
@@ -1550,11 +1552,11 @@ class SyncableObjectServiceTest {
         assertEquals("Banana", firstPage.nextCursor!!.key)
         assertEquals("c2", firstPage.nextCursor!!.clientId)
 
-        val secondPage = service.loadPage(afterCursor = firstPage.nextCursor, loadSize = 2)
+        val secondPage = service.loadPage(direction = PageDirection.Forward(firstPage.nextCursor!!), loadSize = 2)
         assertEquals(listOf("Cherry", "Date"), secondPage.items.map { it.name })
 
         // Past the end — empty page, no more cursor.
-        val thirdPage = service.loadPage(afterCursor = secondPage.nextCursor, loadSize = 2)
+        val thirdPage = service.loadPage(direction = PageDirection.Forward(secondPage.nextCursor!!), loadSize = 2)
         assertTrue(thirdPage.items.isEmpty())
         assertEquals(null, thirdPage.nextCursor)
         service.close()
@@ -1578,7 +1580,7 @@ class SyncableObjectServiceTest {
         assertEquals("Same", firstPage.nextCursor!!.key)
         assertEquals("c2", firstPage.nextCursor!!.clientId)
 
-        val secondPage = service.loadPage(afterCursor = firstPage.nextCursor, loadSize = 2)
+        val secondPage = service.loadPage(direction = PageDirection.Forward(firstPage.nextCursor!!), loadSize = 2)
         assertEquals(listOf("c3"), secondPage.items.map { it.clientId })
         service.close()
     }
@@ -1594,7 +1596,7 @@ class SyncableObjectServiceTest {
         // DESC tiebreaks on client_id descending too: c3, c2.
         assertEquals(listOf("c3", "c2"), firstPage.items.map { it.clientId })
 
-        val secondPage = service.loadPage(afterCursor = firstPage.nextCursor, loadSize = 2)
+        val secondPage = service.loadPage(direction = PageDirection.Forward(firstPage.nextCursor!!), loadSize = 2)
         assertEquals(listOf("c1"), secondPage.items.map { it.clientId })
         service.close()
     }
@@ -1630,6 +1632,205 @@ class SyncableObjectServiceTest {
 
         // DESC by clientId.
         assertEquals(listOf("c3", "c2", "c1"), result.items.map { it.clientId })
+        service.close()
+    }
+
+    // endregion
+
+    // region loadPage backward
+
+    @Test
+    fun `loadPage - Backward returns items before cursor in sort order (ASC)`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        // Load forward to get a mid-list cursor (after "Banana"), then page backward
+        // from "Date" — should return Cherry then walk back via prevCursor.
+        val mid = service.loadPage(loadSize = 2)
+        val midCursor = mid.nextCursor!! // Banana's cursor
+        val pageBeforeDate = service.loadPage(
+            direction = PageDirection.Forward(midCursor),
+            loadSize = 1,
+        )
+        // pageBeforeDate has Cherry. Use its nextCursor (Cherry) as a Backward boundary.
+        val backCursor = pageBeforeDate.nextCursor!! // Cherry's cursor
+
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(backCursor),
+            loadSize = 10,
+        )
+
+        // Items strictly before Cherry in ASC order: Apple, Banana. Returned in sort order.
+        assertEquals(listOf("Apple", "Banana"), backward.items.map { it.name })
+        // We hit the head, so prevCursor = null. There's stuff after (Cherry itself), so nextCursor != null.
+        assertEquals(null, backward.prevCursor)
+        assertEquals("Banana", backward.nextCursor!!.key)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward returns items before cursor in sort order (DESC)`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(online = false)  // DESC default
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        // DESC order is Date, Cherry, Banana, Apple. Page backward from Banana —
+        // "before" in DESC sort means Date, Cherry.
+        val firstPage = service.loadPage(loadSize = 3)
+        // firstPage = Date, Cherry, Banana. nextCursor = Banana's cursor.
+        val bananaCursor = firstPage.nextCursor!!
+
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(bananaCursor),
+            loadSize = 10,
+        )
+
+        assertEquals(listOf("Date", "Cherry"), backward.items.map { it.name })
+        assertEquals(null, backward.prevCursor)  // hit head (DESC head = Date)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward partial page signals head with null prevCursor`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+
+        // Backward from Banana with large loadSize — returns just Apple and signals head.
+        val bananaCursor = PageCursor(key = "Banana", clientId = "c2")
+
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(bananaCursor),
+            loadSize = 10,
+        )
+
+        assertEquals(listOf("Apple"), backward.items.map { it.name })
+        assertEquals(null, backward.prevCursor)
+        assertEquals("Apple", backward.nextCursor!!.key)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward full page reports prevCursor for further backward paging`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        // Backward from Date with loadSize=2: returns Banana, Cherry. Full page → prevCursor non-null.
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(PageCursor(key = "Date", clientId = "c4")),
+            loadSize = 2,
+        )
+        assertEquals(listOf("Banana", "Cherry"), backward.items.map { it.name })
+        assertEquals("Banana", backward.prevCursor!!.key)
+
+        // Walk further backward from prevCursor — should return Apple, then hit head.
+        val backward2 = service.loadPage(
+            direction = PageDirection.Backward(backward.prevCursor!!),
+            loadSize = 2,
+        )
+        assertEquals(listOf("Apple"), backward2.items.map { it.name })
+        assertEquals(null, backward2.prevCursor)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Forward from cursor reports prevCursor pointing back to that page`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        val firstPage = service.loadPage(loadSize = 2)
+        // FromHead → prevCursor must be null (nothing before the head).
+        assertEquals(null, firstPage.prevCursor)
+
+        val secondPage = service.loadPage(
+            direction = PageDirection.Forward(firstPage.nextCursor!!),
+            loadSize = 2,
+        )
+        // Forward from a cursor → prevCursor points at the first item of this page,
+        // so a backward load from it returns the previous page.
+        assertEquals("Cherry", secondPage.prevCursor!!.key)
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(secondPage.prevCursor!!),
+            loadSize = 10,
+        )
+        assertEquals(listOf("Apple", "Banana"), backward.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward composes with syncStatus filter`() = runBlocking {
+        val (service, env) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        // c1, c3 PENDING_CREATE; c2 SYNCED.
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        env.database.syncDataQueries.insertFromServerResponse(
+            service_name = "test-items",
+            client_id = "c2",
+            server_id = "server-c2",
+            version = "1",
+            last_synced_timestamp = "2024-01-01",
+            data_blob = json.encodeToString(
+                TestItem.serializer(),
+                testItem(clientId = "c2", serverId = "server-c2", name = "Banana"),
+            ),
+            sync_status = SyncableObject.SyncStatus.SYNCED,
+            last_synced_server_data = "{}",
+            paging_key = "Banana",
+        )
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(PageCursor(key = "Cherry", clientId = "c3")),
+            loadSize = 10,
+            syncStatus = SyncableObject.SyncStatus.PENDING_CREATE,
+        )
+
+        // Only Apple satisfies both "before Cherry" and PENDING_CREATE.
+        assertEquals(listOf("Apple"), backward.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward composes with Filter predicate`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()  // ASC by name
+        service.testCreate(testItem(clientId = "c1", name = "Apple", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Banana", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry", value = 1))
+        service.testCreate(testItem(clientId = "c4", name = "Date", value = 1))
+
+        // Backward from Date with value=1 filter — Banana is excluded by filter,
+        // so we should get Apple and Cherry in ASC order.
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(PageCursor(key = "Date", clientId = "c4")),
+            loadSize = 10,
+            filter = Filter.eq("$.value", 1),
+        )
+        assertEquals(listOf("Apple", "Cherry"), backward.items.map { it.name })
         service.close()
     }
 
@@ -1794,7 +1995,7 @@ class SyncableObjectServiceTest {
         assertNotNull(firstPage.nextCursor)
 
         val secondPage = service.loadPage(
-            afterCursor = firstPage.nextCursor,
+            direction = PageDirection.Forward(firstPage.nextCursor!!),
             loadSize = 2,
             filter = Filter.eq("$.value", 1),
         )

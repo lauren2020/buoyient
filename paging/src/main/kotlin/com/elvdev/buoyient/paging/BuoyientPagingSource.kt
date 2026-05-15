@@ -7,6 +7,7 @@ import com.elvdev.buoyient.SyncableObject
 import com.elvdev.buoyient.SyncableObjectService
 import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.datatypes.PageDirection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,8 +20,9 @@ import kotlinx.coroutines.flow.launchIn
  * pagination ordered per the service's
  * [com.elvdev.buoyient.serviceconfigs.PagingConfig].
  *
- * The [Key] type is [PageCursor]; `null` means "start from the beginning". Pagination is
- * **forward-only**: [LoadResult.Page.prevKey] is always `null`.
+ * The [Key] type is [PageCursor]; `null` means "start from the head." Pagination is
+ * bidirectional — Paging 3 can both append (scroll down) and prepend (scroll up from
+ * an `initialKey` mid-list) by translating its [LoadParams] into a [PageDirection].
  *
  * **Setup:** Configure
  * [com.elvdev.buoyient.SyncableObjectService.pagingConfig] in the service constructor;
@@ -107,15 +109,21 @@ public class BuoyientPagingSource<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     override suspend fun load(params: LoadParams<PageCursor>): LoadResult<PageCursor, O> {
         return try {
+            val direction = when (params) {
+                is LoadParams.Prepend -> PageDirection.Backward(params.key)
+                is LoadParams.Append -> PageDirection.Forward(params.key)
+                is LoadParams.Refresh -> params.key?.let(PageDirection::Forward)
+                    ?: PageDirection.FromHead
+            }
             val result = service.loadPage(
-                afterCursor = params.key,
+                direction = direction,
                 loadSize = params.loadSize,
                 syncStatus = syncStatus,
                 filter = filter,
             )
             LoadResult.Page(
                 data = result.items,
-                prevKey = null,
+                prevKey = result.prevCursor,
                 nextKey = result.nextCursor,
             )
         } catch (e: Exception) {
@@ -125,20 +133,17 @@ public class BuoyientPagingSource<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     /**
      * Returns the cursor that originally loaded the page containing the user's anchor
-     * position. Re-using that cursor on refresh reloads the same window the user was
-     * looking at, so an invalidate caused by a background sync-down doesn't bounce the
-     * list back to the head.
+     * position. Re-using that cursor as a forward boundary on refresh reloads the same
+     * window the user was looking at, so an invalidate caused by a background sync-down
+     * doesn't bounce the list back to the head.
      *
-     * Pages are forward-only here ([LoadResult.Page.prevKey] is always `null`), so we
-     * recover the cursor that loaded a given page by looking at the *previous* page's
-     * [LoadResult.Page.nextKey] — that is exactly the `params.key` that produced the
-     * anchor page. For the very first page (or when no anchor is available) we return
-     * `null` to start from the head.
+     * The cursor that loaded the anchor page is exactly that page's [LoadResult.Page.prevKey] —
+     * the boundary the previous load passed in. For the very first page (or when no anchor
+     * is available) we return `null` so refresh starts from [PageDirection.FromHead].
      */
     override fun getRefreshKey(state: PagingState<PageCursor, O>): PageCursor? {
         val anchor = state.anchorPosition ?: return null
         val anchorPage = state.closestPageToPosition(anchor) ?: return null
-        val pageIndex = state.pages.indexOf(anchorPage)
-        return if (pageIndex <= 0) null else state.pages[pageIndex - 1].nextKey
+        return anchorPage.prevKey
     }
 }

@@ -10,7 +10,7 @@ buoyient's `:paging` module provides Jetpack Paging 3 integration for paginated 
 
 buoyient uses **keyset cursor pagination**: each page hands back an opaque `PageCursor` that encodes the position of the last item. The next page request starts after that cursor. This avoids the correctness problems of OFFSET-based pagination when rows are inserted or deleted between loads.
 
-Pagination is **forward-only**. `BuoyientPagingSource` always returns `null` for `prevKey`. Scrolling backwards reuses already-loaded pages from Paging 3's in-memory list.
+Pagination is **bidirectional**. `BuoyientPagingSource` translates Paging 3's `LoadParams.Append` into `PageDirection.Forward` and `LoadParams.Prepend` into `PageDirection.Backward`. Scrolling up via prepend is most useful when the pager has a non-null `initialKey` and the user starts mid-list.
 
 ---
 
@@ -178,23 +178,32 @@ Filter.not(Filter.eq("$.status", "voided"))
 
 ## Using `loadPage()` directly
 
-If you need pagination without Paging 3, call `loadPage()` on the service directly:
+If you need pagination without Paging 3, call `loadPage()` on the service directly. `loadPage()` takes a `PageDirection` that selects which page to fetch:
+
+- `PageDirection.FromHead` — first page from the start of the configured sort order (the default).
+- `PageDirection.Forward(cursor)` — page strictly after `cursor`. Used to scroll down.
+- `PageDirection.Backward(cursor)` — page strictly before `cursor`, returned in the configured sort order (not reversed). Used to scroll up from a `Forward` cursor.
 
 ```kotlin
 val firstPage: PageResult<Item> = itemService.loadPage(
-    afterCursor = null,       // null = start from beginning
+    // direction defaults to PageDirection.FromHead
     loadSize = 20,
-    syncStatus = null,
     filter = Filter.eq("$.status", "active"),
 )
 val nextPage: PageResult<Item> = itemService.loadPage(
-    afterCursor = firstPage.nextCursor,
+    direction = PageDirection.Forward(firstPage.nextCursor!!),
     loadSize = 20,
-    syncStatus = null,
-    filter = null,
+)
+// To scroll up from a known cursor — typically used when the user starts mid-list:
+val previousPage: PageResult<Item> = itemService.loadPage(
+    direction = PageDirection.Backward(nextPage.prevCursor!!),
+    loadSize = 20,
 )
 ```
 
 `PageResult<O>` contains:
-- `items: List<O>` — the items in this page
-- `nextCursor: PageCursor?` — cursor to pass as `afterCursor` for the next page; `null` means no more pages
+- `items: List<O>` — the items in this page, always in the configured sort order regardless of direction.
+- `nextCursor: PageCursor?` — boundary cursor for the page after this one (wrap in `PageDirection.Forward(...)`). `null` means we hit the tail.
+- `prevCursor: PageCursor?` — boundary cursor for the page before this one (wrap in `PageDirection.Backward(...)`). `null` means we hit the head.
+
+`Backward` requires a non-null cursor — by design, "backward from nothing" is unrepresentable. To load the first page, use `FromHead`.

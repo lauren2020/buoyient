@@ -19,6 +19,7 @@ import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.GetResponse
 import com.elvdev.buoyient.datatypes.HttpRequest
 import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.datatypes.PageDirection
 import com.elvdev.buoyient.datatypes.PageResult
 import com.elvdev.buoyient.datatypes.ResolveConflictResult
 import com.elvdev.buoyient.datatypes.ResponseUnpacker
@@ -983,10 +984,15 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
      * Returns a page of [O] items from the local store using keyset cursor pagination,
      * ordered per the service's [pagingConfig].
      *
-     * Pass [afterCursor] = `null` to fetch the first page. For each subsequent page, pass
-     * [PageResult.nextCursor] from the previous page. When [PageResult.nextCursor] is `null`,
-     * there are no more pages. This is the data-fetching primitive that
+     * Pass [direction] = [PageDirection.FromHead] to fetch the first page. For each
+     * subsequent page in the forward direction, pass
+     * `PageDirection.Forward(previousPage.nextCursor)`. To page backward from a known
+     * cursor, pass `PageDirection.Backward(cursor)`. When [PageResult.nextCursor] is
+     * `null` there are no more pages forward; when [PageResult.prevCursor] is `null`
+     * there are no more pages backward. This is the data-fetching primitive that
      * [androidx.paging.PagingSource] implementations delegate to.
+     *
+     * Items are always returned in the configured sort order, regardless of [direction].
      *
      * Requires [pagingConfig] to be configured on this service; throws
      * [IllegalStateException] otherwise.
@@ -999,39 +1005,53 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
      * [com.elvdev.buoyient.globalconfigs.DatabaseOverride.driver]. Declare hot
      * filter paths via [indexedJsonPaths] to avoid full table scans.
      *
-     * @param afterCursor exclusive lower bound; `null` starts from the beginning.
+     * @param direction which page to load relative to a cursor (see [PageDirection]).
+     *   Defaults to [PageDirection.FromHead].
      * @param loadSize number of rows to return.
      * @param syncStatus if non-null, only rows with this sync status are returned.
      * @param filter optional predicate over `data_blob` (see [Filter]).
      */
     public fun loadPage(
-        afterCursor: PageCursor? = null,
+        direction: PageDirection = PageDirection.FromHead,
         loadSize: Int,
         syncStatus: String? = null,
         filter: Filter? = null,
     ): PageResult<O> {
         val entries = if (filter == null) {
             localStoreManager.getPage(
-                afterCursor = afterCursor,
+                direction = direction,
                 limit = loadSize,
                 syncStatus = syncStatus,
             )
         } else {
             localStoreManager.getPageWithFilter(
-                afterCursor = afterCursor,
+                direction = direction,
                 limit = loadSize,
                 syncStatus = syncStatus,
                 filter = filter,
             )
         }
         val items = entries.map { it.data }
-        val nextCursor = if (items.size < loadSize) {
-            null
-        } else {
-            val last = items.last()
-            PageCursor(key = pagingConfig.keyExtractor(last), clientId = last.clientId)
+        if (items.isEmpty()) {
+            return PageResult(items = items, nextCursor = null, prevCursor = null)
         }
-        return PageResult(items = items, nextCursor = nextCursor)
+        val hitBoundary = items.size < loadSize
+        fun cursorOf(o: O) = PageCursor(key = pagingConfig.keyExtractor(o), clientId = o.clientId)
+        // A short page in the same direction means we ran out of rows on that side.
+        // Loads of any direction always have rows on the side opposite to the one
+        // they're moving toward (the boundary cursor itself, plus anything past it) —
+        // except FromHead, which by definition has nothing before its first row.
+        val nextCursor = when {
+            direction is PageDirection.Backward -> cursorOf(items.last())
+            hitBoundary -> null
+            else -> cursorOf(items.last())
+        }
+        val prevCursor = when {
+            direction is PageDirection.FromHead -> null
+            direction is PageDirection.Backward && hitBoundary -> null
+            else -> cursorOf(items.first())
+        }
+        return PageResult(items = items, nextCursor = nextCursor, prevCursor = prevCursor)
     }
 
     /**

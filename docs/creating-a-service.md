@@ -520,8 +520,8 @@ val pager = Pager(PagingConfig(pageSize = 20)) {
 For direct use without Paging 3, call `loadPage()` on the service:
 
 ```kotlin
-val page = yourModelService.loadPage(afterCursor = null, loadSize = 20, syncStatus = null, filter = null)
-// page.nextCursor is null when there are no more pages
+val page = yourModelService.loadPage(loadSize = 20)  // PageDirection.FromHead by default
+// page.nextCursor is null when there are no more pages forward; page.prevCursor is null at the head
 ```
 
 See [`docs/pagination.md`](pagination.md) for the complete guide including filter reference, dynamic filters, auto-refresh behavior, and performance indexing.

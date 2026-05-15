@@ -37,8 +37,8 @@ Existing API (`getAllFromLocalStore`, `getFromLocalStore`) is unchanged — pagi
 - A typed-paths DSL (`Item.Path.status` instead of `"$.status"`). Out of scope for V1 — string-typed paths are simple and cover the common case.
 - Generated columns or shadow projection columns for filterable fields. Considered and rejected (see § Filter implementation).
 - Aggregate queries (`COUNT`, `SUM`, `GROUP BY`) against `data_blob`. Out of scope.
-- Reverse pagination (`prevKey`). The current design is forward-only.
-<!-- Filter support inside BuoyientPagingSource is now implemented. -->
+<!-- Filter support inside BuoyientPagingSource is now implemented. Reverse pagination is now implemented — see § 12. -->
+
 - Built-in support for *dynamic* filter swapping inside a single `PagingSource` instance. Filters are bound at construction; consumers swap filters by reconstructing the source (the canonical Paging 3 pattern, achievable in one `flatMapLatest` over a filter `Flow` — see `BuoyientPagingSource` KDoc).
 
 ---
@@ -50,11 +50,12 @@ Existing API (`getAllFromLocalStore`, `getFromLocalStore`) is unchanged — pagi
 | `PagingConfig<O>(keyExtractor, sortOrder)` | `serviceconfigs` | Per-service pagination configuration; defaults to `keyExtractor = { it.clientId }`, `sortOrder = DESC` |
 | `PagingConfig.SortOrder { ASC, DESC }` | `serviceconfigs` | Sort direction |
 | `PageCursor(key, clientId)` | `datatypes` | Opaque cursor — composite of paging key + clientId tiebreaker |
-| `PageResult<O>(items, nextCursor)` | `datatypes` | One page of items with a `nextCursor` (null when no more pages) |
+| `PageResult<O>(items, nextCursor, prevCursor)` | `datatypes` | One page of items with `nextCursor` (null at tail) and `prevCursor` (null at head) |
+| `PageDirection { FromHead, Forward(afterCursor), Backward(beforeCursor) }` | `datatypes` | Sealed interface — selects which page to load relative to a cursor; sealed shape makes "backward from nothing" unrepresentable |
 | `Filter` (sealed interface + companion factories) | `datatypes` | `Eq`, `Ne`, `Gt`, `Gte`, `Lt`, `Lte`, `In`, `Like`, `IsNull`, `IsNotNull`, `And`, `Or`, `Not` |
 | `SyncableObjectService.pagingConfig: PagingConfig<O>` | top-level | Constructor param; non-null with sensible default |
 | `SyncableObjectService.indexedJsonPaths: List<String>` | top-level | Constructor param; declares JSON paths to back with SQLite expression indexes |
-| `SyncableObjectService.loadPage(afterCursor, loadSize, syncStatus, filter)` | top-level | Returns `PageResult<O>` |
+| `SyncableObjectService.loadPage(direction, loadSize, syncStatus, filter)` | top-level | Returns `PageResult<O>`. `direction` defaults to `PageDirection.FromHead`. |
 | `BuoyientPagingSource<O, T>(service, syncStatus, filter)` | `:paging` module | Jetpack Paging 3 adapter |
 
 ---
@@ -70,7 +71,7 @@ Existing API (`getAllFromLocalStore`, `getFromLocalStore`) is unchanged — pagi
 - Keyset reduces each page fetch to a B-tree seek + sequential read of `loadSize` rows.
 - Insert/delete during scroll doesn't shift the cursor — OFFSET would silently skip or duplicate rows.
 
-**Tradeoff accepted:** Forward-only pagination — `prevKey` is always null. Re-pagination from the start is required to "scroll up." Acceptable for the typical infinite-scroll use case; revisitable if reverse-paging becomes needed.
+**Bidirectional via mirrored predicate.** Reverse pagination (§ 12) is supported by flipping the cursor comparison and `ORDER BY` direction, then reversing the resulting list in Kotlin so callers always see items in the configured sort order.
 
 ### 2. Dedicated `paging_key` column over inline `json_extract` for ordering
 
@@ -184,6 +185,27 @@ The `:paging` module depends only on `:syncable-objects` and `androidx.paging.ru
 
 `TestServiceEnvironment` now uses `TestDatabaseFactory.createInMemoryHandle()` and sets both override fields.
 
+### 13. Bidirectional pagination via sealed `PageDirection` + mirrored predicate
+
+**Decision:** `loadPage` takes a `direction: PageDirection` parameter — a sealed interface with three cases: `FromHead`, `Forward(afterCursor)`, `Backward(beforeCursor)`. `PageResult<O>` carries both `nextCursor` and `prevCursor`. Items are always returned in the configured sort order regardless of direction.
+
+**Why a sealed interface, not a `(cursor, direction)` pair:** A nullable cursor + enum direction has invalid states — "backward from null" has no meaningful semantics. The sealed shape makes those states unrepresentable: `FromHead` carries no cursor, `Forward` and `Backward` each require one. The compiler enforces the rule that "backward needs a cursor" before any test does. The directional field names (`afterCursor` / `beforeCursor`) also bake exclusivity into the API — there's no inclusive-vs-exclusive toggle to set wrong.
+
+**Mirrored predicate strategy:** A `Backward` load with sort order ASC translates to SQL `cursor < ?` and `ORDER BY ... DESC`, then the result list is reversed in Kotlin to restore ASC order. The full table:
+
+| sortOrder | direction | predicate op | ORDER BY | post-process     |
+|-----------|-----------|--------------|----------|------------------|
+| ASC       | Forward   | `>`          | ASC      | none             |
+| ASC       | Backward  | `<`          | DESC     | reverse the list |
+| DESC      | Forward   | `<`          | DESC     | none             |
+| DESC      | Backward  | `>`          | ASC      | reverse the list |
+
+**SQL routing:** Backward loads route through the dynamic-SQL builder (shared with the filter path) rather than doubling the static SQLDelight query surface to 16 statements. Backward + filter and backward + no-filter share one builder. The static 8-query fast path is preserved for the hot forward case.
+
+**Cost:** Backward loads require a `SqlDriver` even when no filter is present — matches what filter queries already need. In practice anyone using `BuoyientPagingSource` (which is where prepends originate) is on the driver-available path already.
+
+**`PagingSource` integration:** `BuoyientPagingSource` maps `LoadParams.Prepend` → `PageDirection.Backward`, `LoadParams.Append` → `PageDirection.Forward`, `LoadParams.Refresh` → `PageDirection.Forward` (or `FromHead` when the key is null). `getRefreshKey` simplifies to `anchorPage.prevKey` — the cursor that originally loaded the anchor page.
+
 ---
 
 ## Schema & migration
@@ -217,7 +239,7 @@ Producing snapshots for future migrations: each new `.sqm` file should be paired
 
 | Input | Affects |
 |---|---|
-| `afterCursor` | Adds the `(paging_key, client_id)` cursor predicate to the WHERE clause |
+| `direction` | Adds the `(paging_key, client_id)` cursor predicate to the WHERE clause (flipped for `Backward`); `FromHead` adds no cursor predicate |
 | `loadSize` | Sets the SQL `LIMIT` |
 | `syncStatus` | Adds `sync_status = ?` to the WHERE clause |
 | `filter` | Adds the filter's rendered SQL fragment to the WHERE clause |
@@ -242,8 +264,7 @@ Index storage: `idx_sync_data_paging_key` is mandatory. Each path in `indexedJso
 
 ## Known limitations / future work
 
-1. **No reverse pagination (`prevKey`).** Could be added by mirroring the cursor predicate; currently always null.
-2. **String-typed JSON paths.** A generated typed-paths wrapper (`Item.Path.status`) would prevent typos but is its own project.
+1. **String-typed JSON paths.** A generated typed-paths wrapper (`Item.Path.status`) would prevent typos but is its own project.
 3. **`sqlite-3-30-dialect` predates JSON1's default-on threshold.** JSON1 works on all platforms buoyient targets but isn't dialect-guaranteed. Bump to `sqlite-3-38-dialect` to make this explicit.
 4. **`paging_key` lexicographic ordering.** Documented in `PagingConfig` KDoc with examples; a typed `PagingKey` sealed type would prevent integer-formatting mistakes but adds API surface. Revisit if real bugs surface.
 5. **Existing rows with `paging_key = NULL`.** Backfill in migration is straightforward but requires picking a default value that may not match a custom extractor. Currently left to natural rewrite via sync.

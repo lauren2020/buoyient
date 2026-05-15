@@ -10,6 +10,7 @@ import com.elvdev.buoyient.serviceconfigs.EncryptionProvider
 import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.HttpRequest
 import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.datatypes.PageDirection
 import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import com.elvdev.buoyient.serviceconfigs.PendingRequestQueueStrategy
 import com.elvdev.buoyient.datatypes.ResolveConflictResult
@@ -733,10 +734,25 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * wouldn't type-check.
      */
     internal fun getPage(
-        afterCursor: PageCursor?,
+        direction: PageDirection,
         limit: Int,
         syncStatus: String? = null,
     ): List<LocalStoreEntry<O>> {
+        // Backward loads route through dynamic SQL so we don't double the static
+        // SQLDelight query surface for the rare prepend case.
+        if (direction is PageDirection.Backward) {
+            return getDynamicPage(
+                direction = direction,
+                limit = limit,
+                syncStatus = syncStatus,
+                filter = null,
+            )
+        }
+        val afterCursor: PageCursor? = when (direction) {
+            is PageDirection.FromHead -> null
+            is PageDirection.Forward -> direction.afterCursor
+            is PageDirection.Backward -> error("unreachable — handled above")
+        }
         val q = database.syncDataQueries
         val l = limit.toLong()
         val descending = pagingConfig.sortOrder == PagingConfig.SortOrder.DESC
@@ -802,26 +818,67 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     }
 
     /**
-     * Filter-aware variant of [getPage]. Drops to dynamic SQL because the filter
-     * tree's shape varies per call; the static SQLDelight queries can only express
-     * the no-filter combinations. The cursor predicate, sort direction, optional
-     * `sync_status`, and `voided = 0` clauses are all assembled here in the same
-     * shape as the static queries so semantics stay aligned.
+     * Filter-aware variant of [getPage]. Drops to dynamic SQL via [getDynamicPage]
+     * because the filter tree's shape varies per call; the static SQLDelight queries
+     * can only express the no-filter combinations.
      *
      * Requires [driver] to be non-null. Throws [IllegalStateException] otherwise.
      */
     internal fun getPageWithFilter(
-        afterCursor: PageCursor?,
+        direction: PageDirection,
         limit: Int,
         syncStatus: String?,
         filter: Filter,
     ): List<LocalStoreEntry<O>> {
+        return getDynamicPage(
+            direction = direction,
+            limit = limit,
+            syncStatus = syncStatus,
+            filter = filter,
+        )
+    }
+
+    /**
+     * Shared dynamic-SQL paging builder. Used for any filtered page, and for all
+     * [PageDirection.Backward] pages (so we don't double the static SQLDelight
+     * query count for the rare prepend case).
+     *
+     * The sort-direction and cursor-comparison flip with both [PagingConfig.sortOrder]
+     * and [direction]:
+     *
+     * | sortOrder | direction | predicate op | ORDER BY | post-process     |
+     * |-----------|-----------|--------------|----------|------------------|
+     * | ASC       | Forward   | `>`          | ASC      | none             |
+     * | ASC       | Backward  | `<`          | DESC     | reverse the list |
+     * | DESC      | Forward   | `<`          | DESC     | none             |
+     * | DESC      | Backward  | `>`          | ASC      | reverse the list |
+     *
+     * Reversing in Kotlin keeps the page in the configured sort order so callers
+     * never need to special-case rendering by direction.
+     *
+     * Requires [driver] to be non-null. Throws [IllegalStateException] otherwise.
+     */
+    private fun getDynamicPage(
+        direction: PageDirection,
+        limit: Int,
+        syncStatus: String?,
+        filter: Filter?,
+    ): List<LocalStoreEntry<O>> {
         val drv = checkNotNull(driver) {
-            "Filter queries require a driver. Set DatabaseOverride.driver (or use Buoyient.databaseHandle)."
+            "Filter queries and backward pagination require a driver. Set DatabaseOverride.driver (or use Buoyient.databaseHandle)."
         }
-        ensureIndexedPaths()
+        if (filter != null) ensureIndexedPaths()
 
         val descending = pagingConfig.sortOrder == PagingConfig.SortOrder.DESC
+        val backward = direction is PageDirection.Backward
+        // Backward inverts both the cursor comparison and the SQL ORDER BY so we can
+        // take the LIMIT-N rows nearest the cursor; we then reverse the list in
+        // Kotlin to restore the configured sort order.
+        val forwardCmp = !descending xor backward
+        val cmp = if (forwardCmp) ">" else "<"
+        val sqlOrderDescending = descending xor backward
+        val dir = if (sqlOrderDescending) "DESC" else "ASC"
+
         val whereClauses = mutableListOf("service_name = ?", "voided = 0")
         val params = mutableListOf<Any?>(serviceName)
 
@@ -830,19 +887,24 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             params += syncStatus
         }
 
-        val (filterClause, filterParams) = filter.toSql()
-        whereClauses += filterClause
-        params.addAll(filterParams)
-
-        if (afterCursor != null) {
-            val cmp = if (descending) "<" else ">"
-            whereClauses += "(paging_key $cmp ? OR (paging_key = ? AND client_id $cmp ?))"
-            params.add(afterCursor.key)
-            params.add(afterCursor.key)
-            params.add(afterCursor.clientId)
+        if (filter != null) {
+            val (filterClause, filterParams) = filter.toSql()
+            whereClauses += filterClause
+            params.addAll(filterParams)
         }
 
-        val dir = if (descending) "DESC" else "ASC"
+        val boundaryCursor: PageCursor? = when (direction) {
+            is PageDirection.FromHead -> null
+            is PageDirection.Forward -> direction.afterCursor
+            is PageDirection.Backward -> direction.beforeCursor
+        }
+        if (boundaryCursor != null) {
+            whereClauses += "(paging_key $cmp ? OR (paging_key = ? AND client_id $cmp ?))"
+            params.add(boundaryCursor.key)
+            params.add(boundaryCursor.key)
+            params.add(boundaryCursor.clientId)
+        }
+
         val sql = buildString {
             append("SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data\n")
             append("FROM sync_data\n")
@@ -852,13 +914,13 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
         params.add(limit.toLong())
 
-        return drv.executeQuery(
+        val rows = drv.executeQuery(
             identifier = null,
             sql = sql,
             mapper = { cursor ->
-                val rows = mutableListOf<LocalStoreEntry<O>>()
+                val out = mutableListOf<LocalStoreEntry<O>>()
                 while (cursor.next().value) {
-                    rows += mapRowToEntry(
+                    out += mapRowToEntry(
                         dataBlob = cursor.getString(0)!!,
                         syncStatusValue = cursor.getString(1)!!,
                         lastSyncedTimestamp = cursor.getString(2),
@@ -866,13 +928,15 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         lastSyncedServerData = cursor.getString(4),
                     )
                 }
-                QueryResult.Value(rows.toList())
+                QueryResult.Value(out.toList())
             },
             parameters = params.size,
             binders = {
                 params.forEachIndexed { index, value -> bindAny(index, value) }
             },
         ).value
+
+        return if (backward) rows.asReversed() else rows
     }
 
     private fun mapRowToEntry(

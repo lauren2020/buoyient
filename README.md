@@ -111,7 +111,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `getFromLocalStore(syncStatus, includeVoided, limit)` | SQL-level filter by sync status / voided flag |
 | `getFromLocalStore(predicate, limit)` | In-memory filter via lambda |
 | All `get` methods have `AsFlow` variants | Observe changes reactively |
-| `loadPage(afterCursor, loadSize, syncStatus, filter)` | Load one page of results using keyset cursor pagination — use with `BuoyientPagingSource` or directly |
+| `loadPage(direction, loadSize, syncStatus, filter)` | Load one page of results using keyset cursor pagination — `direction` is a `PageDirection` (`FromHead`, `Forward(cursor)`, or `Backward(cursor)`). Use with `BuoyientPagingSource` or directly |
 | `syncDownFromServer()` | Trigger sync-down for this service |
 | `Buoyient.syncNow(completion?)` | Trigger immediate sync-up pass across all services |
 

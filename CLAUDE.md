@@ -94,7 +94,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `PagingConfig<O>` | `serviceconfigs` | Per-service pagination settings: `keyExtractor` (field to page by, default `clientId`) and `sortOrder` (`ASC`/`DESC`, default `DESC`) |
 | `BuoyientPagingSource<O, T>` | `:paging` module | `PagingSource<PageCursor, O>` for Jetpack Paging 3 — wraps `loadPage()` with optional `filter`, `syncStatus` constraint, and `autoRefreshOnLocalStoreChange` |
 | `getFromLocalStore()` | (on `SyncableObjectService`) | Overloaded query methods — filter by `syncStatus` string / `includeVoided` flag (SQL-level), or by `(O) -> Boolean` predicate (in-memory) |
-| `loadPage(afterCursor, loadSize, syncStatus, filter)` | (on `SyncableObjectService`) | Core pagination method — returns `PageResult<O>`; used by `BuoyientPagingSource` or directly |
+| `loadPage(direction, loadSize, syncStatus, filter)` | (on `SyncableObjectService`) | Core pagination method — `direction` is a `PageDirection` (`FromHead` / `Forward(cursor)` / `Backward(cursor)`). Returns `PageResult<O>` with `nextCursor` and `prevCursor`; used by `BuoyientPagingSource` or directly |
 | `SyncCodec<O>` | `utils` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
 | `BuoyientLog` | `utils` | Process-wide logger singleton — set `BuoyientLog.logger` to swap the backing `BuoyientLogger` |
 | `TestServiceEnvironment` | `:testing` module | All-in-one test harness |
