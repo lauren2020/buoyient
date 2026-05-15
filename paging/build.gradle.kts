@@ -34,12 +34,31 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Compose UI tests need a normal-looking Android resource pipeline.
+        unitTests.isIncludeAndroidResources = true
+    }
+
+    buildFeatures {
+        // Enabled only so Compose @Composable functions can be used in the
+        // test source set — there's no production Compose code in this module.
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
     }
 }
 
 dependencies {
     implementation(project(":syncable-objects"))
     implementation(libs.androidx.paging.runtime)
+
+    // The Compose compiler plugin (enabled via buildFeatures.compose = true so
+    // tests can declare @Composable functions) scans every source set's classpath
+    // for Compose runtime. compileOnly here satisfies that classpath check
+    // without bundling Compose into the published artifact.
+    compileOnly(platform(libs.androidx.compose.bom))
+    compileOnly(libs.androidx.compose.runtime)
 
     testImplementation(project(":testing"))
     testImplementation(libs.kotlinx.coroutines.test)
@@ -48,6 +67,15 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.work.testing)
     testImplementation(kotlin("test"))
+
+    // Compose + paging-compose for the sample composable and its tests.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.foundation)
+    testImplementation(libs.androidx.compose.ui)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(libs.androidx.activity.compose)
+    testImplementation(libs.androidx.paging.compose)
 }
 
 val javadocJar by tasks.registering(Jar::class) {
