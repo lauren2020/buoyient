@@ -34,13 +34,12 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
-        // Compose UI tests need a normal-looking Android resource pipeline.
         unitTests.isIncludeAndroidResources = true
     }
 
     buildFeatures {
-        // Enabled only so Compose @Composable functions can be used in the
-        // test source set — there's no production Compose code in this module.
+        // Enabled only so test source sets can declare @Composable functions —
+        // there's no production Compose code in this module.
         compose = true
     }
 
@@ -53,20 +52,19 @@ dependencies {
     implementation(project(":syncable-objects"))
     implementation(libs.androidx.paging.runtime)
 
-    // The Compose compiler plugin (enabled via buildFeatures.compose = true so
-    // tests can declare @Composable functions) scans every source set's classpath
-    // for Compose runtime. compileOnly here satisfies that classpath check
-    // without bundling Compose into the published artifact.
+    // Compose compiler plugin scans the main source set for Compose runtime even
+    // though no production code uses @Composable. compileOnly satisfies that
+    // classpath check without bundling Compose into the published artifact.
     compileOnly(platform(libs.androidx.compose.bom))
     compileOnly(libs.androidx.compose.runtime)
 
     testImplementation(project(":testing"))
+    testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.work.testing)
-    testImplementation(kotlin("test"))
 
     // Compose + paging-compose for the sample composable and its tests.
     testImplementation(platform(libs.androidx.compose.bom))

@@ -3,6 +3,8 @@
 buoyient's `:paging` module provides Jetpack Paging 3 integration for paginated lists backed by the local store. Combined with the `Filter` API, you can display large, filtered, live-updating lists without loading everything into memory.
 
 > **Android only.** The `:paging` module depends on `androidx.paging` and only targets Android. The underlying `loadPage()` and `Filter` APIs are available on all platforms (KMP), but `BuoyientPagingSource` is Android-specific.
+>
+> **For iOS / SwiftUI**, see [pagination-ios.md](pagination-ios.md) — `BuoyientPagedList` is a stateful coordinator over `loadPage()` that exposes items and load state as `StateFlow`s for SwiftUI to bind to.
 
 ---
 
