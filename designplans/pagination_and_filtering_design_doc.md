@@ -204,7 +204,7 @@ The `:paging` module depends only on `:syncable-objects` and `androidx.paging.ru
 
 **Cost:** Backward loads require a `SqlDriver` even when no filter is present — matches what filter queries already need. In practice anyone using `BuoyientPagingSource` (which is where prepends originate) is on the driver-available path already.
 
-**`PagingSource` integration:** `BuoyientPagingSource` maps `LoadParams.Prepend` → `PageDirection.Backward`, `LoadParams.Append` → `PageDirection.Forward`, `LoadParams.Refresh` → `PageDirection.Forward` (or `FromHead` when the key is null). `getRefreshKey` simplifies to `anchorPage.prevKey` — the cursor that originally loaded the anchor page.
+**`PagingSource` integration:** `BuoyientPagingSource` maps `LoadParams.Prepend` → `PageDirection.Backward`, `LoadParams.Append` → `PageDirection.Forward`, `LoadParams.Refresh` → `PageDirection.Forward` (or `FromHead` when the key is null). `getRefreshKey` returns the previous page's `nextKey` — the `Append.key` that originally loaded the anchor page — so refresh re-fetches the same window. (We don't use `anchorPage.prevKey` because that's the *prepend boundary* — the first item of the anchor page — and using it as a `Forward` cursor would skip that item.)
 
 ---
 

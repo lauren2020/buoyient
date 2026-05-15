@@ -133,17 +133,24 @@ public class BuoyientPagingSource<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     /**
      * Returns the cursor that originally loaded the page containing the user's anchor
-     * position. Re-using that cursor as a forward boundary on refresh reloads the same
-     * window the user was looking at, so an invalidate caused by a background sync-down
-     * doesn't bounce the list back to the head.
+     * position, so refresh reloads the same window the user was viewing rather than
+     * jumping back to the head.
      *
-     * The cursor that loaded the anchor page is exactly that page's [LoadResult.Page.prevKey] —
-     * the boundary the previous load passed in. For the very first page (or when no anchor
-     * is available) we return `null` so refresh starts from [PageDirection.FromHead].
+     * **Why not [LoadResult.Page.prevKey]?** `prevKey` is the boundary Paging 3 passes
+     * into a `Prepend` load — it's the first item of the current page, used to ask
+     * "give me items before this one." Refresh, however, maps to `Forward(key)` (items
+     * strictly after `key`), so we need the cursor of the item that came *before* the
+     * anchor page's first item — i.e. the previous page's last item. That's the previous
+     * page's [LoadResult.Page.nextKey], which is exactly the `Append.key` value that
+     * loaded the anchor page in the first place.
+     *
+     * For the first page (or when no anchor is available) we return `null` so refresh
+     * starts from [PageDirection.FromHead].
      */
     override fun getRefreshKey(state: PagingState<PageCursor, O>): PageCursor? {
         val anchor = state.anchorPosition ?: return null
         val anchorPage = state.closestPageToPosition(anchor) ?: return null
-        return anchorPage.prevKey
+        val pageIndex = state.pages.indexOf(anchorPage)
+        return if (pageIndex <= 0) null else state.pages[pageIndex - 1].nextKey
     }
 }

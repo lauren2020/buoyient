@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
     id("maven-publish")
     id("signing")
     alias(libs.plugins.nmcp)
@@ -30,11 +31,23 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
     implementation(project(":syncable-objects"))
     implementation(libs.androidx.paging.runtime)
+
+    testImplementation(project(":testing"))
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(kotlin("test"))
 }
 
 val javadocJar by tasks.registering(Jar::class) {

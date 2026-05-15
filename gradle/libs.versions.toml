@@ -15,6 +15,8 @@ skie = "0.8.4"
 atomicfu = "0.23.2"
 
 paging = "3.3.6"
+robolectric = "4.13"
+androidx-test-core = "1.6.1"
 
 compileSdk = "34"
 minSdk = "27"
@@ -44,8 +46,11 @@ hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hil
 kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
 
 androidx-work = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "workmanager" }
 androidx-startup = { module = "androidx.startup:startup-runtime", version.ref = "startup" }
 androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
+androidx-test-core = { module = "androidx.test:core", version.ref = "androidx-test-core" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
