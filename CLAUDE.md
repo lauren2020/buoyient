@@ -9,6 +9,7 @@ If you are integrating buoyient into an application, **read the guides in `docs/
 - **`docs/setup.md`** — How to add buoyient to an **Android** app: dependencies, automatic initialization, and service registration. Start here for Android.
 - **`docs/setup-ios.md`** — How to add buoyient to an **iOS/SwiftUI** app: XCFramework via SPM, initialization, background sync, and SKIE Swift APIs. Start here for iOS.
 - **`docs/creating-a-service.md`** — Step-by-step guide to creating a `SyncableObjectService`: data model, `ServerProcessingConfig`, service class, and registration (Hilt or manual).
+- **`docs/pagination.md`** — How to use `BuoyientPagingSource` with Jetpack Paging 3, write `Filter` predicates, and configure `PagingConfig` and `indexedJsonPaths`.
 - **`docs/integration-testing.md`** — How to write automated tests using `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module.
 - **`docs/mock-mode.md`** — How to wire mock mode into the live app for manual testing without a real backend.
 
@@ -53,9 +54,10 @@ The `:syncable-objects` module organizes its public API into packages by role:
 |---------|---------|
 | `com.elvdev.buoyient` (top level) | Primary classes consumers build on: `SyncableObject`, `SyncableObjectService`, `ServiceRequestTag`, `Service` |
 | `com.elvdev.buoyient.globalconfigs` | Project-level configuration: `Buoyient`, `GlobalHeaderProvider`, `DatabaseProvider`, `HttpClientOverride`, `DatabaseOverride` |
-| `com.elvdev.buoyient.serviceconfigs` | Per-service configuration: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler` |
-| `com.elvdev.buoyient.datatypes` | Data types for interacting with `SyncableObjectService`: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger` |
+| `com.elvdev.buoyient.serviceconfigs` | Per-service configuration: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler`, `PagingConfig`, `SortOrder` |
+| `com.elvdev.buoyient.datatypes` | Data types for interacting with `SyncableObjectService`: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger`, `PageCursor`, `PageResult`, `Filter` |
 | `com.elvdev.buoyient.utils` | Utilities: `SyncCodec`, `BuoyientLog`, `BuoyientLogger` |
+| `com.elvdev.buoyient.paging` (`:paging` module) | Jetpack Paging 3 adapter: `BuoyientPagingSource` (Android only) |
 
 Internal packages (`managers`, `sync`) are not part of the public API.
 
@@ -86,7 +88,13 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `VoidRequestBuilder` | `datatypes` | Functional interface for building void requests |
 | `ResponseUnpacker` | `datatypes` | Functional interface for extracting objects from server responses |
 | `SquashRequestMerger` | `datatypes` | Functional interface for merging an update into a pending create when using `Squash` strategy |
+| `PageCursor` | `datatypes` | Opaque keyset cursor — pass `null` for the first page, forward `nextCursor` for subsequent pages |
+| `PageResult<O>` | `datatypes` | One page of results: `items: List<O>` and `nextCursor: PageCursor?` (`null` = no more pages) |
+| `Filter` | `datatypes` | Sealed predicate for filtered queries — factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `like`, `isNull`, `isNotNull`, `and`, `or`, `not` |
+| `PagingConfig<O>` | `serviceconfigs` | Per-service pagination settings: `keyExtractor` (field to page by, default `clientId`) and `sortOrder` (`ASC`/`DESC`, default `DESC`) |
+| `BuoyientPagingSource<O, T>` | `:paging` module | `PagingSource<PageCursor, O>` for Jetpack Paging 3 — wraps `loadPage()` with optional `filter`, `syncStatus` constraint, and `autoRefreshOnLocalStoreChange` |
 | `getFromLocalStore()` | (on `SyncableObjectService`) | Overloaded query methods — filter by `syncStatus` string / `includeVoided` flag (SQL-level), or by `(O) -> Boolean` predicate (in-memory) |
+| `loadPage(afterCursor, loadSize, syncStatus, filter)` | (on `SyncableObjectService`) | Core pagination method — returns `PageResult<O>`; used by `BuoyientPagingSource` or directly |
 | `SyncCodec<O>` | `utils` | Serialization helper using `kotlinx.serialization.KSerializer<O>` |
 | `BuoyientLog` | `utils` | Process-wide logger singleton — set `BuoyientLog.logger` to swap the backing `BuoyientLogger` |
 | `TestServiceEnvironment` | `:testing` module | All-in-one test harness |
@@ -105,6 +113,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 |--------|----------|-----------|---------|
 | `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Android, iOS, JVM | Core sync engine (KMP) — also exports XCFramework for iOS via SPM |
 | `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Android | Optional Hilt integration — auto-registers services |
+| `:paging` | `com.elvdev.buoyient:syncable-objects-paging` | Android | Optional Jetpack Paging 3 integration — `BuoyientPagingSource` for paginated local-store queries |
 | `:mock-infra` | `com.elvdev.buoyient:syncable-objects-mock-infra` | iOS, JVM | Shared mock infrastructure — mock HTTP routing, stateful server store, test doubles |
 | `:mock-mode` | `com.elvdev.buoyient:syncable-objects-mock-mode` | iOS, JVM | Mock mode builder for running apps against fake server responses |
 | `:testing` | `com.elvdev.buoyient:syncable-objects-testing` | iOS, JVM | Test utilities — in-memory DB, test harness, sync helpers |
@@ -123,6 +132,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 - `SyncableObjectService` accepts an optional `queueStrategy` parameter (defaults to `Queue`). Use `Squash` when the API uses PUT/replace semantics and intermediate offline states don't matter; use `Queue` when request order matters or each write has side effects. See `docs/creating-a-service.md` § "Pending request queue strategy" for full guidance.
 - Registration for background sync: use Hilt `@IntoSet` multibinding with `:hilt`, or `Buoyient.registerServices()` / `Buoyient.registerServiceProvider()` without Hilt.
 - Use `Buoyient.syncNow()` to trigger an immediate sync-up pass from the UI (e.g. pull-to-refresh). It runs on a background coroutine and accepts an optional `completion: (Boolean) -> Unit` callback. For per-service sync-down, call `service.syncDownFromServer()` directly.
+- **Pagination:** Override `pagingConfig` in your service to configure the paging key and sort order. Use `BuoyientPagingSource` (`:paging` module) for Jetpack Paging 3 integration, or call `loadPage()` directly for custom pagination. Declare `indexedJsonPaths` for any fields you filter on frequently to avoid full-table scans. See `docs/pagination.md` for the full guide.
 
 ## iOS-specific conventions
 
