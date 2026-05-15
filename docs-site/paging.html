@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paging — buoyient</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="platform-android">
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a href="why-buoyient.html" class="logo">
+    <svg width="32" height="32" viewBox="0 0 80 80" fill="none">
+      <path d="M40 12 A28 28 0 0 1 66 32" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M66 46 L60 40 M66 46 L60 52" stroke="#00dcc6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M40 68 A28 28 0 0 1 14 48" stroke="#ffe066" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M14 34 L20 40 M14 34 L20 28" stroke="#4a9eff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse cx="40" cy="44" rx="10" ry="5.5" fill="#ff6b35"/>
+      <rect x="37.5" y="28" width="5" height="16" rx="2.5" fill="#ff6b35"/>
+      <circle cx="40" cy="27" r="3.5" fill="#ffe066"/>
+      <circle cx="40" cy="27" r="6" fill="#ffe066" opacity="0.2"/>
+      <path d="M26 46 Q33 42 40 46 Q47 50 54 46" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+    </svg>
+    buoyient
+  </a>
+  <button class="nav-toggle" onclick="document.querySelector('.site-header nav').classList.toggle('open')">&#9776;</button>
+  <nav>
+    <a href="why-buoyient.html">Why buoyient?</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup Guide</a>
+    <a href="mock-mode.html">Mock Mode</a>
+    <a href="paging.html" class="active">Paging</a>
+    <a href="local-sync.html">Local Sync &#128679;</a>
+  </nav>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>Paging that <span class="highlight">scales</span> with your data</h1>
+  <p class="subtitle">Render thousands of synced rows without dropping frames &mdash; on Android and iOS</p>
+</div>
+
+<!-- ── Platform Selector ── -->
+<div class="platform-selector" id="platformSelector">
+  <span class="platform-label">Platform:</span>
+  <button class="platform-btn active" onclick="switchPlatform('android')">Android</button>
+  <button class="platform-btn" onclick="switchPlatform('ios')">iOS</button>
+</div>
+
+<!-- ── The Problem ── -->
+<section class="section">
+  <h2>The problem</h2>
+  <p class="section-desc">buoyient keeps your local database hydrated with offline-first sync. But once you have hundreds or thousands of rows, the question becomes: how do you render them without making the UI sluggish?</p>
+
+  <div class="card-grid card-grid-3 stagger">
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <circle cx="20" cy="20" r="16" stroke="#ff4757" stroke-width="2" fill="none"/>
+          <path d="M14 14 L26 26 M26 14 L14 26" stroke="#ff4757" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h4>Loading the whole table</h4>
+      <p>A naive <code>SELECT *</code> works for 50 rows. At 5,000 rows your list jank-scrolls; at 50,000 the app freezes for a second when the view appears.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <rect x="6" y="8" width="28" height="24" rx="3" stroke="#ff4757" stroke-width="2" fill="none"/>
+          <path d="M12 16h16 M12 20h12 M12 24h8" stroke="#ff4757" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+          <path d="M6 8 L34 32" stroke="#ff4757" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h4><code>OFFSET</code> pagination breaks under writes</h4>
+      <p>OFFSET-based pagination silently skips or duplicates rows when items are inserted or deleted between page loads &mdash; exactly what happens when sync-down lands while a user is scrolling.</p>
+    </div>
+    <div class="card fade-in">
+      <div class="card-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <path d="M8 32 L8 8 L32 8" stroke="#ff4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M14 26 L20 14 L26 26" stroke="#ff4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M8 28 L32 12" stroke="#ff4757" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 3"/>
+        </svg>
+      </div>
+      <h4>Filters scan the whole blob</h4>
+      <p>Your data is stored as a JSON blob inside SQLite. Filtering &ldquo;all rows where status = active&rdquo; means a full table scan unless you've thought carefully about indexes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── The Solution ── -->
+<section class="section">
+  <h2>What buoyient gives you</h2>
+  <p class="section-desc">Two layers: a fast, correct keyset cursor primitive that ships in every buoyient artifact, and a platform adapter that plugs into the idiomatic UI library on each platform.</p>
+
+  <div class="arch-diagram fade-in" style="max-width: 800px; margin: 0 auto;">
+    <!-- Top: UI layer -->
+    <div class="arch-layer">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; min-width: 600px;">
+        <div class="arch-box" style="border-color: var(--ocean-blue); padding: 20px;">
+          <div class="arch-label" style="color: var(--ocean-blue);">Android &mdash; LazyColumn</div>
+          <div class="arch-sub" style="font-size: 0.78rem; margin-top: 6px;">Jetpack Paging 3 via <code>BuoyientPagingSource</code></div>
+        </div>
+        <div class="arch-box" style="border-color: var(--beacon-yellow); padding: 20px;">
+          <div class="arch-label" style="color: var(--beacon-yellow);">iOS &mdash; SwiftUI List</div>
+          <div class="arch-sub" style="font-size: 0.78rem; margin-top: 6px;"><code>BuoyientPagedList</code> with <code>StateFlow</code></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">
+      <svg width="24" height="32" viewBox="0 0 24 32"><path d="M12 0v28M6 22l6 6 6-6" stroke="#00dcc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    </div>
+
+    <!-- Middle: shared primitive -->
+    <div class="arch-layer">
+      <div class="arch-box engine-layer" style="min-width: 600px; border-color: var(--current-teal);">
+        <div class="arch-label" style="color: var(--current-teal);">SyncableObjectService.loadPage()</div>
+        <div class="arch-sub" style="font-size: 0.78rem; margin-top: 6px;">Keyset cursor pagination &mdash; one page in, one page out. Composes filters, sort order, and sync-status.</div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">
+      <svg width="24" height="32" viewBox="0 0 24 32"><path d="M12 0v28M6 22l6 6 6-6" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    </div>
+
+    <!-- Bottom: storage -->
+    <div class="arch-layer">
+      <div class="arch-box" style="min-width: 600px; border-color: var(--ocean-blue); padding: 20px;">
+        <div class="arch-label" style="color: var(--ocean-blue);">SQLite</div>
+        <div class="arch-sub" style="font-size: 0.78rem; margin-top: 6px;">B-tree seek + sequential read. Optional expression indexes on hot filter paths.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ── -->
+<section class="section">
+  <h2>What you can do with it</h2>
+  <p class="section-desc">The basics most consumers care about &mdash; plus the knobs you reach for when your dataset gets large.</p>
+
+  <div class="card-grid card-grid-3 stagger" style="max-width: 1100px; margin: 0 auto;">
+    <div class="card fade-in" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal);">Bidirectional scrolling</h4>
+      <p>Append new pages as the user scrolls down. Or start mid-list (e.g., resume at a saved cursor) and prepend earlier rows when they scroll up. Items stay in the configured sort order, always.</p>
+    </div>
+    <div class="card fade-in" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue);">Composable filters</h4>
+      <p>Filter on any JSON field with <code>Filter.eq</code>, <code>Filter.gt</code>, <code>Filter.like</code>, plus <code>and</code>, <code>or</code>, <code>not</code>. Filters compose cleanly with pagination, sort order, and sync-status &mdash; one call, one page.</p>
+    </div>
+    <div class="card fade-in" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow);">Configurable sort key</h4>
+      <p>Page by <code>created_at</code>, alphabetical name, priority, or anything else. Ascending or descending. A composite cursor with <code>client_id</code> tiebreaker handles duplicate keys without skipping rows.</p>
+    </div>
+    <div class="card fade-in" style="border-color: var(--buoy-orange);">
+      <h4 style="color: var(--buoy-orange);">Sync-status filtering</h4>
+      <p>Show only synced rows. Or only pending writes. Or only the row in conflict. Composes with everything else &mdash; "filter to active, only show synced, page by created_at descending" is one call.</p>
+    </div>
+    <div class="card fade-in" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal);">Live updates</h4>
+      <p>Opt in to <code>autoRefreshOnLocalStoreChange</code> and your list re-renders when sync-down lands, when the user creates a row offline, or when a conflict resolves &mdash; no manual wiring.</p>
+    </div>
+    <div class="card fade-in" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue);">Indexes where they matter</h4>
+      <p>Declare <code>indexedJsonPaths</code> on your service and buoyient creates a SQLite expression index per path. Filter queries that would scan the table now seek directly.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ Quick Start ══════════ -->
+<section class="section">
+  <h2>Quick start</h2>
+  <p class="section-desc" data-platform="android">Wire a <code>BuoyientPagingSource</code> into a <code>Pager</code> and bind it to a <code>LazyColumn</code>. About 20 lines of Compose plus what your row composable looks like.</p>
+  <p class="section-desc" data-platform="ios">Construct a <code>BuoyientPagedList</code>, bind its <code>items</code> <code>StateFlow</code> to a SwiftUI <code>List</code>, and trigger <code>loadMore()</code> when the bottom row appears.</p>
+
+  <!-- Android quick start -->
+  <div data-platform="android">
+    <div class="card mb-24" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue);">Add the dependency</h4>
+      <div class="code-block mt-8">
+        <div class="code-header"><span>build.gradle.kts</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="fn">dependencies</span> {
+    <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects:&lt;version&gt;"</span>)
+    <span class="fn">implementation</span>(<span class="str">"com.elvdev.buoyient:syncable-objects-paging:&lt;version&gt;"</span>)
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="card mb-24" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal);">Configure the paging key on your service</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Default is by <code>clientId</code>. Override <code>pagingConfig</code> in the service constructor to page by something meaningful &mdash; usually the timestamp or domain-specific field you sort by in your UI.</p>
+      <div class="code-block mt-12">
+        <div class="code-header"><span>TodoService.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="kw">class</span> <span class="typ">TodoService</span>(<span class="cmt">/* ... */</span>) : <span class="typ">SyncableObjectService</span>&lt;<span class="typ">Todo</span>, <span class="typ">TodoRequestTag</span>&gt;(
+    serializer = <span class="typ">Todo</span>.serializer(),
+    serverProcessingConfig = todoServerConfig,
+    serviceName = <span class="str">"todos"</span>,
+    pagingConfig = <span class="typ">PagingConfig</span>(
+        keyExtractor = { it.createdAt },
+        sortOrder = <span class="typ">PagingConfig</span>.<span class="typ">SortOrder</span>.<span class="ann">DESC</span>,
+    ),
+    indexedJsonPaths = <span class="fn">listOf</span>(<span class="str">"$.status"</span>),   <span class="cmt">// optional: index hot filter paths</span>
+)</code></pre>
+      </div>
+    </div>
+
+    <div class="card mb-24" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow);">Bind it to <code>LazyColumn</code></h4>
+      <div class="code-block mt-12">
+        <div class="code-header"><span>TodoListScreen.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="ann">@Composable</span>
+<span class="kw">fun</span> <span class="fn">TodoListScreen</span>(todoService: <span class="typ">TodoService</span>) {
+    <span class="kw">val</span> pager = <span class="fn">remember</span> {
+        <span class="typ">Pager</span>(<span class="typ">PagingConfig</span>(pageSize = <span class="num">20</span>)) {
+            <span class="typ">BuoyientPagingSource</span>(
+                service = todoService,
+                filter = <span class="typ">Filter</span>.<span class="fn">eq</span>(<span class="str">"$.status"</span>, <span class="str">"active"</span>),
+                autoRefreshOnLocalStoreChange = <span class="kw">true</span>,
+            )
+        }
+    }
+    <span class="kw">val</span> items = pager.flow.<span class="fn">collectAsLazyPagingItems</span>()
+
+    <span class="typ">LazyColumn</span> {
+        <span class="fn">items</span>(count = items.itemCount, key = items.<span class="fn">itemKey</span> { it.clientId }) { index -&gt;
+            items[index]?.<span class="kw">let</span> { <span class="typ">TodoRow</span>(it) }
+        }
+    }
+}</code></pre>
+      </div>
+    </div>
+
+    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+      That's it. Paging 3 handles the rest &mdash; prefetch, append on scroll, prepend if you set an <code>initialKey</code>, diffing, recomposition. Background sync-down arrives? With <code>autoRefreshOnLocalStoreChange = true</code> the list updates on its own.
+    </p>
+  </div>
+
+  <!-- iOS quick start -->
+  <div data-platform="ios">
+    <div class="card mb-24" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue);"><code>BuoyientPagedList</code> ships in the existing framework</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+        No extra SPM target. The class lives in <code>Buoyient.xcframework</code> alongside the rest of the sync engine. Just <code>import Buoyient</code> and use it.
+      </p>
+    </div>
+
+    <div class="card mb-24" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal);">Configure the paging key on your service</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Defined in your Kotlin shared module &mdash; same as Android. Default is by <code>clientId</code>; override for a real sort key.</p>
+      <div class="code-block mt-12">
+        <div class="code-header"><span>TodoService.kt (shared module)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="kw">class</span> <span class="typ">TodoService</span>(<span class="cmt">/* ... */</span>) : <span class="typ">SyncableObjectService</span>&lt;<span class="typ">Todo</span>, <span class="typ">TodoRequestTag</span>&gt;(
+    serializer = <span class="typ">Todo</span>.serializer(),
+    serverProcessingConfig = todoServerConfig,
+    serviceName = <span class="str">"todos"</span>,
+    pagingConfig = <span class="typ">PagingConfig</span>(
+        keyExtractor = { it.createdAt },
+        sortOrder = <span class="typ">PagingConfig</span>.<span class="typ">SortOrder</span>.<span class="ann">DESC</span>,
+    ),
+    indexedJsonPaths = <span class="fn">listOf</span>(<span class="str">"$.status"</span>),
+)</code></pre>
+      </div>
+    </div>
+
+    <div class="card mb-24" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow);">Drive a SwiftUI <code>List</code></h4>
+      <div class="code-block mt-12">
+        <div class="code-header"><span>TodoListView.swift</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="kw">import</span> <span class="typ">SwiftUI</span>
+<span class="kw">import</span> <span class="typ">Buoyient</span>
+
+<span class="kw">struct</span> <span class="typ">TodoListView</span>: <span class="typ">View</span> {
+    <span class="kw">let</span> service: <span class="typ">TodoService</span>
+    <span class="ann">@State</span> <span class="kw">private var</span> items: [<span class="typ">Todo</span>] = []
+    <span class="ann">@State</span> <span class="kw">private var</span> list: <span class="typ">BuoyientPagedList</span>&lt;<span class="typ">Todo</span>, <span class="typ">TodoRequestTag</span>&gt;?
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="typ">View</span> {
+        <span class="typ">List</span>(items, id: \.clientId) { item <span class="kw">in</span>
+            <span class="typ">TodoRow</span>(item: item)
+                .<span class="fn">task</span> {
+                    <span class="kw">if</span> item.clientId == items.last?.clientId {
+                        <span class="kw">try?</span> <span class="kw">await</span> list?.<span class="fn">loadMore</span>()
+                    }
+                }
+        }
+        .<span class="fn">refreshable</span> { <span class="kw">try?</span> <span class="kw">await</span> list?.<span class="fn">refresh</span>() }
+        .<span class="fn">task</span> {
+            <span class="kw">let</span> pagedList = <span class="typ">BuoyientPagedList</span>(
+                service: service,
+                pageSize: <span class="num">20</span>,
+                syncStatus: <span class="kw">nil</span>,
+                filter: <span class="typ">Filter</span>.<span class="fn">eq</span>(path: <span class="str">"$.status"</span>, value: <span class="str">"active"</span>),
+                autoRefreshOnLocalStoreChange: <span class="kw">true</span>,
+                initialKey: <span class="kw">nil</span>
+            )
+            list = pagedList
+            <span class="kw">try?</span> <span class="kw">await</span> pagedList.<span class="fn">refresh</span>()
+            <span class="kw">for await</span> snapshot <span class="kw">in</span> pagedList.items {
+                items = snapshot
+            }
+        }
+        .<span class="fn">onDisappear</span> { list?.<span class="fn">close</span>() }
+    }
+}</code></pre>
+      </div>
+    </div>
+
+    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+      The <code>for await</code> loop bridges Kotlin's <code>StateFlow</code> (mapped by SKIE to a Swift <code>AsyncSequence</code>) into SwiftUI state. The closure is already main-actor-isolated, so the assignment is safe.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ Filter Showcase ══════════ -->
+<section class="section">
+  <h2>Filtering, composed</h2>
+  <p class="section-desc">The <code>Filter</code> sealed type is the same on both platforms. Combine predicates with <code>and</code> / <code>or</code> / <code>not</code> and pass the result straight to <code>loadPage()</code>, <code>BuoyientPagingSource</code>, or <code>BuoyientPagedList</code>.</p>
+
+  <div class="split-panel">
+    <div>
+      <h3 class="mb-16">Common predicates</h3>
+      <div class="code-block">
+        <div class="code-header"><span>Filter.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="cmt">// Equality, comparison, set membership</span>
+<span class="typ">Filter</span>.<span class="fn">eq</span>(<span class="str">"$.status"</span>, <span class="str">"active"</span>)
+<span class="typ">Filter</span>.<span class="fn">gt</span>(<span class="str">"$.priority"</span>, <span class="num">3</span>)
+<span class="typ">Filter</span>.<span class="fn">isIn</span>(<span class="str">"$.assignee"</span>, <span class="fn">listOf</span>(<span class="str">"me"</span>, <span class="str">"alice"</span>))
+
+<span class="cmt">// Pattern matching (SQL LIKE)</span>
+<span class="typ">Filter</span>.<span class="fn">like</span>(<span class="str">"$.title"</span>, <span class="str">"buy%"</span>)
+
+<span class="cmt">// Null checks</span>
+<span class="typ">Filter</span>.<span class="fn">isNull</span>(<span class="str">"$.dueDate"</span>)</code></pre>
+      </div>
+    </div>
+    <div>
+      <h3 class="mb-16">Boolean composition</h3>
+      <div class="code-block">
+        <div class="code-header"><span>Filter.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="cmt">// All clauses must match</span>
+<span class="typ">Filter</span>.<span class="fn">and</span>(
+    <span class="typ">Filter</span>.<span class="fn">eq</span>(<span class="str">"$.status"</span>, <span class="str">"active"</span>),
+    <span class="typ">Filter</span>.<span class="fn">gte</span>(<span class="str">"$.priority"</span>, <span class="num">5</span>),
+)
+
+<span class="cmt">// Any clause matches</span>
+<span class="typ">Filter</span>.<span class="fn">or</span>(
+    <span class="typ">Filter</span>.<span class="fn">eq</span>(<span class="str">"$.assignee"</span>, <span class="str">"me"</span>),
+    <span class="typ">Filter</span>.<span class="fn">isNull</span>(<span class="str">"$.assignee"</span>),
+)
+
+<span class="cmt">// Inverts</span>
+<span class="typ">Filter</span>.<span class="fn">not</span>(<span class="typ">Filter</span>.<span class="fn">eq</span>(<span class="str">"$.status"</span>, <span class="str">"archived"</span>))</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 24px; text-align: center; max-width: 700px; margin-left: auto; margin-right: auto;">
+    Filters compile to a single SQL <code>WHERE</code> clause that joins the cursor predicate, the sort order, and your optional sync-status constraint. No N+1 queries, no in-memory filtering after the fact.
+  </p>
+</section>
+
+<!-- ══════════ Performance ══════════ -->
+<section class="section">
+  <h2>Built for big lists</h2>
+  <p class="section-desc">A few details that matter once your dataset grows past what fits comfortably on a screen.</p>
+
+  <div style="max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+    <div class="card" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal); margin-bottom: 8px;">Keyset cursor, not OFFSET</h4>
+      <p style="margin: 0; font-size: 0.88rem;">
+        Pages are addressed by an opaque <code>PageCursor</code> &mdash; a tuple of <code>(paging_key, client_id)</code>. SQLite seeks directly to the right spot via the B-tree index. Adding rows between page loads doesn't cause skips or duplicates the way OFFSET would. Each page fetch is O(loadSize), not O(offset).
+      </p>
+    </div>
+
+    <div class="card" style="border-color: var(--ocean-blue);">
+      <h4 style="color: var(--ocean-blue); margin-bottom: 8px;">Expression indexes for hot filter paths</h4>
+      <p style="margin: 0; font-size: 0.88rem;">
+        Declare <code>indexedJsonPaths = listOf("$.status", "$.priority")</code> on your service and buoyient runs <code>CREATE INDEX IF NOT EXISTS</code> for each path at startup. Filters on those paths skip the full-table scan and seek directly. Other paths still work &mdash; they just scan.
+      </p>
+    </div>
+
+    <div class="card" style="border-color: var(--beacon-yellow);">
+      <h4 style="color: var(--beacon-yellow); margin-bottom: 8px;">Eight prepared statements for the no-filter hot path</h4>
+      <p style="margin: 0; font-size: 0.88rem;">
+        When you page without a <code>filter</code>, the call routes through one of eight prepared SQLDelight queries covering (first vs next) &times; (ASC vs DESC) &times; (sync-status filter or not). No dynamic SQL building, no statement-cache misses, predictable plan.
+      </p>
+    </div>
+
+    <div class="card" style="border-color: var(--buoy-orange);">
+      <h4 style="color: var(--buoy-orange); margin-bottom: 8px;">Stable cursors under concurrent writes</h4>
+      <p style="margin: 0; font-size: 0.88rem;">
+        The cursor includes a <code>client_id</code> tiebreaker so two rows that share a paging key (identical timestamps, for instance) don't trip up next-page queries. Background sync-down can land mid-scroll without the user seeing a skipped or duplicated row.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ Direct API ══════════ -->
+<section class="section">
+  <h2>When you want the primitive</h2>
+  <p class="section-desc">The platform adapters are convenient, but sometimes you just need one page. <code>service.loadPage()</code> is the underlying primitive &mdash; available on every platform, no extra dependency.</p>
+
+  <div class="code-block" style="max-width: 800px; margin: 0 auto;">
+    <div class="code-header"><span>loadPage example</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+    <pre><code><span class="cmt">// First page from the head, no filter</span>
+<span class="kw">val</span> firstPage = service.<span class="fn">loadPage</span>(loadSize = <span class="num">20</span>)
+firstPage.items                                <span class="cmt">// List&lt;Todo&gt;</span>
+firstPage.nextCursor                           <span class="cmt">// PageCursor? - null = end of forward</span>
+firstPage.prevCursor                           <span class="cmt">// PageCursor? - null at the head</span>
+
+<span class="cmt">// Next page forward</span>
+<span class="kw">val</span> nextPage = service.<span class="fn">loadPage</span>(
+    direction = <span class="typ">PageDirection</span>.<span class="fn">Forward</span>(firstPage.nextCursor!!),
+    loadSize = <span class="num">20</span>,
+)
+
+<span class="cmt">// Backward from a cursor (e.g., user scrolled up from mid-list)</span>
+<span class="kw">val</span> earlierPage = service.<span class="fn">loadPage</span>(
+    direction = <span class="typ">PageDirection</span>.<span class="fn">Backward</span>(someCursor),
+    loadSize = <span class="num">20</span>,
+)
+
+<span class="cmt">// Filtered + sync-status constrained + paged</span>
+<span class="kw">val</span> filtered = service.<span class="fn">loadPage</span>(
+    direction = <span class="typ">PageDirection</span>.<span class="ann">FromHead</span>,
+    loadSize = <span class="num">20</span>,
+    syncStatus = <span class="typ">SyncableObject</span>.<span class="typ">SyncStatus</span>.<span class="ann">SYNCED</span>,
+    filter = <span class="typ">Filter</span>.<span class="fn">eq</span>(<span class="str">"$.status"</span>, <span class="str">"active"</span>),
+)</code></pre>
+  </div>
+
+  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 24px; text-align: center; max-width: 700px; margin-left: auto; margin-right: auto;">
+    Same call, same return type, every platform. Use it for one-shot queries, custom paging UIs, or just to peek at the first N rows.
+  </p>
+</section>
+
+<!-- ══════════ Where to Learn More ══════════ -->
+<section class="section text-center" style="border-top: none; padding-top: 0;">
+  <h2 class="mb-24">Ready to wire it up?</h2>
+  <p class="section-desc">Full step-by-step guides on both platforms, including refresh keys, filter recipes, and the design rationale behind the cursor model.</p>
+  <div class="flex-center gap-16 flex-wrap" style="margin-bottom: 20px;">
+    <a href="https://github.com/lauren2020/data-buoy/blob/main/docs/pagination.md" class="btn btn-primary" data-platform="android">Android guide &rarr;</a>
+    <a href="https://github.com/lauren2020/data-buoy/blob/main/docs/pagination-ios.md" class="btn btn-primary" data-platform="ios">iOS guide &rarr;</a>
+    <a href="setup.html" class="btn btn-secondary">Setup Guide</a>
+    <a href="https://github.com/lauren2020/data-buoy/blob/main/designplans/pagination_and_filtering_design_doc.md" class="btn btn-secondary">Design plan</a>
+  </div>
+  <p style="font-size: 0.78rem; color: var(--text-dim);">The design plan covers cursor semantics, the eight-query routing, and why filter queries drop to dynamic SQL.</p>
+</section>
+
+<!-- ── Footer ── -->
+<div class="wave-separator">
+  <svg viewBox="0 0 1200 40" preserveAspectRatio="none">
+    <path d="M0 20 Q150 5 300 20 T600 18 T900 22 T1200 16 V40 H0 Z" fill="#1a1d27" opacity="0.5"/>
+    <path d="M0 28 Q200 14 400 26 T800 24 T1200 22 V40 H0 Z" fill="#1a1d27"/>
+  </svg>
+</div>
+<footer class="site-footer">
+  <p class="tagline">keep your client up even when the network is down</p>
+  <div class="footer-links">
+    <a href="https://github.com/user/buoyient">GitHub</a>
+    <a href="why-buoyient.html">Why</a>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="setup.html">Setup</a>
+    <a href="mock-mode.html">Mock Mode</a>
+    <a href="paging.html">Paging</a>
+    <a href="local-sync.html">Local Sync &#128679;</a>
+  </div>
+  <p class="copy">buoyient &mdash; offline-first sync for Kotlin Multiplatform</p>
+</footer>
+
+<!-- ── Scripts ── -->
+<script>
+// --- Platform Switcher ---
+function switchPlatform(platform) {
+  document.body.className = 'platform-' + platform;
+  document.querySelectorAll('.platform-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().indexOf(platform) >= 0);
+  });
+  try { localStorage.setItem('buoyient-platform', platform); } catch(e) {}
+}
+
+// Restore saved platform on load
+(function() {
+  try {
+    const saved = localStorage.getItem('buoyient-platform');
+    if (saved && ['android', 'ios'].includes(saved)) {
+      switchPlatform(saved);
+    }
+  } catch(e) {}
+})();
+
+// --- Scroll fade-in ---
+const fadeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => fadeObserver.observe(el));
+
+// --- Copy to clipboard ---
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>
