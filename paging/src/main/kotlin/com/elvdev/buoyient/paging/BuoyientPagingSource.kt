@@ -8,6 +8,7 @@ import com.elvdev.buoyient.SyncableObjectService
 import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.PageCursor
 import com.elvdev.buoyient.datatypes.PageDirection
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,10 +75,20 @@ import kotlinx.coroutines.flow.launchIn
  * paths via [SyncableObjectService.indexedJsonPaths] so the library creates the
  * matching index at startup.
  *
+ * **Toggling sort direction.** [sortOrder] overrides the service's configured
+ * `pagingConfig.sortOrder` for the lifetime of this source. To let the user flip
+ * "newest first" vs "oldest first", reconstruct the source with the new direction —
+ * same `flatMapLatest` pattern shown above for dynamic filters. Cursors are not
+ * meaningful across directions; reconstructing resets to `FromHead`, which is
+ * exactly what you want.
+ *
  * @param service the [SyncableObjectService] to load pages from.
  * @param syncStatus if non-null, only rows with this sync status are included.
  * @param filter optional predicate over `data_blob` (see [Filter]). Bound at construction;
  *   reinstantiate the source to change it.
+ * @param sortOrder if non-null, overrides the service's `pagingConfig.sortOrder` for
+ *   the lifetime of this source. `null` (the default) means "use the service's
+ *   configured sort order."
  * @param autoRefreshOnLocalStoreChange when `true`, this source subscribes to
  *   [SyncableObjectService.localStoreChanges] and calls [invalidate] on each emission so
  *   Paging 3 reloads pages whenever the service's local store is written. Defaults to
@@ -87,6 +98,7 @@ public class BuoyientPagingSource<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val service: SyncableObjectService<O, T>,
     private val syncStatus: String? = null,
     private val filter: Filter? = null,
+    private val sortOrder: PagingConfig.SortOrder? = null,
     autoRefreshOnLocalStoreChange: Boolean = false,
 ) : PagingSource<PageCursor, O>() {
 
@@ -120,6 +132,7 @@ public class BuoyientPagingSource<O : SyncableObject<O>, T : ServiceRequestTag>(
                 loadSize = params.loadSize,
                 syncStatus = syncStatus,
                 filter = filter,
+                sortOrder = sortOrder ?: service.pagingConfig.sortOrder,
             )
             LoadResult.Page(
                 data = result.items,

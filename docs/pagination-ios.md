@@ -88,6 +88,7 @@ BuoyientPagedList(
     pageSize: Int = 20,                       // items per page request
     syncStatus: String? = nil,                // optional: only rows with this sync status
     filter: Filter? = nil,                    // optional: predicate over data_blob
+    sortOrder: PagingConfigSortOrder? = nil,  // optional: override service sort direction
     autoRefreshOnLocalStoreChange: Bool = false,
     initialKey: PageCursor? = nil             // optional: start mid-list at this cursor
 )
@@ -103,6 +104,25 @@ let list = BuoyientPagedList(service: service, pageSize: 20, initialKey: cursor)
 ```
 
 With a non-null `initialKey`, `hasMoreBackward` starts as `true` and you can call `loadPrevious()` to walk back toward the head.
+
+### `sortOrder` — flip direction per list
+
+Pass `sortOrder` to override the service's configured direction for this list only. Useful for "newest first" vs "oldest first" toggles:
+
+```swift
+@State private var sortOrder: PagingConfigSortOrder = .desc
+
+.task(id: sortOrder) {                       // re-runs when the toggle changes
+    let list = BuoyientPagedList(
+        service: service,
+        pageSize: 20,
+        sortOrder: sortOrder
+    )
+    // ... bind to `items` as above
+}
+```
+
+Cursors aren't meaningful across directions, so reconstructing on flip is the right move — `.task(id:)` cancels the old list and starts a fresh one from the head.
 
 ### `filter` and `syncStatus` — bound at construction
 

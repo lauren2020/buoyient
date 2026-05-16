@@ -208,4 +208,30 @@ val previousPage: PageResult<Item> = itemService.loadPage(
 - `nextCursor: PageCursor?` — boundary cursor for the page after this one (wrap in `PageDirection.Forward(...)`). `null` means we hit the tail.
 - `prevCursor: PageCursor?` — boundary cursor for the page before this one (wrap in `PageDirection.Backward(...)`). `null` means we hit the head.
 
+---
+
+## Per-call sort direction
+
+`loadPage()`, `BuoyientPagingSource`, and `BuoyientPagedList` each accept an optional `sortOrder` parameter that overrides the service's configured `pagingConfig.sortOrder` for a single query or for the lifetime of one source/list. Useful for UIs that let the user toggle "newest first" vs "oldest first" without reconstructing the service.
+
+```kotlin
+// One-off DESC query against an ASC service.
+val descPage = service.loadPage(
+    loadSize = 20,
+    sortOrder = PagingConfig.SortOrder.DESC,
+)
+```
+
+For Paging 3, pass `sortOrder` to the `BuoyientPagingSource` constructor. To let the user flip direction at runtime, reconstruct the source on direction change (same `flatMapLatest` idiom we use for dynamic filters):
+
+```kotlin
+val pagedItems: Flow<PagingData<Item>> = sortOrderFlow.flatMapLatest { order ->
+    Pager(PagingConfig(pageSize = 20)) {
+        BuoyientPagingSource(myService, sortOrder = order)
+    }.flow
+}
+```
+
+**Cursor compatibility.** Cursors are direction-specific — a `PageCursor` returned from a load in one `sortOrder` is *not* meaningful when reused with the opposite direction (the cursor predicate flips, and you'd get the wrong slice). The reconstruction pattern above handles this correctly because the new source starts fresh from `FromHead`.
+
 `Backward` requires a non-null cursor — by design, "backward from nothing" is unrepresentable. To load the first page, use `FromHead`.

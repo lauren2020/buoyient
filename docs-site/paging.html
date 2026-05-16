@@ -150,8 +150,8 @@
       <p>Filter on any JSON field with <code>Filter.eq</code>, <code>Filter.gt</code>, <code>Filter.like</code>, plus <code>and</code>, <code>or</code>, <code>not</code>. Filters compose cleanly with pagination, sort order, and sync-status &mdash; one call, one page.</p>
     </div>
     <div class="card fade-in" style="border-color: var(--beacon-yellow);">
-      <h4 style="color: var(--beacon-yellow);">Configurable sort key</h4>
-      <p>Page by <code>created_at</code>, alphabetical name, priority, or anything else. Ascending or descending. A composite cursor with <code>client_id</code> tiebreaker handles duplicate keys without skipping rows.</p>
+      <h4 style="color: var(--beacon-yellow);">Configurable sort key &mdash; with per-call direction</h4>
+      <p>Page by <code>created_at</code>, alphabetical name, priority, or anything else. Direction defaults to the service's configured <code>sortOrder</code> but can be flipped per call &mdash; useful for "newest first" vs "oldest first" toggles without reconstructing the service.</p>
     </div>
     <div class="card fade-in" style="border-color: var(--buoy-orange);">
       <h4 style="color: var(--buoy-orange);">Sync-status filtering</h4>
@@ -358,6 +358,79 @@
 
   <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 24px; text-align: center; max-width: 700px; margin-left: auto; margin-right: auto;">
     Filters compile to a single SQL <code>WHERE</code> clause that joins the cursor predicate, the sort order, and your optional sync-status constraint. No N+1 queries, no in-memory filtering after the fact.
+  </p>
+</section>
+
+<!-- ══════════ Sort Direction Toggle ══════════ -->
+<section class="section">
+  <h2>Letting users flip direction</h2>
+  <p class="section-desc">Most apps have a natural sort &mdash; newest first, alphabetical, by priority. Some need a user-flippable toggle. The <code>sortOrder</code> parameter on each layer lets you do this without touching the service.</p>
+
+  <div data-platform="android">
+    <div class="card mb-24" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal);">Bind a sort-direction <code>StateFlow</code> to the pager</h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Reconstruct the <code>BuoyientPagingSource</code> when the user flips the toggle. <code>flatMapLatest</code> cancels the old pager's flow so the UI only sees items from the current direction. Cursors don't carry across directions; reconstruction starts fresh from the head, which is what the user expects.</p>
+      <div class="code-block mt-12">
+        <div class="code-header"><span>TodoListViewModel.kt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="kw">val</span> sortOrderFlow = <span class="typ">MutableStateFlow</span>(<span class="typ">PagingConfig</span>.<span class="typ">SortOrder</span>.<span class="ann">DESC</span>)
+
+<span class="kw">val</span> pagedItems: <span class="typ">Flow</span>&lt;<span class="typ">PagingData</span>&lt;<span class="typ">Todo</span>&gt;&gt; = sortOrderFlow
+    .<span class="fn">flatMapLatest</span> { order -&gt;
+        <span class="typ">Pager</span>(<span class="typ">PagingConfig</span>(pageSize = <span class="num">20</span>)) {
+            <span class="typ">BuoyientPagingSource</span>(todoService, sortOrder = order)
+        }.flow
+    }
+    .<span class="fn">cachedIn</span>(viewModelScope)
+
+<span class="kw">fun</span> <span class="fn">toggleSort</span>() {
+    sortOrderFlow.value = <span class="kw">when</span> (sortOrderFlow.value) {
+        <span class="typ">PagingConfig</span>.<span class="typ">SortOrder</span>.<span class="ann">DESC</span> -&gt; <span class="typ">PagingConfig</span>.<span class="typ">SortOrder</span>.<span class="ann">ASC</span>
+        <span class="typ">PagingConfig</span>.<span class="typ">SortOrder</span>.<span class="ann">ASC</span> -&gt; <span class="typ">PagingConfig</span>.<span class="typ">SortOrder</span>.<span class="ann">DESC</span>
+    }
+}</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div data-platform="ios">
+    <div class="card mb-24" style="border-color: var(--current-teal);">
+      <h4 style="color: var(--current-teal);">Bind a SwiftUI <code>@State</code> to <code>.task(id:)</code></h4>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>.task(id: sortOrder)</code> cancels the old list's <code>for await</code> loop and runs a fresh one whenever <code>sortOrder</code> changes. The new <code>BuoyientPagedList</code> starts from the head with the new direction. Same pattern you already use for dynamic filters.</p>
+      <div class="code-block mt-12">
+        <div class="code-header"><span>TodoListView.swift</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="ann">@State</span> <span class="kw">private var</span> sortOrder: <span class="typ">PagingConfigSortOrder</span> = .desc
+<span class="ann">@State</span> <span class="kw">private var</span> items: [<span class="typ">Todo</span>] = []
+<span class="ann">@State</span> <span class="kw">private var</span> list: <span class="typ">BuoyientPagedList</span>&lt;<span class="typ">Todo</span>, <span class="typ">TodoRequestTag</span>&gt;?
+
+<span class="kw">var</span> body: <span class="kw">some</span> <span class="typ">View</span> {
+    <span class="typ">VStack</span> {
+        <span class="typ">Picker</span>(<span class="str">"Sort"</span>, selection: $sortOrder) {
+            <span class="typ">Text</span>(<span class="str">"Newest first"</span>).<span class="fn">tag</span>(<span class="typ">PagingConfigSortOrder</span>.desc)
+            <span class="typ">Text</span>(<span class="str">"Oldest first"</span>).<span class="fn">tag</span>(<span class="typ">PagingConfigSortOrder</span>.asc)
+        }
+        .<span class="fn">pickerStyle</span>(.segmented)
+
+        <span class="typ">List</span>(items, id: \.clientId) { <span class="typ">TodoRow</span>(item: $0) }
+    }
+    .<span class="fn">task</span>(id: sortOrder) {                <span class="cmt">// re-runs on toggle</span>
+        <span class="kw">let</span> pagedList = <span class="typ">BuoyientPagedList</span>(
+            service: service,
+            pageSize: <span class="num">20</span>,
+            sortOrder: sortOrder
+        )
+        list = pagedList
+        <span class="kw">try?</span> <span class="kw">await</span> pagedList.<span class="fn">refresh</span>()
+        <span class="kw">for await</span> snapshot <span class="kw">in</span> pagedList.items {
+            items = snapshot
+        }
+    }
+}</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px; text-align: center; max-width: 700px; margin-left: auto; margin-right: auto;">
+    <strong>Cursor note.</strong> A <code>PageCursor</code> returned in one direction isn't meaningful when reused with the opposite direction &mdash; the cursor predicate flips. The reconstruction pattern above handles this for you because the new source starts at <code>FromHead</code>. If you're calling <code>loadPage()</code> directly, just don't mix cursors across <code>sortOrder</code> values.
   </p>
 </section>
 

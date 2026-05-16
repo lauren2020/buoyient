@@ -7,6 +7,7 @@ import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.PageCursor
 import com.elvdev.buoyient.datatypes.PageDirection
 import com.elvdev.buoyient.datatypes.PageResult
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,10 +55,20 @@ import kotlinx.coroutines.sync.withLock
  * To change them, build a new [BuoyientPagedList] — typically by re-running the
  * factory in a SwiftUI `.task(id: filter)` or equivalent.
  *
+ * **Toggling sort direction.** [sortOrder] overrides the service's configured
+ * `pagingConfig.sortOrder` for the lifetime of this list. To let the user flip
+ * "newest first" vs "oldest first" in a SwiftUI view, construct a new list with the
+ * new direction (typically via `.task(id: sortDescriptor)`). Cursors aren't
+ * meaningful across directions, so reconstructing starts fresh from the head — which
+ * is what you want when the sort flips.
+ *
  * @param service the [SyncableObjectService] to load pages from.
  * @param pageSize number of items per page request.
  * @param syncStatus if non-null, only rows with this sync status are included.
  * @param filter optional predicate over `data_blob`; see [Filter].
+ * @param sortOrder if non-null, overrides the service's `pagingConfig.sortOrder` for
+ *   the lifetime of this list. `null` (the default) means "use the service's
+ *   configured sort order."
  * @param autoRefreshOnLocalStoreChange when `true`, subscribes to
  *   [SyncableObjectService.localStoreChanges] and calls [refresh] on each emission.
  *   Useful for keeping a SwiftUI list in sync with background sync-downs.
@@ -69,6 +80,7 @@ public class BuoyientPagedList<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val pageSize: Int = 20,
     private val syncStatus: String? = null,
     private val filter: Filter? = null,
+    private val sortOrder: PagingConfig.SortOrder? = null,
     autoRefreshOnLocalStoreChange: Boolean = false,
     private val initialKey: PageCursor? = null,
 ) {
@@ -190,6 +202,7 @@ public class BuoyientPagedList<O : SyncableObject<O>, T : ServiceRequestTag>(
             loadSize = pageSize,
             syncStatus = syncStatus,
             filter = filter,
+            sortOrder = sortOrder ?: service.pagingConfig.sortOrder,
         )
 
     /** Detach the [localStoreChanges] subscription and cancel any in-flight loads. */

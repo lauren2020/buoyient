@@ -206,6 +206,18 @@ The `:paging` module depends only on `:syncable-objects` and `androidx.paging.ru
 
 **`PagingSource` integration:** `BuoyientPagingSource` maps `LoadParams.Prepend` → `PageDirection.Backward`, `LoadParams.Append` → `PageDirection.Forward`, `LoadParams.Refresh` → `PageDirection.Forward` (or `FromHead` when the key is null). `getRefreshKey` returns the previous page's `nextKey` — the `Append.key` that originally loaded the anchor page — so refresh re-fetches the same window. (We don't use `anchorPage.prevKey` because that's the *prepend boundary* — the first item of the anchor page — and using it as a `Forward` cursor would skip that item.)
 
+### 14. `sortOrder` overridable per call; `keyExtractor` stays service-scoped
+
+**Decision:** `sortOrder` is a parameter on `loadPage()` and on the adapter constructors (`BuoyientPagingSource`, `BuoyientPagedList`). It defaults to `pagingConfig.sortOrder` on the service. `keyExtractor` remains service-scoped.
+
+**Why split them:**
+- `sortOrder` is just a direction flag. The eight prepared SQLDelight queries (and the dynamic-SQL builder) already cover both ASC and DESC. Pushing it to call-time costs ~one line of plumbing and earns the "user can toggle newest-first / oldest-first" use case.
+- `keyExtractor` is bound to the precomputed `paging_key` column. Moving it to call-time would either require multiple indexed columns (storage cost) or on-the-fly `json_extract` ordering (losing the index seek property of keyset pagination). Same column → same key extractor.
+
+**Cursor compatibility.** A `PageCursor` is meaningful only relative to the `sortOrder` it was produced under: the cursor predicate flips with direction (`>` vs `<`), so reusing an ASC-produced cursor under DESC would slice the wrong half of the table. We document this and rely on the adapter pattern (reconstruct the source/list when direction changes) to enforce it in practice. We considered tagging `PageCursor` with its orientation but rejected it as API noise that wouldn't catch the actual misuse case (direct `loadPage()` callers mixing cursors across calls).
+
+**Adapter signatures:** both adapters take `sortOrder: PagingConfig.SortOrder? = null`. `null` means "use the service's configured default at load time." Non-null pins the adapter to that direction for its lifetime. Toggling direction in a SwiftUI / Compose consumer is the canonical "reconstruct on change" pattern (already used for filters).
+
 ---
 
 ## Schema & migration
@@ -243,10 +255,9 @@ Producing snapshots for future migrations: each new `.sqm` file should be paired
 | `loadSize` | Sets the SQL `LIMIT` |
 | `syncStatus` | Adds `sync_status = ?` to the WHERE clause |
 | `filter` | Adds the filter's rendered SQL fragment to the WHERE clause |
+| `sortOrder` | Selects ASC vs DESC variants of the cursor predicate and `ORDER BY` clause. Defaults to `pagingConfig.sortOrder` on the service; override per call. |
 
-In the no-filter path, the (cursor, sync_status) combinations dispatch to the eight static queries. In the filter path, all four inputs are folded into a single dynamically-built WHERE clause.
-
-The `pagingConfig.sortOrder` is a fifth dimension picked by the service at construction (not per-call). It selects ASC vs DESC variants of the cursor predicate and `ORDER BY` clause.
+In the no-filter path, the (cursor, sync_status, sortOrder) combinations dispatch to the eight static queries. In the filter path, all inputs are folded into a single dynamically-built WHERE clause.
 
 ---
 

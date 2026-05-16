@@ -339,6 +339,33 @@ class BuoyientPagingSourceTest {
         service.close()
     }
 
+    @Test
+    fun `sortOrder constructor override flips direction for this source`() = runBlocking {
+        // Service is ASC; this source overrides to DESC for the toggle-direction use case.
+        val (service, _) = makeService(sortOrder = PagingConfig.SortOrder.ASC)
+        seed(service, "Apple", "Banana", "Cherry")
+        val source = BuoyientPagingSource(service, sortOrder = PagingConfig.SortOrder.DESC)
+
+        val result = source.load(LoadParams.Refresh(key = null, loadSize = 10, placeholdersEnabled = false))
+            as LoadResult.Page<PageCursor, TestItem>
+
+        assertEquals(listOf("Cherry", "Banana", "Apple"), result.data.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `sortOrder null falls back to the service default`() = runBlocking {
+        val (service, _) = makeService(sortOrder = PagingConfig.SortOrder.ASC)
+        seed(service, "Apple", "Banana", "Cherry")
+        val source = BuoyientPagingSource(service)  // no override
+
+        val result = source.load(LoadParams.Refresh(key = null, loadSize = 10, placeholdersEnabled = false))
+            as LoadResult.Page<PageCursor, TestItem>
+
+        assertEquals(listOf("Apple", "Banana", "Cherry"), result.data.map { it.name })
+        service.close()
+    }
+
     // endregion
 
     // region error mapping

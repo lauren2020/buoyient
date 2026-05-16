@@ -1836,6 +1836,70 @@ class SyncableObjectServiceTest {
 
     // endregion
 
+    // region loadPage sortOrder override
+
+    @Test
+    fun `loadPage - sortOrder override flips direction without changing service config`() = runBlocking {
+        // Service config is DESC; per-call override flips it to ASC for one query.
+        val (service, _) = createPagingServiceAndEnv(online = false)  // DESC default
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+
+        // Override to ASC for this call.
+        val asc = service.loadPage(
+            loadSize = 10,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        assertEquals(listOf("Apple", "Banana", "Cherry"), asc.items.map { it.name })
+
+        // Without override, falls back to the service's DESC config.
+        val desc = service.loadPage(loadSize = 10)
+        assertEquals(listOf("Cherry", "Banana", "Apple"), desc.items.map { it.name })
+
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - sortOrder override composes with filter`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()  // ASC default by name
+        service.testCreate(testItem(clientId = "c1", name = "Apple", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Banana", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry", value = 1))
+        service.testCreate(testItem(clientId = "c4", name = "Date", value = 1))
+
+        val descFiltered = service.loadPage(
+            loadSize = 10,
+            filter = Filter.eq("$.value", 1),
+            sortOrder = PagingConfig.SortOrder.DESC,
+        )
+        // Filter matches Apple, Cherry, Date — DESC by name → Date, Cherry, Apple.
+        assertEquals(listOf("Date", "Cherry", "Apple"), descFiltered.items.map { it.name })
+
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - sortOrder override composes with Forward direction`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(online = false)  // DESC default
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        // ASC + Forward(Banana) → strictly after Banana in ASC order = Cherry, Date.
+        val page = service.loadPage(
+            direction = PageDirection.Forward(PageCursor(key = "Banana", clientId = "c2")),
+            loadSize = 10,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        assertEquals(listOf("Cherry", "Date"), page.items.map { it.name })
+
+        service.close()
+    }
+
+    // endregion
+
     // region loadPage with Filter
 
     private fun createFilterServiceAndEnv(

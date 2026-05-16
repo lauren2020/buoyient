@@ -737,6 +737,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         direction: PageDirection,
         limit: Int,
         syncStatus: String? = null,
+        sortOrder: PagingConfig.SortOrder = pagingConfig.sortOrder,
     ): List<LocalStoreEntry<O>> {
         // Backward loads route through dynamic SQL so we don't double the static
         // SQLDelight query surface for the rare prepend case.
@@ -746,6 +747,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 limit = limit,
                 syncStatus = syncStatus,
                 filter = null,
+                sortOrder = sortOrder,
             )
         }
         val afterCursor: PageCursor? = when (direction) {
@@ -755,7 +757,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
         val q = database.syncDataQueries
         val l = limit.toLong()
-        val descending = pagingConfig.sortOrder == PagingConfig.SortOrder.DESC
+        val descending = sortOrder == PagingConfig.SortOrder.DESC
         return when {
             // First page: no cursor predicate, ordering + LIMIT alone yield the head.
             afterCursor == null && syncStatus != null && descending ->
@@ -829,12 +831,14 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         limit: Int,
         syncStatus: String?,
         filter: Filter,
+        sortOrder: PagingConfig.SortOrder = pagingConfig.sortOrder,
     ): List<LocalStoreEntry<O>> {
         return getDynamicPage(
             direction = direction,
             limit = limit,
             syncStatus = syncStatus,
             filter = filter,
+            sortOrder = sortOrder,
         )
     }
 
@@ -863,13 +867,14 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         limit: Int,
         syncStatus: String?,
         filter: Filter?,
+        sortOrder: PagingConfig.SortOrder = pagingConfig.sortOrder,
     ): List<LocalStoreEntry<O>> {
         val drv = checkNotNull(driver) {
             "Filter queries and backward pagination require a driver. Set DatabaseOverride.driver (or use Buoyient.databaseHandle)."
         }
         if (filter != null) ensureIndexedPaths()
 
-        val descending = pagingConfig.sortOrder == PagingConfig.SortOrder.DESC
+        val descending = sortOrder == PagingConfig.SortOrder.DESC
         val backward = direction is PageDirection.Backward
         // Backward inverts both the cursor comparison and the SQL ORDER BY so we can
         // take the LIMIT-N rows nearest the cursor; we then reverse the list in

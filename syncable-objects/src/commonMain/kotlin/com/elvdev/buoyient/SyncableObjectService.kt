@@ -1005,23 +1005,40 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
      * [com.elvdev.buoyient.globalconfigs.DatabaseOverride.driver]. Declare hot
      * filter paths via [indexedJsonPaths] to avoid full table scans.
      *
+     * **Sort direction.** Defaults to the service's configured
+     * [PagingConfig.sortOrder], but can be overridden per call via [sortOrder]. This
+     * is useful for UIs that let the user toggle "newest first" vs "oldest first"
+     * without reconstructing the service. The cursor predicate flips with the
+     * direction (the eight prepared queries already cover both), so there's no
+     * additional cost.
+     *
+     * **Cursor compatibility.** A [PageCursor] returned from a load in one
+     * `sortOrder` is *not* meaningful when reused with the opposite direction —
+     * the cursor predicate flips and you'd get the wrong slice. When the user
+     * toggles direction, reset back to [PageDirection.FromHead] (the canonical
+     * pattern is to reconstruct the `BuoyientPagingSource` / `BuoyientPagedList`).
+     *
      * @param direction which page to load relative to a cursor (see [PageDirection]).
      *   Defaults to [PageDirection.FromHead].
      * @param loadSize number of rows to return.
      * @param syncStatus if non-null, only rows with this sync status are returned.
      * @param filter optional predicate over `data_blob` (see [Filter]).
+     * @param sortOrder ASC or DESC. Defaults to [PagingConfig.sortOrder] on the
+     *   service.
      */
     public fun loadPage(
         direction: PageDirection = PageDirection.FromHead,
         loadSize: Int,
         syncStatus: String? = null,
         filter: Filter? = null,
+        sortOrder: PagingConfig.SortOrder = pagingConfig.sortOrder,
     ): PageResult<O> {
         val entries = if (filter == null) {
             localStoreManager.getPage(
                 direction = direction,
                 limit = loadSize,
                 syncStatus = syncStatus,
+                sortOrder = sortOrder,
             )
         } else {
             localStoreManager.getPageWithFilter(
@@ -1029,6 +1046,7 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
                 limit = loadSize,
                 syncStatus = syncStatus,
                 filter = filter,
+                sortOrder = sortOrder,
             )
         }
         val items = entries.map { it.data }

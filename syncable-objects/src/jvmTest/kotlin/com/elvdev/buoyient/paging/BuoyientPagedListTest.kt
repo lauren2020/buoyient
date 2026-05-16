@@ -310,6 +310,43 @@ class BuoyientPagedListTest {
 
     // endregion
 
+    // region sortOrder override
+
+    @Test
+    fun sortOrder_override_flips_direction_for_this_list() = runBlocking {
+        // makeService() uses ASC by default. Override to DESC for this list only.
+        val (service, _) = makeService(sortOrder = PagingConfig.SortOrder.ASC)
+        seedNumbered(service, count = 3)
+        val list = BuoyientPagedList(
+            service = service,
+            pageSize = 10,
+            sortOrder = PagingConfig.SortOrder.DESC,
+        )
+
+        list.refresh()
+
+        // DESC override: Item-002, Item-001, Item-000.
+        assertEquals(listOf("Item-002", "Item-001", "Item-000"), list.items.value.map { it.name })
+        list.close()
+        service.close()
+    }
+
+    @Test
+    fun sortOrder_null_falls_back_to_service_default() = runBlocking {
+        val (service, _) = makeService(sortOrder = PagingConfig.SortOrder.ASC)
+        seedNumbered(service, count = 3)
+        // No sortOrder override — uses service's ASC.
+        val list = BuoyientPagedList(service = service, pageSize = 10)
+
+        list.refresh()
+
+        assertEquals(listOf("Item-000", "Item-001", "Item-002"), list.items.value.map { it.name })
+        list.close()
+        service.close()
+    }
+
+    // endregion
+
     // region filter and syncStatus
 
     @Test
