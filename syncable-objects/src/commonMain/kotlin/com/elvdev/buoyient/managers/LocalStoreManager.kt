@@ -2,9 +2,16 @@ package com.elvdev.buoyient.managers
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlPreparedStatement
 import com.elvdev.buoyient.globalconfigs.DatabaseOverride
 import com.elvdev.buoyient.serviceconfigs.EncryptionProvider
+import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.HttpRequest
+import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.datatypes.PageDirection
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import com.elvdev.buoyient.serviceconfigs.PendingRequestQueueStrategy
 import com.elvdev.buoyient.datatypes.ResolveConflictResult
 import com.elvdev.buoyient.ServiceRequestTag
@@ -19,7 +26,11 @@ import com.elvdev.buoyient.sync.UpsertResult
 import com.elvdev.buoyient.globalconfigs.createSyncDatabase
 import com.elvdev.buoyient.db.SyncDatabase
 import com.elvdev.buoyient.utils.ioDispatcher
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
 
 internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
@@ -30,8 +41,38 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
     private val queueStrategy: PendingRequestQueueStrategy =
         PendingRequestQueueStrategy.Queue,
     encryptionProvider: EncryptionProvider? = null,
+    private val pagingConfig: PagingConfig<O> = PagingConfig(keyExtractor = { it.clientId }),
+    /**
+     * Raw [SqlDriver] used by dynamic-SQL paths (filter queries, expression-index
+     * creation). Not required for ordinary CRUD; null is fine when the consumer
+     * does not use filter-based [getPage] calls.
+     */
+    private val driver: SqlDriver? = DatabaseOverride.driver,
+    /**
+     * JSON paths to be backed by SQLite expression indexes for fast filter queries.
+     * Indexes are created lazily on first use (see [ensureIndexedPaths]).
+     */
+    private val indexedJsonPaths: List<String> = emptyList(),
 ) {
     private val storageCodec = StorageCodec(encryptionProvider)
+
+    /**
+     * Emits a `Unit` tick whenever this service's `sync_data` rows are written
+     * (sync-down inserts, sync-up merges, local create/update/void, conflict
+     * resolution). Hot, conflated — subscribers should treat each tick as a
+     * "something changed" signal and re-query if they care about the contents.
+     */
+    private val _localStoreChanges = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    internal val localStoreChanges: SharedFlow<Unit> = _localStoreChanges.asSharedFlow()
+
+    private fun notifyLocalStoreChanged() {
+        _localStoreChanges.tryEmit(Unit)
+    }
+
+    private fun O.toPagingKey(): String = pagingConfig.keyExtractor(this)
     private fun List<SyncableObjectRebaseHandler.FieldConflict<O>>.toFieldConflictInfo():
         List<SyncableObject.SyncStatus.Conflict.FieldConflictInfo> = flatMap { fieldConflict ->
         fieldConflict.fieldNames.map { fieldName ->
@@ -70,8 +111,11 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
      * transaction support. If [block] throws, the transaction is rolled back;
      * otherwise it is committed.
      */
-    private fun <T> transaction(block: () -> T): T =
-        database.transactionWithResult { block() }
+    private fun <T> transaction(block: () -> T): T {
+        val result = database.transactionWithResult { block() }
+        notifyLocalStoreChanged()
+        return result
+    }
 
     /**
      * Internal signal used to abort the surrounding database transaction when
@@ -271,6 +315,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     version = data.version,
                     data_blob = storageCodec.encodeForStorage(jsonData.toString()),
                     sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
+                    paging_key = data.toPagingKey(),
                 )
 
                 pendingRequestQueueManager.queueCreateRequest(
@@ -322,7 +367,9 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 data_blob = encryptedServerDataJson,
                 sync_status = SyncableObject.SyncStatus.SYNCED,
                 last_synced_server_data = encryptedServerDataJson,
+                paging_key = serverData.toPagingKey(),
             )
+            notifyLocalStoreChanged()
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to insert data from [create] response (server_id: ${serverData.serverId}): ", e)
         }
@@ -345,6 +392,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     version = data.version,
                     data_blob = storageCodec.encodeForStorage(codec.encode(data).toString()),
                     sync_status = SyncableObject.SyncStatus.PENDING_UPDATE,
+                    paging_key = data.toPagingKey(),
                     service_name = serviceName,
                     client_id = data.clientId,
                 )
@@ -387,9 +435,11 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 sync_status = SyncableObject.SyncStatus.SYNCED,
                 data_blob = encryptedServerDataJson,
                 last_synced_server_data = encryptedServerDataJson,
+                paging_key = serverData.toPagingKey(),
                 service_name = serviceName,
                 client_id = originalClientId,
             )
+            notifyLocalStoreChanged()
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to upsert data from [update] response (server_id: ${serverData.serverId}): $e")
         }
@@ -411,7 +461,9 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             data_blob = encryptedServerDataJson,
             sync_status = SyncableObject.SyncStatus.SYNCED,
             last_synced_server_data = encryptedServerDataJson,
+            paging_key = serverObj.toPagingKey(),
         )
+        notifyLocalStoreChanged()
     }
 
     internal fun voidData(
@@ -463,9 +515,11 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                 sync_status = SyncableObject.SyncStatus.SYNCED,
                 data_blob = encryptedServerDataJson,
                 last_synced_server_data = encryptedServerDataJson,
+                paging_key = serverData.toPagingKey(),
                 service_name = serviceName,
                 client_id = originalClientId,
             )
+            notifyLocalStoreChanged()
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to upsert data from [void] response (server_id: ${serverData.serverId}): $e")
         }
@@ -478,6 +532,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             database.syncDataQueries.voidLocalOnly(
                 sync_status = SyncableObject.SyncStatus.LOCAL_ONLY,
                 data_blob = storageCodec.encodeForStorage(jsonData.toString()),
+                paging_key = data.toPagingKey(),
                 service_name = serviceName,
                 client_id = data.clientId,
             )
@@ -511,6 +566,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         sync_status = updatedSyncStatus,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLatestData)),
                         last_synced_server_data = resolvedDataJson,
+                        paging_key = rebasedLatestData.toPagingKey(),
                         service_name = serviceName,
                         client_id = row.clientId,
                     )
@@ -534,6 +590,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     data_blob = resolvedDataJson,
                     last_synced_server_data = resolvedDataJson,
                     version = latestServerData.version,
+                    paging_key = latestServerData.toPagingKey(),
                     service_name = serviceName,
                     client_id = row.clientId,
                 )
@@ -650,6 +707,243 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         }
     }
 
+    /**
+     * Fetches one page of entries from `sync_data` using keyset cursor pagination.
+     *
+     * Dispatches across 8 generated SQLDelight queries because three independent
+     * dimensions each pick a different SQL statement:
+     *
+     * 1. **First page vs. next page** — first-page queries have no cursor predicate;
+     *    next-page queries add a `(paging_key, client_id) > cursor` (or `<` for DESC)
+     *    keyset filter. We split into two query families instead of using one query
+     *    with a nullable cursor parameter because SQLDelight's parameter-type inference
+     *    treats `:cursor IS NULL OR ...` as a non-nullable `String`, which makes a
+     *    single unified query uncompilable. Splitting also keeps each statement's
+     *    query plan tight (no `OR (cursor IS NULL)` short-circuit).
+     *
+     * 2. **Sort order** (`ASC` vs `DESC`) — embedded in the query because SQLDelight
+     *    can't parameterize `ORDER BY` direction. The cursor comparison flips with the
+     *    sort direction (`>` for ASC, `<` for DESC) to keep the resume-after semantics.
+     *
+     * 3. **Optional `sync_status` filter** — adds an extra `WHERE sync_status = ?`
+     *    clause; folded into the query rather than applied in Kotlin so SQLite can use
+     *    the existing `(service_name, sync_status, voided)` index.
+     *
+     * Each branch maps its rows inline because the eight SQLDelight-generated row
+     * classes are nominally distinct types — a single `.map { ... }` after the `when`
+     * wouldn't type-check.
+     */
+    internal fun getPage(
+        direction: PageDirection,
+        limit: Int,
+        syncStatus: String? = null,
+        sortOrder: PagingConfig.SortOrder = pagingConfig.sortOrder,
+    ): List<LocalStoreEntry<O>> {
+        // Backward loads route through dynamic SQL so we don't double the static
+        // SQLDelight query surface for the rare prepend case.
+        if (direction is PageDirection.Backward) {
+            return getDynamicPage(
+                direction = direction,
+                limit = limit,
+                syncStatus = syncStatus,
+                filter = null,
+                sortOrder = sortOrder,
+            )
+        }
+        val afterCursor: PageCursor? = when (direction) {
+            is PageDirection.FromHead -> null
+            is PageDirection.Forward -> direction.afterCursor
+            is PageDirection.Backward -> error("unreachable — handled above")
+        }
+        val q = database.syncDataQueries
+        val l = limit.toLong()
+        val descending = sortOrder == PagingConfig.SortOrder.DESC
+        return when {
+            // First page: no cursor predicate, ordering + LIMIT alone yield the head.
+            afterCursor == null && syncStatus != null && descending ->
+                q.getFirstPageBySyncStatusDesc(serviceName, syncStatus, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            afterCursor == null && syncStatus != null ->
+                q.getFirstPageBySyncStatusAsc(serviceName, syncStatus, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            afterCursor == null && descending ->
+                q.getFirstPageDesc(serviceName, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            afterCursor == null ->
+                q.getFirstPageAsc(serviceName, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            // Next page: composite (paging_key, client_id) cursor — the client_id
+            // tiebreak prevents skipping rows that share a paging_key with the cursor row.
+            syncStatus != null && descending ->
+                q.getNextPageBySyncStatusDesc(serviceName, syncStatus, afterCursor.key, afterCursor.clientId, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            syncStatus != null ->
+                q.getNextPageBySyncStatusAsc(serviceName, syncStatus, afterCursor.key, afterCursor.clientId, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            descending ->
+                q.getNextPageDesc(serviceName, afterCursor.key, afterCursor.clientId, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+            else ->
+                q.getNextPageAsc(serviceName, afterCursor.key, afterCursor.clientId, l).executeAsList()
+                    .map { mapRowToEntry(it.data_blob, it.sync_status, it.last_synced_timestamp, it.client_id, it.last_synced_server_data) }
+        }
+    }
+
+    /**
+     * Lazily creates SQLite expression indexes for each path in [indexedJsonPaths]
+     * the first time a filter query runs. `CREATE INDEX IF NOT EXISTS` keeps this
+     * idempotent across LocalStoreManager re-instantiation within the same DB.
+     *
+     * Index name is derived from `(serviceName, path)` so two services indexing
+     * the same JSON path produce distinct indexes — both are scoped on
+     * `service_name` in the WHERE clause anyway, but separate indexes give the
+     * planner the cleanest options.
+     */
+    private var indexesCreated = false
+    private fun ensureIndexedPaths() {
+        if (indexesCreated) return
+        val drv = driver ?: return
+        if (indexedJsonPaths.isEmpty()) {
+            indexesCreated = true
+            return
+        }
+        for (path in indexedJsonPaths) {
+            require(JSON_PATH_REGEX.matches(path)) {
+                "Invalid JSON path '$path' — must match $.field, $.nested.field, or $.array[0]"
+            }
+            val indexName = "idx_${serviceName.toIndexSlug()}_${path.toIndexSlug()}"
+            val sql = "CREATE INDEX IF NOT EXISTS $indexName " +
+                "ON sync_data(service_name, json_extract(data_blob, '$path'))"
+            drv.execute(identifier = null, sql = sql, parameters = 0, binders = null)
+        }
+        indexesCreated = true
+    }
+
+    /**
+     * Filter-aware variant of [getPage]. Drops to dynamic SQL via [getDynamicPage]
+     * because the filter tree's shape varies per call; the static SQLDelight queries
+     * can only express the no-filter combinations.
+     *
+     * Requires [driver] to be non-null. Throws [IllegalStateException] otherwise.
+     */
+    internal fun getPageWithFilter(
+        direction: PageDirection,
+        limit: Int,
+        syncStatus: String?,
+        filter: Filter,
+        sortOrder: PagingConfig.SortOrder = pagingConfig.sortOrder,
+    ): List<LocalStoreEntry<O>> {
+        return getDynamicPage(
+            direction = direction,
+            limit = limit,
+            syncStatus = syncStatus,
+            filter = filter,
+            sortOrder = sortOrder,
+        )
+    }
+
+    /**
+     * Shared dynamic-SQL paging builder. Used for any filtered page, and for all
+     * [PageDirection.Backward] pages (so we don't double the static SQLDelight
+     * query count for the rare prepend case).
+     *
+     * The sort-direction and cursor-comparison flip with both [PagingConfig.sortOrder]
+     * and [direction]:
+     *
+     * | sortOrder | direction | predicate op | ORDER BY | post-process     |
+     * |-----------|-----------|--------------|----------|------------------|
+     * | ASC       | Forward   | `>`          | ASC      | none             |
+     * | ASC       | Backward  | `<`          | DESC     | reverse the list |
+     * | DESC      | Forward   | `<`          | DESC     | none             |
+     * | DESC      | Backward  | `>`          | ASC      | reverse the list |
+     *
+     * Reversing in Kotlin keeps the page in the configured sort order so callers
+     * never need to special-case rendering by direction.
+     *
+     * Requires [driver] to be non-null. Throws [IllegalStateException] otherwise.
+     */
+    private fun getDynamicPage(
+        direction: PageDirection,
+        limit: Int,
+        syncStatus: String?,
+        filter: Filter?,
+        sortOrder: PagingConfig.SortOrder = pagingConfig.sortOrder,
+    ): List<LocalStoreEntry<O>> {
+        val drv = checkNotNull(driver) {
+            "Filter queries and backward pagination require a driver. Set DatabaseOverride.driver (or use Buoyient.databaseHandle)."
+        }
+        if (filter != null) ensureIndexedPaths()
+
+        val descending = sortOrder == PagingConfig.SortOrder.DESC
+        val backward = direction is PageDirection.Backward
+        // Backward inverts both the cursor comparison and the SQL ORDER BY so we can
+        // take the LIMIT-N rows nearest the cursor; we then reverse the list in
+        // Kotlin to restore the configured sort order.
+        val forwardCmp = !descending xor backward
+        val cmp = if (forwardCmp) ">" else "<"
+        val sqlOrderDescending = descending xor backward
+        val dir = if (sqlOrderDescending) "DESC" else "ASC"
+
+        val whereClauses = mutableListOf("service_name = ?", "voided = 0")
+        val params = mutableListOf<Any?>(serviceName)
+
+        if (syncStatus != null) {
+            whereClauses += "sync_status = ?"
+            params += syncStatus
+        }
+
+        if (filter != null) {
+            val (filterClause, filterParams) = filter.toSql()
+            whereClauses += filterClause
+            params.addAll(filterParams)
+        }
+
+        val boundaryCursor: PageCursor? = when (direction) {
+            is PageDirection.FromHead -> null
+            is PageDirection.Forward -> direction.afterCursor
+            is PageDirection.Backward -> direction.beforeCursor
+        }
+        if (boundaryCursor != null) {
+            whereClauses += "(paging_key $cmp ? OR (paging_key = ? AND client_id $cmp ?))"
+            params.add(boundaryCursor.key)
+            params.add(boundaryCursor.key)
+            params.add(boundaryCursor.clientId)
+        }
+
+        val sql = buildString {
+            append("SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data\n")
+            append("FROM sync_data\n")
+            append("WHERE ").append(whereClauses.joinToString(" AND ")).append('\n')
+            append("ORDER BY paging_key ").append(dir).append(", client_id ").append(dir).append('\n')
+            append("LIMIT ?")
+        }
+        params.add(limit.toLong())
+
+        val rows = drv.executeQuery(
+            identifier = null,
+            sql = sql,
+            mapper = { cursor ->
+                val out = mutableListOf<LocalStoreEntry<O>>()
+                while (cursor.next().value) {
+                    out += mapRowToEntry(
+                        dataBlob = cursor.getString(0)!!,
+                        syncStatusValue = cursor.getString(1)!!,
+                        lastSyncedTimestamp = cursor.getString(2),
+                        clientId = cursor.getString(3)!!,
+                        lastSyncedServerData = cursor.getString(4),
+                    )
+                }
+                QueryResult.Value(out.toList())
+            },
+            parameters = params.size,
+            binders = {
+                params.forEachIndexed { index, value -> bindAny(index, value) }
+            },
+        ).value
+
+        return if (backward) rows.asReversed() else rows
+    }
+
     private fun mapRowToEntry(
         dataBlob: String,
         syncStatusValue: String,
@@ -689,7 +983,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
         updatedServerData: O,
         mergeHandler: SyncableObjectRebaseHandler<O>,
     ): UpsertResult {
-        return database.transactionWithResult {
+        val result = database.transactionWithResult {
             return@transactionWithResult rebaseData(
                 clientId = clientId,
                 lastSyncedTimestamp = lastSyncedTimestamp,
@@ -704,11 +998,14 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                     sync_status = SyncableObject.SyncStatus.SYNCED,
                     data_blob = storageCodec.encodeForStorage(codec.encodeToString(rebasedLocalData)),
                     last_synced_server_data = storageCodec.encodeForStorage(codec.encodeToString(updatedServerData)),
+                    paging_key = rebasedLocalData.toPagingKey(),
                     service_name = serviceName,
                     client_id = clientId,
                 )
             }
         }
+        notifyLocalStoreChanged()
+        return result
     }
 
     /**
@@ -912,6 +1209,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                             sync_status = updatedSyncStatus,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                             server_id = latestData.serverId ?: newServerBaseline.serverId,
+                            paging_key = latestData.toPagingKey(),
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -924,6 +1222,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             if (result is ResolveConflictResult.Resolved) {
                 syncScheduleNotifier.scheduleSyncIfNeeded()
             }
+            notifyLocalStoreChanged()
             result
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to resolve conflict for client_id: $clientId", e)
@@ -969,6 +1268,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         sync_status = SyncableObject.SyncStatus.SYNCED,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(entry.data)),
                         server_id = serverId ?: entry.data.serverId,
+                        paging_key = entry.data.toPagingKey(),
                         service_name = serviceName,
                         client_id = clientId,
                     )
@@ -989,6 +1289,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                         sync_status = updatedSyncStatus,
                         data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                         server_id = serverId ?: latestData.serverId,
+                        paging_key = latestData.toPagingKey(),
                         service_name = serviceName,
                         client_id = clientId,
                     )
@@ -1015,6 +1316,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                             sync_status = SyncableObject.SyncStatus.SYNCED,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(entry.data)),
                             server_id = serverId ?: entry.data.serverId,
+                            paging_key = entry.data.toPagingKey(),
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -1032,6 +1334,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
                             sync_status = updatedSyncStatus,
                             data_blob = storageCodec.encodeForStorage(codec.encodeToString(latestData)),
                             server_id = serverId ?: latestData.serverId,
+                            paging_key = latestData.toPagingKey(),
                             service_name = serviceName,
                             client_id = clientId,
                         )
@@ -1043,6 +1346,7 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
             if (result is ResolveConflictResult.Resolved) {
                 syncScheduleNotifier.scheduleSyncIfNeeded()
             }
+            notifyLocalStoreChanged()
             result
         } catch (e: Exception) {
             BuoyientLog.e(TAG, "Failed to repair orphaned conflict for client_id: $clientId", e)
@@ -1071,5 +1375,36 @@ internal class LocalStoreManager<O : SyncableObject<O>, T : ServiceRequestTag>(
 
     internal companion object {
         internal const val TAG: String = "SyncableObjectService:LocalStoreManager"
+
+        /**
+         * Permits `$.field`, `$.nested.field`, and array subscripts `$.list[0]`.
+         * Rejects anything that could break embedding the path in `CREATE INDEX`
+         * SQL (single quotes, backslashes, semicolons, etc.).
+         */
+        private val JSON_PATH_REGEX = Regex("""^\$(\.[A-Za-z_][A-Za-z0-9_]*(\[\d+\])?)+$""")
+    }
+}
+
+/** Slugify for use as a SQLite identifier (index name component). */
+internal fun String.toIndexSlug(): String =
+    removePrefix("$.").replace(Regex("[^A-Za-z0-9]"), "_")
+
+/**
+ * Binds an arbitrary Kotlin value to a prepared-statement parameter using a type-
+ * appropriate driver method. Numbers go through `bindLong` / `bindDouble` so
+ * SQLite compares them numerically against `json_extract` values; strings go
+ * through `bindString`. Everything else is rendered via `toString()` as a fallback.
+ */
+internal fun SqlPreparedStatement.bindAny(index: Int, value: Any?) {
+    when (value) {
+        null -> bindString(index, null)
+        is String -> bindString(index, value)
+        is Boolean -> bindBoolean(index, value)
+        is Int -> bindLong(index, value.toLong())
+        is Long -> bindLong(index, value)
+        is Float -> bindDouble(index, value.toDouble())
+        is Double -> bindDouble(index, value)
+        is ByteArray -> bindBytes(index, value)
+        else -> bindString(index, value.toString())
     }
 }

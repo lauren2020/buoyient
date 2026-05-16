@@ -2,6 +2,7 @@ package com.elvdev.buoyient.testing
 
 import com.elvdev.buoyient.globalconfigs.DatabaseOverride
 import com.elvdev.buoyient.globalconfigs.HttpClientOverride
+import com.elvdev.buoyient.globalconfigs.SyncDatabaseHandle
 import com.elvdev.buoyient.utils.IdGenerator
 import com.elvdev.buoyient.utils.BuoyientLog
 import com.elvdev.buoyient.utils.BuoyientLogger
@@ -52,14 +53,17 @@ public class TestServiceEnvironment(
     public val logger: BuoyientLogger = NoOpSyncLogger,
     public val syncScheduleNotifier: SyncScheduleNotifier = NoOpSyncScheduleNotifier,
     public val idGenerator: IdGenerator = IncrementingIdGenerator(),
-    public val database: SyncDatabase = TestDatabaseFactory.createInMemory(),
+    public val databaseHandle: SyncDatabaseHandle = TestDatabaseFactory.createInMemoryHandle(),
     public val mockServerStore: MockServerStore = MockServerStore(),
     public val endpointController: MockEndpointController = MockEndpointController(),
 ) {
+    public val database: SyncDatabase get() = databaseHandle.database
+
     init {
         BuoyientLog.logger = logger
         IdGenerator.generator = idGenerator
         HttpClientOverride.httpClient = mockRouter.buildHttpClient()
-        DatabaseOverride.database = database
+        DatabaseOverride.database = databaseHandle.database
+        DatabaseOverride.driver = databaseHandle.driver
     }
 }

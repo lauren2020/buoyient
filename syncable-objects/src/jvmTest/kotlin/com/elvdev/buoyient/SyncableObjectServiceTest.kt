@@ -1,14 +1,18 @@
 package com.elvdev.buoyient
 
 import com.elvdev.buoyient.serviceconfigs.ConnectivityChecker
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import com.elvdev.buoyient.serviceconfigs.PendingRequestQueueStrategy
 import com.elvdev.buoyient.serviceconfigs.ServerProcessingConfig
 import com.elvdev.buoyient.serviceconfigs.SyncFetchConfig
 import com.elvdev.buoyient.serviceconfigs.SyncUpConfig
 import com.elvdev.buoyient.serviceconfigs.SyncUpResult
 import com.elvdev.buoyient.datatypes.CreateRequestBuilder
+import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.GetResponse
 import com.elvdev.buoyient.datatypes.HttpRequest
+import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.datatypes.PageDirection
 import com.elvdev.buoyient.datatypes.ResponseUnpacker
 import com.elvdev.buoyient.datatypes.SquashRequestMerger
 import com.elvdev.buoyient.datatypes.SyncableObjectServiceRequestState
@@ -82,12 +86,16 @@ class SyncableObjectServiceTest {
         connectivityChecker: ConnectivityChecker,
         queueStrategy: PendingRequestQueueStrategy =
             PendingRequestQueueStrategy.Queue,
+        pagingConfig: PagingConfig<TestItem> = PagingConfig(keyExtractor = { it.clientId }),
+        indexedJsonPaths: List<String> = emptyList(),
     ) : SyncableObjectService<TestItem, TestRequestTag>(
         serializer = TestItem.serializer(),
         serverProcessingConfig = serverProcessingConfig,
         serviceName = "test-items",
         connectivityChecker = connectivityChecker,
         queueStrategy = queueStrategy,
+        pagingConfig = pagingConfig,
+        indexedJsonPaths = indexedJsonPaths,
     ) {
         init { stopPeriodicSyncDown() }
 
@@ -1263,6 +1271,7 @@ class SyncableObjectServiceTest {
             last_synced_timestamp = "2024-01-01",
             sync_status = SyncableObject.SyncStatus.SYNCED,
             last_synced_server_data = "{}",
+            paging_key = null,
         )
 
         // Now create an item whose request body contains a cross-service placeholder.
@@ -1467,6 +1476,686 @@ class SyncableObjectServiceTest {
             "sync_data entry for original client_id should be SYNCED, but was: ${syncDataRow.sync_status}"
         )
 
+        service.close()
+    }
+
+    // endregion
+
+    // region loadPage
+
+    private fun createPagingServiceAndEnv(
+        online: Boolean = true,
+        sortOrder: PagingConfig.SortOrder = PagingConfig.SortOrder.DESC,
+    ): Pair<TestItemService, TestServiceEnvironment> {
+        val env = TestServiceEnvironment()
+        env.connectivityChecker.online = online
+        env.mockRouter.onGet("https://api.test.com/items") { _ ->
+            MockResponse(200, buildJsonObject { put("data", buildJsonObject { }) })
+        }
+        val service = TestItemService(
+            serverProcessingConfig = testServerConfig(),
+            connectivityChecker = env.connectivityChecker,
+            pagingConfig = PagingConfig(
+                keyExtractor = { it.name },
+                sortOrder = sortOrder,
+            ),
+        )
+        return service to env
+    }
+
+    @Test
+    fun `loadPage - DESC default returns items newest-first by paging key`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(online = false)
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Mango"))
+        service.testCreate(testItem(clientId = "c3", name = "Banana"))
+
+        val result = service.loadPage(loadSize = 10)
+
+        assertEquals(3, result.items.size)
+        assertEquals(listOf("Mango", "Banana", "Apple"), result.items.map { it.name })
+        // Fewer items than loadSize → no more pages.
+        assertEquals(null, result.nextCursor)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - ASC returns items oldest-first by paging key`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Mango"))
+        service.testCreate(testItem(clientId = "c3", name = "Banana"))
+
+        val result = service.loadPage(loadSize = 10)
+
+        assertEquals(listOf("Apple", "Banana", "Mango"), result.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - subsequent page resumes from nextCursor`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        val firstPage = service.loadPage(loadSize = 2)
+        assertEquals(listOf("Apple", "Banana"), firstPage.items.map { it.name })
+        assertNotNull(firstPage.nextCursor)
+        assertEquals("Banana", firstPage.nextCursor!!.key)
+        assertEquals("c2", firstPage.nextCursor!!.clientId)
+
+        val secondPage = service.loadPage(direction = PageDirection.Forward(firstPage.nextCursor!!), loadSize = 2)
+        assertEquals(listOf("Cherry", "Date"), secondPage.items.map { it.name })
+
+        // Past the end — empty page, no more cursor.
+        val thirdPage = service.loadPage(direction = PageDirection.Forward(secondPage.nextCursor!!), loadSize = 2)
+        assertTrue(thirdPage.items.isEmpty())
+        assertEquals(null, thirdPage.nextCursor)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - tiebreaker on client_id when paging keys collide (ASC)`() = runBlocking {
+        // Three items share the same paging key — the composite cursor should
+        // tiebreak on client_id so no rows are skipped.
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Same"))
+        service.testCreate(testItem(clientId = "c2", name = "Same"))
+        service.testCreate(testItem(clientId = "c3", name = "Same"))
+
+        val firstPage = service.loadPage(loadSize = 2)
+        assertEquals(listOf("c1", "c2"), firstPage.items.map { it.clientId })
+        assertNotNull(firstPage.nextCursor)
+        assertEquals("Same", firstPage.nextCursor!!.key)
+        assertEquals("c2", firstPage.nextCursor!!.clientId)
+
+        val secondPage = service.loadPage(direction = PageDirection.Forward(firstPage.nextCursor!!), loadSize = 2)
+        assertEquals(listOf("c3"), secondPage.items.map { it.clientId })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - tiebreaker on client_id when paging keys collide (DESC)`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(online = false)
+        service.testCreate(testItem(clientId = "c1", name = "Same"))
+        service.testCreate(testItem(clientId = "c2", name = "Same"))
+        service.testCreate(testItem(clientId = "c3", name = "Same"))
+
+        val firstPage = service.loadPage(loadSize = 2)
+        // DESC tiebreaks on client_id descending too: c3, c2.
+        assertEquals(listOf("c3", "c2"), firstPage.items.map { it.clientId })
+
+        val secondPage = service.loadPage(direction = PageDirection.Forward(firstPage.nextCursor!!), loadSize = 2)
+        assertEquals(listOf("c1"), secondPage.items.map { it.clientId })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - respects loadSize and reports nextCursor when full`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Alpha"))
+        service.testCreate(testItem(clientId = "c2", name = "Beta"))
+        service.testCreate(testItem(clientId = "c3", name = "Gamma"))
+
+        val page = service.loadPage(loadSize = 2)
+
+        assertEquals(2, page.items.size)
+        assertEquals(listOf("Alpha", "Beta"), page.items.map { it.name })
+        assertNotNull(page.nextCursor)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - default config pages by clientId`() = runBlocking {
+        // Service constructed without an explicit pagingConfig — default extractor
+        // is { it.clientId }, so pages come back ordered by clientId DESC.
+        val (service, _) = createServiceAndEnv(online = false)
+        service.testCreate(testItem(clientId = "c1", name = "A"))
+        service.testCreate(testItem(clientId = "c2", name = "B"))
+        service.testCreate(testItem(clientId = "c3", name = "C"))
+
+        val result = service.loadPage(loadSize = 10)
+
+        // DESC by clientId.
+        assertEquals(listOf("c3", "c2", "c1"), result.items.map { it.clientId })
+        service.close()
+    }
+
+    // endregion
+
+    // region loadPage backward
+
+    @Test
+    fun `loadPage - Backward returns items before cursor in sort order (ASC)`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        // Load forward to get a mid-list cursor (after "Banana"), then page backward
+        // from "Date" — should return Cherry then walk back via prevCursor.
+        val mid = service.loadPage(loadSize = 2)
+        val midCursor = mid.nextCursor!! // Banana's cursor
+        val pageBeforeDate = service.loadPage(
+            direction = PageDirection.Forward(midCursor),
+            loadSize = 1,
+        )
+        // pageBeforeDate has Cherry. Use its nextCursor (Cherry) as a Backward boundary.
+        val backCursor = pageBeforeDate.nextCursor!! // Cherry's cursor
+
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(backCursor),
+            loadSize = 10,
+        )
+
+        // Items strictly before Cherry in ASC order: Apple, Banana. Returned in sort order.
+        assertEquals(listOf("Apple", "Banana"), backward.items.map { it.name })
+        // We hit the head, so prevCursor = null. There's stuff after (Cherry itself), so nextCursor != null.
+        assertEquals(null, backward.prevCursor)
+        assertEquals("Banana", backward.nextCursor!!.key)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward returns items before cursor in sort order (DESC)`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(online = false)  // DESC default
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        // DESC order is Date, Cherry, Banana, Apple. Page backward from Banana —
+        // "before" in DESC sort means Date, Cherry.
+        val firstPage = service.loadPage(loadSize = 3)
+        // firstPage = Date, Cherry, Banana. nextCursor = Banana's cursor.
+        val bananaCursor = firstPage.nextCursor!!
+
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(bananaCursor),
+            loadSize = 10,
+        )
+
+        assertEquals(listOf("Date", "Cherry"), backward.items.map { it.name })
+        assertEquals(null, backward.prevCursor)  // hit head (DESC head = Date)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward partial page signals head with null prevCursor`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+
+        // Backward from Banana with large loadSize — returns just Apple and signals head.
+        val bananaCursor = PageCursor(key = "Banana", clientId = "c2")
+
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(bananaCursor),
+            loadSize = 10,
+        )
+
+        assertEquals(listOf("Apple"), backward.items.map { it.name })
+        assertEquals(null, backward.prevCursor)
+        assertEquals("Apple", backward.nextCursor!!.key)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward full page reports prevCursor for further backward paging`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        // Backward from Date with loadSize=2: returns Banana, Cherry. Full page → prevCursor non-null.
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(PageCursor(key = "Date", clientId = "c4")),
+            loadSize = 2,
+        )
+        assertEquals(listOf("Banana", "Cherry"), backward.items.map { it.name })
+        assertEquals("Banana", backward.prevCursor!!.key)
+
+        // Walk further backward from prevCursor — should return Apple, then hit head.
+        val backward2 = service.loadPage(
+            direction = PageDirection.Backward(backward.prevCursor!!),
+            loadSize = 2,
+        )
+        assertEquals(listOf("Apple"), backward2.items.map { it.name })
+        assertEquals(null, backward2.prevCursor)
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Forward from cursor reports prevCursor pointing back to that page`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        val firstPage = service.loadPage(loadSize = 2)
+        // FromHead → prevCursor must be null (nothing before the head).
+        assertEquals(null, firstPage.prevCursor)
+
+        val secondPage = service.loadPage(
+            direction = PageDirection.Forward(firstPage.nextCursor!!),
+            loadSize = 2,
+        )
+        // Forward from a cursor → prevCursor points at the first item of this page,
+        // so a backward load from it returns the previous page.
+        assertEquals("Cherry", secondPage.prevCursor!!.key)
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(secondPage.prevCursor!!),
+            loadSize = 10,
+        )
+        assertEquals(listOf("Apple", "Banana"), backward.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward composes with syncStatus filter`() = runBlocking {
+        val (service, env) = createPagingServiceAndEnv(
+            online = false,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        // c1, c3 PENDING_CREATE; c2 SYNCED.
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        env.database.syncDataQueries.insertFromServerResponse(
+            service_name = "test-items",
+            client_id = "c2",
+            server_id = "server-c2",
+            version = "1",
+            last_synced_timestamp = "2024-01-01",
+            data_blob = json.encodeToString(
+                TestItem.serializer(),
+                testItem(clientId = "c2", serverId = "server-c2", name = "Banana"),
+            ),
+            sync_status = SyncableObject.SyncStatus.SYNCED,
+            last_synced_server_data = "{}",
+            paging_key = "Banana",
+        )
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(PageCursor(key = "Cherry", clientId = "c3")),
+            loadSize = 10,
+            syncStatus = SyncableObject.SyncStatus.PENDING_CREATE,
+        )
+
+        // Only Apple satisfies both "before Cherry" and PENDING_CREATE.
+        assertEquals(listOf("Apple"), backward.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - Backward composes with Filter predicate`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()  // ASC by name
+        service.testCreate(testItem(clientId = "c1", name = "Apple", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Banana", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry", value = 1))
+        service.testCreate(testItem(clientId = "c4", name = "Date", value = 1))
+
+        // Backward from Date with value=1 filter — Banana is excluded by filter,
+        // so we should get Apple and Cherry in ASC order.
+        val backward = service.loadPage(
+            direction = PageDirection.Backward(PageCursor(key = "Date", clientId = "c4")),
+            loadSize = 10,
+            filter = Filter.eq("$.value", 1),
+        )
+        assertEquals(listOf("Apple", "Cherry"), backward.items.map { it.name })
+        service.close()
+    }
+
+    // endregion
+
+    // region loadPage sortOrder override
+
+    @Test
+    fun `loadPage - sortOrder override flips direction without changing service config`() = runBlocking {
+        // Service config is DESC; per-call override flips it to ASC for one query.
+        val (service, _) = createPagingServiceAndEnv(online = false)  // DESC default
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+
+        // Override to ASC for this call.
+        val asc = service.loadPage(
+            loadSize = 10,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        assertEquals(listOf("Apple", "Banana", "Cherry"), asc.items.map { it.name })
+
+        // Without override, falls back to the service's DESC config.
+        val desc = service.loadPage(loadSize = 10)
+        assertEquals(listOf("Cherry", "Banana", "Apple"), desc.items.map { it.name })
+
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - sortOrder override composes with filter`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()  // ASC default by name
+        service.testCreate(testItem(clientId = "c1", name = "Apple", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Banana", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry", value = 1))
+        service.testCreate(testItem(clientId = "c4", name = "Date", value = 1))
+
+        val descFiltered = service.loadPage(
+            loadSize = 10,
+            filter = Filter.eq("$.value", 1),
+            sortOrder = PagingConfig.SortOrder.DESC,
+        )
+        // Filter matches Apple, Cherry, Date — DESC by name → Date, Cherry, Apple.
+        assertEquals(listOf("Date", "Cherry", "Apple"), descFiltered.items.map { it.name })
+
+        service.close()
+    }
+
+    @Test
+    fun `loadPage - sortOrder override composes with Forward direction`() = runBlocking {
+        val (service, _) = createPagingServiceAndEnv(online = false)  // DESC default
+        service.testCreate(testItem(clientId = "c1", name = "Apple"))
+        service.testCreate(testItem(clientId = "c2", name = "Banana"))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry"))
+        service.testCreate(testItem(clientId = "c4", name = "Date"))
+
+        // ASC + Forward(Banana) → strictly after Banana in ASC order = Cherry, Date.
+        val page = service.loadPage(
+            direction = PageDirection.Forward(PageCursor(key = "Banana", clientId = "c2")),
+            loadSize = 10,
+            sortOrder = PagingConfig.SortOrder.ASC,
+        )
+        assertEquals(listOf("Cherry", "Date"), page.items.map { it.name })
+
+        service.close()
+    }
+
+    // endregion
+
+    // region loadPage with Filter
+
+    private fun createFilterServiceAndEnv(
+        sortOrder: PagingConfig.SortOrder = PagingConfig.SortOrder.ASC,
+        indexedJsonPaths: List<String> = emptyList(),
+    ): Pair<TestItemService, TestServiceEnvironment> {
+        val env = TestServiceEnvironment()
+        env.connectivityChecker.online = false  // keep all writes local
+        env.mockRouter.onGet("https://api.test.com/items") { _ ->
+            MockResponse(200, buildJsonObject { put("data", buildJsonObject { }) })
+        }
+        val service = TestItemService(
+            serverProcessingConfig = testServerConfig(),
+            connectivityChecker = env.connectivityChecker,
+            pagingConfig = PagingConfig(
+                keyExtractor = { it.name },
+                sortOrder = sortOrder,
+            ),
+            indexedJsonPaths = indexedJsonPaths,
+        )
+        return service to env
+    }
+
+    @Test
+    fun `loadPage with Eq filter returns only matching rows`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "Alpha", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Beta", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Gamma", value = 1))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.eq("$.value", 1),
+        )
+
+        assertEquals(listOf("Alpha", "Gamma"), result.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with Gt filter does numeric comparison`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 2))
+        service.testCreate(testItem(clientId = "c2", name = "B", value = 10))
+        service.testCreate(testItem(clientId = "c3", name = "C", value = 5))
+
+        // If json_extract returned TEXT, "10" < "2" lexicographically and we'd
+        // miss the value-10 row. Verifying numeric semantics here.
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.gt("$.value", 4),
+        )
+
+        assertEquals(setOf("B", "C"), result.items.map { it.name }.toSet())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with And filter requires all clauses`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "Active1", value = 5))
+        service.testCreate(testItem(clientId = "c2", name = "Active2", value = 1))
+        service.testCreate(testItem(clientId = "c3", name = "Other", value = 5))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.and(
+                Filter.like("$.name", "Active%"),
+                Filter.gte("$.value", 3),
+            ),
+        )
+
+        assertEquals(listOf("Active1"), result.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with Or filter matches any clause`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "Apple", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Banana", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry", value = 3))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.or(
+                Filter.eq("$.name", "Apple"),
+                Filter.eq("$.name", "Cherry"),
+            ),
+        )
+
+        assertEquals(setOf("Apple", "Cherry"), result.items.map { it.name }.toSet())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with Not filter inverts predicate`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "B", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "C", value = 3))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.not(Filter.eq("$.value", 2)),
+        )
+
+        assertEquals(setOf("A", "C"), result.items.map { it.name }.toSet())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with In filter matches any value in list`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "B", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "C", value = 3))
+        service.testCreate(testItem(clientId = "c4", name = "D", value = 4))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.isIn("$.value", listOf(1, 3)),
+        )
+
+        assertEquals(setOf("A", "C"), result.items.map { it.name }.toSet())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage with In filter empty list returns no rows`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.isIn("$.value", emptyList()),
+        )
+
+        assertTrue(result.items.isEmpty())
+        service.close()
+    }
+
+    @Test
+    fun `loadPage filter composes with cursor pagination`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "Apple", value = 1))
+        service.testCreate(testItem(clientId = "c2", name = "Banana", value = 2))
+        service.testCreate(testItem(clientId = "c3", name = "Cherry", value = 1))
+        service.testCreate(testItem(clientId = "c4", name = "Date", value = 1))
+        service.testCreate(testItem(clientId = "c5", name = "Elderberry", value = 1))
+
+        val firstPage = service.loadPage(
+            loadSize = 2,
+            filter = Filter.eq("$.value", 1),
+        )
+        assertEquals(listOf("Apple", "Cherry"), firstPage.items.map { it.name })
+        assertNotNull(firstPage.nextCursor)
+
+        val secondPage = service.loadPage(
+            direction = PageDirection.Forward(firstPage.nextCursor!!),
+            loadSize = 2,
+            filter = Filter.eq("$.value", 1),
+        )
+        // Banana (value=2) is skipped by the filter; Date and Elderberry remain.
+        assertEquals(listOf("Date", "Elderberry"), secondPage.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage filter composes with syncStatus`() = runBlocking {
+        val (service, env) = createFilterServiceAndEnv()
+        // Seed a mix: c1 PENDING_CREATE (value=1), c2 SYNCED (value=1), c3 PENDING_CREATE (value=2).
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+        env.database.syncDataQueries.insertFromServerResponse(
+            service_name = "test-items",
+            client_id = "c2",
+            server_id = "server-c2",
+            version = "1",
+            last_synced_timestamp = "2024-01-01",
+            data_blob = json.encodeToString(
+                TestItem.serializer(),
+                testItem(clientId = "c2", serverId = "server-c2", name = "B", value = 1),
+            ),
+            sync_status = SyncableObject.SyncStatus.SYNCED,
+            last_synced_server_data = "{}",
+            paging_key = "B",
+        )
+        service.testCreate(testItem(clientId = "c3", name = "C", value = 2))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            syncStatus = SyncableObject.SyncStatus.PENDING_CREATE,
+            filter = Filter.eq("$.value", 1),
+        )
+
+        // Only c1 satisfies both PENDING_CREATE AND value=1.
+        assertEquals(listOf("A"), result.items.map { it.name })
+        service.close()
+    }
+
+    @Test
+    fun `loadPage filter no matches returns empty page with null cursor`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv()
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+
+        val result = service.loadPage(
+            loadSize = 10,
+            filter = Filter.eq("$.value", 999),
+        )
+
+        assertTrue(result.items.isEmpty())
+        assertEquals(null, result.nextCursor)
+        service.close()
+    }
+
+    @Test
+    fun `indexedJsonPaths creates SQLite expression indexes`() = runBlocking {
+        val (service, env) = createFilterServiceAndEnv(
+            indexedJsonPaths = listOf("$.value", "$.name"),
+        )
+        // Trigger lazy index creation by running any filter query.
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+        service.loadPage(loadSize = 1, filter = Filter.eq("$.value", 1))
+
+        val indexNames = env.databaseHandle.driver.executeQuery(
+            identifier = null,
+            sql = "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_test_items_%'",
+            mapper = { cursor ->
+                val names = mutableListOf<String>()
+                while (cursor.next().value) {
+                    names += cursor.getString(0)!!
+                }
+                app.cash.sqldelight.db.QueryResult.Value(names.toList())
+            },
+            parameters = 0,
+        ).value
+
+        assertTrue(indexNames.any { it.contains("value") }, "expected value index, got: $indexNames")
+        assertTrue(indexNames.any { it.contains("name") }, "expected name index, got: $indexNames")
+        service.close()
+    }
+
+    @Test
+    fun `indexedJsonPaths rejects malformed paths`() = runBlocking {
+        val (service, _) = createFilterServiceAndEnv(
+            indexedJsonPaths = listOf("not-a-valid-path"),
+        )
+        service.testCreate(testItem(clientId = "c1", name = "A", value = 1))
+
+        var threw = false
+        try {
+            service.loadPage(loadSize = 1, filter = Filter.eq("$.value", 1))
+        } catch (e: IllegalArgumentException) {
+            threw = true
+        }
+        assertTrue(threw)
         service.close()
     }
 

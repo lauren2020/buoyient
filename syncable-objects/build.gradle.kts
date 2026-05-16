@@ -114,6 +114,8 @@ sqldelight {
         create("SyncDatabase") {
             packageName.set("com.elvdev.buoyient.db")
             dialect(libs.sqldelight.dialect)
+            schemaOutputDirectory = file("src/commonMain/sqldelight/databases")
+            verifyMigrations = true
         }
     }
 }

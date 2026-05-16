@@ -29,6 +29,18 @@ dependencies {
 }
 ```
 
+### Paging (optional — Android only)
+
+Add this if you want Jetpack Paging 3 integration (`BuoyientPagingSource`). See [`docs/pagination.md`](pagination.md) for the full guide.
+
+```kotlin
+dependencies {
+    implementation("com.elvdev.buoyient:syncable-objects-paging:<version>")
+}
+```
+
+This artifact depends on `:syncable-objects` transitively — you do not need to declare both.
+
 ### Testing utilities
 
 ```kotlin
@@ -213,6 +225,7 @@ After adding dependencies and registering at least one service, verify everythin
 With the library set up, you're ready to build services:
 
 - **Create a service** — see `docs/creating-a-service.md` for the complete walkthrough of data models, request tags, server configs, and service classes
+- **Add pagination** — see `docs/pagination.md` for Jetpack Paging 3 integration with `BuoyientPagingSource`, filters, and performance indexes
 - **Write tests** — see `docs/integration-testing.md` for automated JVM tests using `TestServiceEnvironment`
 - **Set up mock mode** — see `docs/mock-mode.md` for running the app against fake responses without a real backend
 

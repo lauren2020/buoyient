@@ -490,6 +490,42 @@ val items: StateFlow<List<YourModel>> = yourModelService
 
 This eliminates the need for manual refresh calls after every operation.
 
+### Pagination
+
+For large datasets, use `loadPage()` for cursor-based pagination instead of loading everything at once. Override `pagingConfig` to control the paging key and sort order:
+
+```kotlin
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
+import com.elvdev.buoyient.serviceconfigs.SortOrder
+
+class YourModelService(...) : SyncableObjectService<YourModel, YourModelRequestTag>(...) {
+    override val pagingConfig = PagingConfig(
+        keyExtractor = { item -> item.createdAt },  // default: clientId
+        sortOrder = SortOrder.DESC,                  // default: DESC
+    )
+
+    // Declare indexes for fields you filter on frequently
+    override val indexedJsonPaths = listOf("$.status", "$.category")
+}
+```
+
+For **Jetpack Paging 3** on Android, use `BuoyientPagingSource` from the `:paging` module:
+
+```kotlin
+val pager = Pager(PagingConfig(pageSize = 20)) {
+    BuoyientPagingSource(yourModelService, filter = Filter.eq("$.status", "active"))
+}
+```
+
+For direct use without Paging 3, call `loadPage()` on the service:
+
+```kotlin
+val page = yourModelService.loadPage(loadSize = 20)  // PageDirection.FromHead by default
+// page.nextCursor is null when there are no more pages forward; page.prevCursor is null at the head
+```
+
+See [`docs/pagination.md`](pagination.md) for the complete guide including filter reference, dynamic filters, auto-refresh behavior, and performance indexing.
+
 ### Processing constraints
 
 Every `create()`, `update()`, and `void()` call accepts an optional `processingConstraints` parameter:

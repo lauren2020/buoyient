@@ -8,6 +8,7 @@ CREATE TABLE sync_data (
     sync_status TEXT NOT NULL,
     voided INTEGER NOT NULL DEFAULT 0,
     last_synced_server_data TEXT,
+    paging_key TEXT,
     PRIMARY KEY (service_name, client_id)
 );
 
@@ -17,25 +18,28 @@ CREATE INDEX idx_sync_data_service_server
 CREATE INDEX idx_sync_data_service_status_voided
     ON sync_data(service_name, sync_status, voided);
 
+CREATE INDEX idx_sync_data_paging_key
+    ON sync_data(service_name, paging_key);
+
 -- Insert a new locally-created row (pending upload).
 insertLocalData:
 INSERT INTO sync_data (
-    service_name, client_id, server_id, version, data_blob, sync_status
+    service_name, client_id, server_id, version, data_blob, sync_status, paging_key
 )
-VALUES (?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- Insert a row from a server create response (already synced).
 insertFromServerResponse:
 INSERT INTO sync_data (
     service_name, client_id, server_id, version,
-    last_synced_timestamp, data_blob, sync_status, last_synced_server_data
+    last_synced_timestamp, data_blob, sync_status, last_synced_server_data, paging_key
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- Update a local row's data and version (pending update).
 updateLocalData:
 UPDATE sync_data
-SET version = ?, data_blob = ?, sync_status = ?
+SET version = ?, data_blob = ?, sync_status = ?, paging_key = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Update a row from a server update response.
@@ -45,22 +49,24 @@ SET last_synced_timestamp = ?,
     version = ?,
     sync_status = ?,
     data_blob = ?,
-    last_synced_server_data = ?
+    last_synced_server_data = ?,
+    paging_key = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Insert-or-update a row from a sync-down fetch.
 upsertEntry:
 INSERT INTO sync_data (
     service_name, client_id, server_id, version,
-    last_synced_timestamp, data_blob, sync_status, last_synced_server_data
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    last_synced_timestamp, data_blob, sync_status, last_synced_server_data, paging_key
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(service_name, client_id) DO UPDATE SET
     server_id = excluded.server_id,
     version = excluded.version,
     last_synced_timestamp = excluded.last_synced_timestamp,
     data_blob = excluded.data_blob,
     sync_status = excluded.sync_status,
-    last_synced_server_data = excluded.last_synced_server_data;
+    last_synced_server_data = excluded.last_synced_server_data,
+    paging_key = excluded.paging_key;
 
 -- Mark a row as conflicting after a rebase conflict during pending request sync.
 markConflictAfterRebase:
@@ -86,7 +92,8 @@ SET voided = 1,
     version = ?,
     sync_status = ?,
     data_blob = ?,
-    last_synced_server_data = ?
+    last_synced_server_data = ?,
+    paging_key = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Void a local-only row (no server sync needed).
@@ -94,7 +101,8 @@ voidLocalOnly:
 UPDATE sync_data
 SET voided = 1,
     sync_status = ?,
-    data_blob = ?
+    data_blob = ?,
+    paging_key = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Update the main table after a successful CREATE or UPDATE upload.
@@ -105,7 +113,8 @@ SET server_id = ?,
     version = ?,
     sync_status = ?,
     data_blob = ?,
-    last_synced_server_data = ?
+    last_synced_server_data = ?,
+    paging_key = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Update the main table after a successful CREATE or UPDATE upload, without changing data_blob.
@@ -125,7 +134,8 @@ SET last_synced_timestamp = ?,
     sync_status = ?,
     data_blob = ?,
     last_synced_server_data = ?,
-    version = ?
+    version = ?,
+    paging_key = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Look up a single entry by client_id or server_id.
@@ -140,7 +150,8 @@ resolveConflict:
 UPDATE sync_data
 SET sync_status = ?,
     data_blob = ?,
-    server_id = ?
+    server_id = ?,
+    paging_key = ?
 WHERE service_name = ? AND client_id = ?;
 
 -- Look up the canonical client_id for a given server_id (prevents duplication when
@@ -184,4 +195,77 @@ getDataBySyncStatusExcludingVoided:
 SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
 FROM sync_data
 WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+LIMIT :limit;
+
+-- First page (ascending) — no cursor.
+getFirstPageAsc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND voided = 0
+ORDER BY paging_key ASC, client_id ASC
+LIMIT :limit;
+
+-- Subsequent page (ascending) — composite cursor (paging_key, client_id) tiebreaks
+-- on client_id so rows with identical paging keys are not skipped.
+getNextPageAsc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND voided = 0
+  AND (paging_key > :cursor_key
+       OR (paging_key = :cursor_key AND client_id > :cursor_client_id))
+ORDER BY paging_key ASC, client_id ASC
+LIMIT :limit;
+
+-- First page (descending) — no cursor.
+getFirstPageDesc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND voided = 0
+ORDER BY paging_key DESC, client_id DESC
+LIMIT :limit;
+
+-- Subsequent page (descending) — composite cursor.
+getNextPageDesc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND voided = 0
+  AND (paging_key < :cursor_key
+       OR (paging_key = :cursor_key AND client_id < :cursor_client_id))
+ORDER BY paging_key DESC, client_id DESC
+LIMIT :limit;
+
+-- First page (ascending) filtered by sync_status.
+getFirstPageBySyncStatusAsc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+ORDER BY paging_key ASC, client_id ASC
+LIMIT :limit;
+
+-- Subsequent page (ascending) filtered by sync_status.
+getNextPageBySyncStatusAsc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+  AND (paging_key > :cursor_key
+       OR (paging_key = :cursor_key AND client_id > :cursor_client_id))
+ORDER BY paging_key ASC, client_id ASC
+LIMIT :limit;
+
+-- First page (descending) filtered by sync_status.
+getFirstPageBySyncStatusDesc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+ORDER BY paging_key DESC, client_id DESC
+LIMIT :limit;
+
+-- Subsequent page (descending) filtered by sync_status.
+getNextPageBySyncStatusDesc:
+SELECT data_blob, sync_status, last_synced_timestamp, client_id, last_synced_server_data
+FROM sync_data
+WHERE service_name = :service_name AND sync_status = :sync_status AND voided = 0
+  AND (paging_key < :cursor_key
+       OR (paging_key = :cursor_key AND client_id < :cursor_client_id))
+ORDER BY paging_key DESC, client_id DESC
 LIMIT :limit;

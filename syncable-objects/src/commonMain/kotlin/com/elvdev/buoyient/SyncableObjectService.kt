@@ -7,6 +7,7 @@ import com.elvdev.buoyient.managers.ServerManager
 import com.elvdev.buoyient.managers.createPlatformBackgroundRequestScheduler
 import com.elvdev.buoyient.serviceconfigs.ConnectivityChecker
 import com.elvdev.buoyient.serviceconfigs.EncryptionProvider
+import com.elvdev.buoyient.serviceconfigs.PagingConfig
 import com.elvdev.buoyient.serviceconfigs.PendingRequestQueueStrategy
 import com.elvdev.buoyient.serviceconfigs.ServerProcessingConfig
 import com.elvdev.buoyient.serviceconfigs.SyncableObjectRebaseHandler
@@ -14,8 +15,12 @@ import com.elvdev.buoyient.serviceconfigs.createPlatformConnectivityChecker
 import com.elvdev.buoyient.sync.SyncDriver
 import com.elvdev.buoyient.sync.createPlatformSyncScheduleNotifier
 import com.elvdev.buoyient.datatypes.CreateRequestBuilder
+import com.elvdev.buoyient.datatypes.Filter
 import com.elvdev.buoyient.datatypes.GetResponse
 import com.elvdev.buoyient.datatypes.HttpRequest
+import com.elvdev.buoyient.datatypes.PageCursor
+import com.elvdev.buoyient.datatypes.PageDirection
+import com.elvdev.buoyient.datatypes.PageResult
 import com.elvdev.buoyient.datatypes.ResolveConflictResult
 import com.elvdev.buoyient.datatypes.ResponseUnpacker
 import com.elvdev.buoyient.datatypes.SyncableObjectServiceRequestState
@@ -69,6 +74,26 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
     protected val rebaseHandler: SyncableObjectRebaseHandler<O> = SyncableObjectRebaseHandler(
         SyncCodec(serializer)
     ),
+    /**
+     * Configures keyset cursor pagination via [loadPage]. Defaults to a clientId-based
+     * extractor and DESC sort, so pagination works out of the box for any service —
+     * pages are returned in reverse-clientId order. Override with a custom
+     * [PagingConfig] when you want to page by a different field (e.g. a server-assigned
+     * `created_at` timestamp).
+     */
+    public val pagingConfig: PagingConfig<O> = PagingConfig(keyExtractor = { it.clientId }),
+    /**
+     * JSON paths into `data_blob` that the library will back with SQLite expression
+     * indexes for fast `loadPage(filter = ...)` queries.
+     *
+     * Format: SQLite JSON path syntax — `$.field`, `$.nested.field`, `$.array[0]`.
+     * Indexes are created lazily on the first filter query and named after the
+     * service + path. Filtering on un-indexed paths still works, just falls back
+     * to a full table scan.
+     *
+     * Example: `indexedJsonPaths = listOf("$.status", "$.created_at")`.
+     */
+    public val indexedJsonPaths: List<String> = emptyList(),
 ) : Service<O> {
 
     private val codec: SyncCodec<O> = SyncCodec(serializer)
@@ -89,6 +114,8 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         syncScheduleNotifier = createPlatformSyncScheduleNotifier(),
         encryptionProvider = encryptionProvider,
         queueStrategy = queueStrategy,
+        pagingConfig = pagingConfig,
+        indexedJsonPaths = indexedJsonPaths,
     )
 
     private val backgroundRequestScheduler: BackgroundRequestScheduler =
@@ -952,6 +979,113 @@ public abstract class SyncableObjectService<O : SyncableObject<O>, T : ServiceRe
         limit: Int = 100,
     ): Flow<List<O>> =
         getAllFromLocalStoreAsFlow(limit).map { items -> items.filter(predicate) }
+
+    /**
+     * Returns a page of [O] items from the local store using keyset cursor pagination,
+     * ordered per the service's [pagingConfig].
+     *
+     * Pass [direction] = [PageDirection.FromHead] to fetch the first page. For each
+     * subsequent page in the forward direction, pass
+     * `PageDirection.Forward(previousPage.nextCursor)`. To page backward from a known
+     * cursor, pass `PageDirection.Backward(cursor)`. When [PageResult.nextCursor] is
+     * `null` there are no more pages forward; when [PageResult.prevCursor] is `null`
+     * there are no more pages backward. This is the data-fetching primitive that
+     * [androidx.paging.PagingSource] implementations delegate to.
+     *
+     * Items are always returned in the configured sort order, regardless of [direction].
+     *
+     * Requires [pagingConfig] to be configured on this service; throws
+     * [IllegalStateException] otherwise.
+     *
+     * **Filtering.** Pass [filter] to restrict the page to rows whose `data_blob`
+     * matches a [Filter] predicate. Filters compose with cursor pagination, sort
+     * order, and [syncStatus]. Filter queries drop to dynamic SQL via the underlying
+     * driver, so they additionally require a driver to be available — set one via
+     * [com.elvdev.buoyient.globalconfigs.Buoyient.databaseHandle] or
+     * [com.elvdev.buoyient.globalconfigs.DatabaseOverride.driver]. Declare hot
+     * filter paths via [indexedJsonPaths] to avoid full table scans.
+     *
+     * **Sort direction.** Defaults to the service's configured
+     * [PagingConfig.sortOrder], but can be overridden per call via [sortOrder]. This
+     * is useful for UIs that let the user toggle "newest first" vs "oldest first"
+     * without reconstructing the service. The cursor predicate flips with the
+     * direction (the eight prepared queries already cover both), so there's no
+     * additional cost.
+     *
+     * **Cursor compatibility.** A [PageCursor] returned from a load in one
+     * `sortOrder` is *not* meaningful when reused with the opposite direction —
+     * the cursor predicate flips and you'd get the wrong slice. When the user
+     * toggles direction, reset back to [PageDirection.FromHead] (the canonical
+     * pattern is to reconstruct the `BuoyientPagingSource` / `BuoyientPagedList`).
+     *
+     * @param direction which page to load relative to a cursor (see [PageDirection]).
+     *   Defaults to [PageDirection.FromHead].
+     * @param loadSize number of rows to return.
+     * @param syncStatus if non-null, only rows with this sync status are returned.
+     * @param filter optional predicate over `data_blob` (see [Filter]).
+     * @param sortOrder ASC or DESC. Defaults to [PagingConfig.sortOrder] on the
+     *   service.
+     */
+    public fun loadPage(
+        direction: PageDirection = PageDirection.FromHead,
+        loadSize: Int,
+        syncStatus: String? = null,
+        filter: Filter? = null,
+        sortOrder: PagingConfig.SortOrder = pagingConfig.sortOrder,
+    ): PageResult<O> {
+        val entries = if (filter == null) {
+            localStoreManager.getPage(
+                direction = direction,
+                limit = loadSize,
+                syncStatus = syncStatus,
+                sortOrder = sortOrder,
+            )
+        } else {
+            localStoreManager.getPageWithFilter(
+                direction = direction,
+                limit = loadSize,
+                syncStatus = syncStatus,
+                filter = filter,
+                sortOrder = sortOrder,
+            )
+        }
+        val items = entries.map { it.data }
+        if (items.isEmpty()) {
+            return PageResult(items = items, nextCursor = null, prevCursor = null)
+        }
+        val hitBoundary = items.size < loadSize
+        fun cursorOf(o: O) = PageCursor(key = pagingConfig.keyExtractor(o), clientId = o.clientId)
+        // A short page in the same direction means we ran out of rows on that side.
+        // Loads of any direction always have rows on the side opposite to the one
+        // they're moving toward (the boundary cursor itself, plus anything past it) —
+        // except FromHead, which by definition has nothing before its first row.
+        val nextCursor = when {
+            direction is PageDirection.Backward -> cursorOf(items.last())
+            hitBoundary -> null
+            else -> cursorOf(items.last())
+        }
+        val prevCursor = when {
+            direction is PageDirection.FromHead -> null
+            direction is PageDirection.Backward && hitBoundary -> null
+            else -> cursorOf(items.first())
+        }
+        return PageResult(items = items, nextCursor = nextCursor, prevCursor = prevCursor)
+    }
+
+    /**
+     * Hot, conflated [Flow] that emits a `Unit` tick whenever this service's local store is
+     * written — sync-down inserts, sync-up merges, local create/update/void, and conflict
+     * resolution. Use this to react to data changes without re-querying on every emission;
+     * each tick only signals *that* something changed, not what.
+     *
+     * Primary use case: drive an `invalidate()` on a paged list (e.g. via the
+     * `autoRefreshOnLocalStoreChange` flag on `BuoyientPagingSource`) so newly synced rows
+     * appear automatically. Pair-able with `loadPage` to refresh only the visible window.
+     *
+     * The flow is backed by a `MutableSharedFlow` with `replay = 0` and capacity 1 with
+     * `DROP_OLDEST` semantics — bursts of writes coalesce into a single observable tick.
+     */
+    public val localStoreChanges: Flow<Unit> get() = localStoreManager.localStoreChanges
 
     /**
      * Fires a background HTTP request to void a previous server request by its idempotency key.

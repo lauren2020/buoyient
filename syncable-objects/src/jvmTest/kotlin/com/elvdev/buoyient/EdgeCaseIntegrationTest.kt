@@ -629,6 +629,7 @@ class EdgeCaseIntegrationTest {
             version = "1",
             data_blob = json.encodeToString(TestItem.serializer(), item),
             sync_status = SyncableObject.SyncStatus.PENDING_CREATE,
+            paging_key = null,
         )
 
         // Queue CREATE with serverAttemptMade = true (timed out).

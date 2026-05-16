@@ -22,6 +22,7 @@ For an interactive walkthrough covering why buoyient, how it works, and setup gu
 | [`docs/setup.md`](docs/setup.md) | Adding buoyient to an **Android** app: dependencies, initialization, service registration. **Start here for Android.** |
 | [`docs/setup-ios.md`](docs/setup-ios.md) | Adding buoyient to an **iOS/SwiftUI** app: SPM/XCFramework, initialization, background sync. **Start here for iOS.** |
 | [`docs/creating-a-service.md`](docs/creating-a-service.md) | Creating a `SyncableObjectService`: data model, `ServerProcessingConfig`, service class, registration. |
+| [`docs/pagination.md`](docs/pagination.md) | Paginated lists with Jetpack Paging 3 (`BuoyientPagingSource`), `Filter` predicates, and performance indexes. |
 | [`docs/integration-testing.md`](docs/integration-testing.md) | Automated tests with `TestServiceEnvironment`, `MockEndpointRouter`, and the `:testing` module. |
 | [`docs/mock-mode.md`](docs/mock-mode.md) | Runtime mock mode for manual testing without a real backend. |
 
@@ -50,6 +51,7 @@ Full walkthrough with templates: [`docs/creating-a-service.md`](docs/creating-a-
 |--------|----------|---------|
 | `:syncable-objects` | `com.elvdev.buoyient:syncable-objects` | Core sync engine (KMP: Android, iOS, JVM) |
 | `:hilt` | `com.elvdev.buoyient:syncable-objects-hilt` | Optional Hilt integration — auto-registers services via `@IntoSet` multibinding (Android only) |
+| `:paging` | `com.elvdev.buoyient:syncable-objects-paging` | Optional Jetpack Paging 3 integration — `BuoyientPagingSource` for paginated local-store queries (Android only) |
 | `:mock-infra` | `com.elvdev.buoyient:syncable-objects-mock-infra` | Shared mock infrastructure — mock HTTP routing, stateful server store, test doubles (KMP) |
 | `:mock-mode` | `com.elvdev.buoyient:syncable-objects-mock-mode` | Mock mode builder for running apps against fake server responses (KMP) |
 | `:testing` | `com.elvdev.buoyient:syncable-objects-testing` | Test utilities — in-memory DB, test harness, sync helpers (KMP) |
@@ -62,9 +64,10 @@ Full walkthrough with templates: [`docs/creating-a-service.md`](docs/creating-a-
 |---------|---------|
 | `com.elvdev.buoyient` (top level) | Primary classes: `SyncableObject`, `SyncableObjectService`, `ServiceRequestTag`, `Service` |
 | `com.elvdev.buoyient.globalconfigs` | Project-level config: `Buoyient`, `GlobalHeaderProvider`, `DatabaseProvider`, `HttpClientOverride`, `DatabaseOverride` |
-| `com.elvdev.buoyient.serviceconfigs` | Per-service config: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler` |
-| `com.elvdev.buoyient.datatypes` | Data types: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger` |
+| `com.elvdev.buoyient.serviceconfigs` | Per-service config: `ServerProcessingConfig`, `SyncFetchConfig`, `SyncUpConfig`, `SyncUpResult`, `ConnectivityChecker`, `EncryptionProvider`, `PendingRequestQueueStrategy`, `SyncableObjectRebaseHandler`, `PagingConfig`, `SortOrder` |
+| `com.elvdev.buoyient.datatypes` | Data types: `HttpRequest`, `SyncableObjectServiceResponse`, `SyncableObjectServiceRequestState`, `GetResponse`, `ResolveConflictResult`, `CreateRequestBuilder`, `UpdateRequestBuilder`, `VoidRequestBuilder`, `ResponseUnpacker`, `SquashRequestMerger`, `PageCursor`, `PageResult`, `Filter` |
 | `com.elvdev.buoyient.utils` | Utilities: `SyncCodec`, `BuoyientLog`, `BuoyientLogger` |
+| `com.elvdev.buoyient.paging` (`:paging` module) | Jetpack Paging 3 adapter: `BuoyientPagingSource` |
 
 Internal packages (`managers`, `sync`) are not part of the public API.
 
@@ -90,6 +93,11 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `SyncableObjectServiceRequestState<O>` | Sealed state for flow-based operations: `Loading` or `Result(response)` |
 | `CreateRequestBuilder` / `UpdateRequestBuilder` / `VoidRequestBuilder` | Functional interfaces for building requests |
 | `ResponseUnpacker` | Functional interface for extracting objects from server responses |
+| `PagingConfig<O>` | Per-service pagination settings: `keyExtractor` (field to page by, default `clientId`) and `sortOrder` (`ASC`/`DESC`, default `DESC`) |
+| `PageCursor` | Opaque keyset cursor — pass `null` for the first page, then forward `nextCursor` from each `PageResult` |
+| `PageResult<O>` | One page of results: `items: List<O>` and `nextCursor: PageCursor?` (`null` = no more pages) |
+| `Filter` | Sealed predicate for filtered queries — factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `like`, `isNull`, `isNotNull`, `and`, `or`, `not` |
+| `BuoyientPagingSource<O, T>` | `PagingSource<PageCursor, O>` for Jetpack Paging 3 — wraps `loadPage()` with optional filter, sync-status constraint, and auto-refresh on local store changes |
 
 ### Service operations
 
@@ -103,6 +111,7 @@ Internal packages (`managers`, `sync`) are not part of the public API.
 | `getFromLocalStore(syncStatus, includeVoided, limit)` | SQL-level filter by sync status / voided flag |
 | `getFromLocalStore(predicate, limit)` | In-memory filter via lambda |
 | All `get` methods have `AsFlow` variants | Observe changes reactively |
+| `loadPage(direction, loadSize, syncStatus, filter)` | Load one page of results using keyset cursor pagination — `direction` is a `PageDirection` (`FromHead`, `Forward(cursor)`, or `Backward(cursor)`). Use with `BuoyientPagingSource` or directly |
 | `syncDownFromServer()` | Trigger sync-down for this service |
 | `Buoyient.syncNow(completion?)` | Trigger immediate sync-up pass across all services |
 
@@ -247,6 +256,7 @@ See [`docs/setup-ios.md`](docs/setup-ios.md) for the complete iOS setup guide.
 ```bash
 ./gradlew :syncable-objects:build
 ./gradlew :hilt:build
+./gradlew :paging:build
 ./gradlew :testing:build
 ```
 
@@ -270,5 +280,6 @@ Publish to local Maven:
 ```bash
 ./gradlew :syncable-objects:publishToMavenLocal
 ./gradlew :hilt:publishToMavenLocal
+./gradlew :paging:publishToMavenLocal
 ./gradlew :testing:publishToMavenLocal
 ```

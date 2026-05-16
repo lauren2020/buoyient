@@ -1,0 +1,126 @@
+plugins {
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
+    id("maven-publish")
+    id("signing")
+    alias(libs.plugins.nmcp)
+}
+
+group = property("GROUP") as String
+version = property("VERSION_NAME") as String
+
+kotlin {
+    explicitApi()
+}
+
+android {
+    namespace = "com.elvdev.buoyient.paging"
+    compileSdk = libs.versions.compileSdk.get().toInt()
+
+    defaultConfig {
+        minSdk = libs.versions.minSdk.get().toInt()
+        consumerProguardFiles("consumer-rules.pro")
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
+    }
+
+    buildFeatures {
+        // Enabled only so test source sets can declare @Composable functions —
+        // there's no production Compose code in this module.
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
+    }
+}
+
+dependencies {
+    implementation(project(":syncable-objects"))
+    implementation(libs.androidx.paging.runtime)
+
+    // Compose compiler plugin scans the main source set for Compose runtime even
+    // though no production code uses @Composable. compileOnly satisfies that
+    // classpath check without bundling Compose into the published artifact.
+    compileOnly(platform(libs.androidx.compose.bom))
+    compileOnly(libs.androidx.compose.runtime)
+
+    testImplementation(project(":testing"))
+    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.work.testing)
+
+    // Compose + paging-compose for the sample composable and its tests.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.foundation)
+    testImplementation(libs.androidx.compose.ui)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(libs.androidx.activity.compose)
+    testImplementation(libs.androidx.paging.compose)
+}
+
+val javadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
+}
+
+afterEvaluate {
+    signing {
+        isRequired = !version.toString().endsWith("SNAPSHOT")
+        val signingKey = findProperty("signingKey") as? String
+        val signingPassword = findProperty("signingPassword") as? String
+        if (signingKey != null && signingPassword != null) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+        }
+        sign(publishing.publications)
+    }
+
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"])
+                artifact(javadocJar)
+                artifactId = "syncable-objects-paging"
+                pom {
+                    name.set("syncable-objects-paging")
+                    description.set("Optional androidx.paging integration for syncable-objects: provides BuoyientPagingSource for keyset-cursor pagination from the local store.")
+                    url.set("https://github.com/lauren2020/buoyient")
+                    licenses {
+                        license {
+                            name.set("The Apache License, Version 2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                        }
+                    }
+                    developers {
+                        developer {
+                            id.set("lauren2020")
+                            name.set("Lauren Shultz")
+                            email.set("lauren@elizabethvaildev.com")
+                        }
+                    }
+                    scm {
+                        connection.set("scm:git:git://github.com/lauren2020/buoyient.git")
+                        developerConnection.set("scm:git:ssh://github.com:lauren2020/buoyient.git")
+                        url.set("https://github.com/lauren2020/buoyient")
+                    }
+                }
+            }
+        }
+    }
+}
